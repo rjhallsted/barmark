@@ -1,6 +1,6 @@
 
 
-C_FILES= main.c lex.c util.c
+C_FILES= main.c lex.c util.c symbols.c
 
 build:
 	@cc -o barmark $(C_FILES)

@@ -1,43 +1,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "lex.h"
 #include "symbols.h"
 #include "util.h"
 
-// TODO: Change this to a lookup table at some point for O(symbols) ops instead of 0(strlen * symbols)
-int find_symbol_id(char * item) {
-    if (strcmp(item, "#") == 0) {
-        return BASE_SYMBOL_H1_ID;
-    } else if (strcmp(item, " ") == 0) {
-        return BASE_SYMBOL_SPACE_ID;
-    } else if (strcmp(item, "\n") == 0) {
-        return BASE_SYBMOL_NL_ID;
-    } else {
-        return BASE_SYBMOL_TEXT_ID;
-    }
-}
-
-Symbol newSymbol(int token_id, char* contents) {
-    Symbol sym = {token_id, strdup(contents)};
-    return sym;
-}
-
-Symbol nullSymbol() {
-    return newSymbol(BASE_SYMBOL_NULL_ID, "");
-}
-
-Symbol* handle_line(char* line, size_t len, size_t *num_sybmols) {
-    line = addNullTerm(line, len);
+Symbol* handle_line(char* line, size_t *num_sybmols) {
     char *token, *toFree;
     Symbol *symbols = NULL;
     
     *num_sybmols = 0; 
     toFree = line;
-    while ((token = strsep(&line, " ")) != NULL) {
+    while ((token = strsep(&line, " ")) != NULL && token[0] != '\0') {
         char* newLineLoc = strchr(token, '\n');
         int trailingSpace = line != NULL;
-        if (newLineLoc) {
+        if (newLineLoc == token) { // have new line but no other token, token and newLineLoc are the same
+            symbols = realloc(symbols, sizeof(Symbol) * (*num_sybmols + 1));
+            symbols[*num_sybmols] = newSymbol(BASE_SYBMOL_NL_ID, token);
+            *num_sybmols += 1;
+        } else if (newLineLoc) { // have new line and some meaningful token
             symbols = realloc(symbols, sizeof(Symbol) * (*num_sybmols + 2));
             *newLineLoc = '\0';
             symbols[*num_sybmols] = newSymbol(find_symbol_id(token), token);
@@ -58,24 +40,33 @@ Symbol* handle_line(char* line, size_t len, size_t *num_sybmols) {
     return symbols;
 }
 
+Symbol* concat(Symbol* a, Symbol* b, size_t aSize, size_t bSize) {
+    a = realloc(a, sizeof(Symbol) * (aSize + bSize + 1));
+    for (size_t i = 0; i < bSize; i++) {
+        a[aSize+i] = b[i];
+    }
+    a[aSize + bSize] = nullSymbol();
+    return a;
+}
+
 Symbol* lex(FILE* fd) {
+    size_t symbol_count = 0;
+    size_t *read_symbols = malloc(sizeof(size_t));
+    char *line;
     Symbol* allSymbols = malloc(sizeof(Symbol) * 1);
     allSymbols[0] = nullSymbol();
-    size_t symbol_count = 0;
 
-    size_t *len;
-    char *line;
-    size_t *read_symbols = malloc(sizeof(size_t));
     while (!feof(fd)) {
-        line = fgetln(fd, len);
-        Symbol* symbols = handle_line(line, *len, read_symbols); //line is freed by handle_line
-        //copy symbol pointers to our all sybmols array
-        allSymbols = realloc(allSymbols, sizeof(Symbol) * (symbol_count + *read_symbols + 1));
-        for (size_t i = 0; i < *read_symbols; i++) {
-            allSymbols[symbol_count+i] = symbols[i];
+        if (ferror(fd)) {
+            printf("File reading error. Errno: %d\n", errno);
+            exit(EXIT_FAILURE);
         }
+
+        line = barmarkGetLine(fd);
+        Symbol* symbols = handle_line(line, read_symbols); //line is freed by handle_line
+        //copy symbol pointers to our all sybmols array
+        allSymbols = concat(allSymbols, symbols, symbol_count, *read_symbols);
         symbol_count += *read_symbols;
-        allSymbols[symbol_count] = nullSymbol();
         free(symbols); //free tmp symbol pointer array
     }
     free(read_symbols);
