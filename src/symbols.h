@@ -14,18 +14,20 @@ enum BASE_SYMBOL_IDS {
     BASE_SYMBOL_H1_ID = 1,
     BASE_SYMBOL_H2_ID = 2,
     BASE_SYMBOL_SPACE_ID = 3,
-    BASE_SYBMOL_NL_ID = 4,
+    BASE_SYMBOL_TAB_ID = 4,
+    BASE_SYBMOL_NL_ID = 5,
     /* Does not have constants */
-    BASE_SYMBOL_NO_MORE_CONSTANTS = 5,
-    BASE_SYBMOL_TEXT_ID = 6
+    BASE_SYMBOL_NO_MORE_CONSTANTS = 6,
+    BASE_SYBMOL_TEXT_ID = 7
 };
 
-static const BaseSymbol BASE_SYMBOLS[7] = {
+static const BaseSymbol BASE_SYMBOLS[8] = {
     /* Has Constants */
     {"null", BASE_SYMBOL_NULL_ID, 1, ""},
     {"H1", BASE_SYMBOL_H1_ID, 1, "#"},
     {"H2", BASE_SYMBOL_H2_ID, 1, "##"},
     {"space", BASE_SYMBOL_SPACE_ID, 1, " "},
+    {"tab", BASE_SYMBOL_TAB_ID, 1, "\t"},
     {"newline", BASE_SYBMOL_NL_ID, 1, "\n"},
     /* Does not have constants */
     {"special_no_more_constants", BASE_SYMBOL_NO_MORE_CONSTANTS, 0, NULL},

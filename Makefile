@@ -22,7 +22,7 @@ $(NAME): $(OBJS) $(MAIN).o
 clean:
 	rm $(OBJS)
 
-re: fclean all
+re: clean all
 
 run: $(NAME)
 	@./$(NAME) test_files/basic.md

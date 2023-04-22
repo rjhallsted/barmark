@@ -19,7 +19,10 @@ void printSybmols(Symbol* symbols) {
     }
 }
 
+// TODO: Need to be able to handle UTF-8 characters.
+
 int main(int argc, char **argv) {
+    printf("%d\n", '→');
 
     // char *line = NULL;
     // size_t len = 0;
@@ -27,14 +30,14 @@ int main(int argc, char **argv) {
     // line_size = getline(&line, &len, stdin);
     // printf("line: %s\n", line);
 
-    FILE* fd;
+    // FILE* fd;
 
-    if (argc > 1) {
-        fd = openFile(argv[1]);
-    } else {
-        fd = stdin;
-    }
-    Symbol* symbols = lex(fd);
-    printSybmols(symbols);
+    // if (argc > 1) {
+    //     fd = openFile(argv[1]);
+    // } else {
+    //     fd = stdin;
+    // }
+    // Symbol* symbols = lex(fd);
+    // printSybmols(symbols);
     return 0;
 }

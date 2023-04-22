@@ -13,7 +13,6 @@ Symbol* handle_line(char* line, size_t *num_sybmols) {
     local_line = line;
     *num_sybmols = 0;
     while ((token = strsep(&local_line, " ")) != NULL && token[0] != '\0') {
-        printf("token: %s\n", token);
         char* newLineLoc = strchr(token, '\n');
         int trailingSpace = line != NULL;
         if (newLineLoc == token) { // have new line but no other token, token and newLineLoc are the same
