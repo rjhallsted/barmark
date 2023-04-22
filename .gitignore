@@ -3,3 +3,4 @@ barmark_test
 *.o
 .vscode/
 .metals/
+.vscode/
