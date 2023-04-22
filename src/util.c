@@ -17,3 +17,12 @@ char* barmarkGetLine(FILE *fd) {
     free(len);
     return line;
 }
+
+FILE* openFile(char *path) {
+    FILE* fd = fopen(path, "r");
+    if (fd == NULL) {
+        printf("Error opening file: '%s'\n", path);
+        exit(EXIT_FAILURE);
+    }
+    return fd;
+}

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "symbols.h"
 #include "lex.h"
+#include "util.h"
 
 
 void showUsage(char* errorMessage) {
@@ -16,15 +17,6 @@ void printSybmols(Symbol* symbols) {
         printf("%s: '%s'\n", symbolName, symbols[i].contents);
         i++;
     }
-}
-
-FILE* openFile(char *path) {
-    FILE* fd = fopen(path, "r");
-    if (fd == NULL) {
-        printf("Error opening file: '%s'\n", path);
-        exit(EXIT_FAILURE);
-    }
-    return fd;
 }
 
 int main(int argc, char **argv) {
