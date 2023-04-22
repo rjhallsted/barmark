@@ -3,4 +3,4 @@
 
 void symbolsTests(void);
 
-#endif // SYMBOLS_TEST_H
+#endif  // SYMBOLS_TEST_H
