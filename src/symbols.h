@@ -1,11 +1,12 @@
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
+/* Base Symbol lookup stuff */
 typedef struct {
     char *name;
-    int id;
-    int hasConst;
+    unsigned int id;
     char *constant;
+    char *lookAheadTerminators;
 } BaseSymbol;
 
 enum BASE_SYMBOL_IDS {
@@ -18,29 +19,44 @@ enum BASE_SYMBOL_IDS {
     BASE_SYBMOL_NL_ID = 5,
     /* Does not have constants */
     BASE_SYMBOL_NO_MORE_CONSTANTS = 6,
-    BASE_SYBMOL_TEXT_ID = 7
+    BASE_SYMBOL_TEXT_ID = 7
 };
 
-static const BaseSymbol BASE_SYMBOLS[8] = {
+#define BASE_SYMBOL_COUNT 8
+
+static const BaseSymbol BASE_SYMBOLS[BASE_SYMBOL_COUNT] = {
     /* Has Constants */
-    {"null", BASE_SYMBOL_NULL_ID, 1, ""},
-    {"H1", BASE_SYMBOL_H1_ID, 1, "#"},
-    {"H2", BASE_SYMBOL_H2_ID, 1, "##"},
-    {"space", BASE_SYMBOL_SPACE_ID, 1, " "},
-    {"tab", BASE_SYMBOL_TAB_ID, 1, "\t"},
-    {"newline", BASE_SYBMOL_NL_ID, 1, "\n"},
+    {"null", BASE_SYMBOL_NULL_ID, "", NULL},
+    {"H1", BASE_SYMBOL_H1_ID, "#", NULL},
+    {"H2", BASE_SYMBOL_H2_ID, "##", NULL},
+    {"space", BASE_SYMBOL_SPACE_ID, " ", NULL},
+    {"tab", BASE_SYMBOL_TAB_ID, "\t", NULL},
+    {"newline", BASE_SYBMOL_NL_ID, "\n", NULL},
     /* Does not have constants */
-    {"special_no_more_constants", BASE_SYMBOL_NO_MORE_CONSTANTS, 0, NULL},
-    {"text", BASE_SYBMOL_TEXT_ID, 0, NULL},
+    {"special_no_more_constants", BASE_SYMBOL_NO_MORE_CONSTANTS, NULL, NULL},
+    {"text", BASE_SYMBOL_TEXT_ID, NULL, " \t\n"}, // NOTE: Add more terminators as I add symbols
 };
 
+/* Symbol Tree stuff */
+typedef struct SymbolTreeItem {
+    char c;
+    const BaseSymbol *symbol;
+    struct SymbolTreeItem **children;
+    size_t children_count;
+} SymbolTreeItem;
+
+SymbolTreeItem* buildSymbolTree();
+void freeSymbolTree(SymbolTreeItem *root);
+
+/* Symbol lookup stuff */
 typedef struct {
-    int base_symbol_id;
+    const BaseSymbol *base;
     char *contents;
 } Symbol;
 
-int find_symbol_id(char * item);
-Symbol newSymbol(int token_id, char* contents);
+char* lookupBaseSymbol(SymbolTreeItem *tree, char *input, const BaseSymbol** symbol, char **contents);
+Symbol newSymbol(const BaseSymbol* base, char* contents);
 Symbol nullSymbol();
+
 
 #endif // SYMBOLS_H
