@@ -4,15 +4,17 @@
 #include "lex.h"
 #include "util.h"
 
-
-void showUsage(char* errorMessage) {
-    const char* usageText = "\t./barmark <filename>";
+void showUsage(char *errorMessage)
+{
+    const char *usageText = "\t./barmark <filename>";
     printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
-void printSybmols(Symbol* symbols) {
+void printSybmols(Symbol *symbols)
+{
     size_t i = 0;
-    while(symbols[i].base->id != BASE_SYMBOL_NULL_ID) {
+    while (symbols[i].base->id != BASE_SYMBOL_NULL_ID)
+    {
         printf("i: %zu\n", i);
         char *symbolName = symbols[i].base->name;
         printf("%s: '%s'\n", symbolName, symbols[i].contents);
@@ -20,15 +22,19 @@ void printSybmols(Symbol* symbols) {
     }
 }
 
-int main(int argc, char **argv) {
-    FILE* fd;
+int main(int argc, char **argv)
+{
+    FILE *fd;
 
-    if (argc > 1) {
+    if (argc > 1)
+    {
         fd = openFile(argv[1]);
-    } else {
+    }
+    else
+    {
         fd = stdin;
     }
-    Symbol* symbols = lex(fd);
+    Symbol *symbols = lex(fd);
     printSybmols(symbols);
     return 0;
 }

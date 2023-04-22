@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "symbols.h"
 
-Symbol* lex(FILE* fd);
-
+Symbol *lex(FILE *fd);
 
 #endif // LEX_H

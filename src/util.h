@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-FILE* openFile(char *path);
-
+FILE *openFile(char *path);
 
 #endif // UTIL_H

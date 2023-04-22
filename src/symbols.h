@@ -2,14 +2,16 @@
 #define SYMBOLS_H
 
 /* Base Symbol lookup stuff */
-typedef struct {
+typedef struct
+{
     char *name;
     unsigned int id;
     char *constant;
     char *lookAheadTerminators;
 } BaseSymbol;
 
-enum BASE_SYMBOL_IDS {
+enum BASE_SYMBOL_IDS
+{
     /* Has constants */
     BASE_SYMBOL_NULL_ID = 0,
     BASE_SYMBOL_H1_ID = 1,
@@ -35,18 +37,20 @@ static const BaseSymbol BASE_SYMBOLS[BASE_SYMBOL_COUNT] = {
 };
 
 /* Symbol Tree stuff */
-typedef struct SymbolTreeItem {
+typedef struct SymbolTreeItem
+{
     char c;
     const BaseSymbol *symbol;
     struct SymbolTreeItem **children;
     size_t children_count;
 } SymbolTreeItem;
 
-SymbolTreeItem* buildSymbolTree(void);
+SymbolTreeItem *buildSymbolTree(void);
 void freeSymbolTree(SymbolTreeItem *root);
 
 /* Symbol lookup stuff */
-typedef struct {
+typedef struct
+{
     const BaseSymbol *base;
     char *contents;
 } Symbol;
@@ -54,6 +58,5 @@ typedef struct {
 const char *lookupBaseSymbol(SymbolTreeItem *tree, const char *input, const BaseSymbol **symbol, char **contents);
 Symbol newSymbol(const BaseSymbol *base, char *contents);
 Symbol nullSymbol(void);
-
 
 #endif // SYMBOLS_H
