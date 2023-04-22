@@ -11,7 +11,7 @@
 ///////////////////////////////
 
 
-SymbolTreeItem* newSymbolTreeItem(char c, const BaseSymbol* symbol) {
+SymbolTreeItem* newSymbolTreeItem(char c, const BaseSymbol *symbol) {
     SymbolTreeItem *item = malloc(sizeof(SymbolTreeItem));
     item->c = c;
     item->symbol = symbol;

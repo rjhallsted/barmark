@@ -18,11 +18,10 @@ enum BASE_SYMBOL_IDS {
     BASE_SYMBOL_TAB_ID = 4,
     BASE_SYBMOL_NL_ID = 5,
     /* Does not have constants */
-    BASE_SYMBOL_NO_MORE_CONSTANTS = 6,
-    BASE_SYMBOL_TEXT_ID = 7
+    BASE_SYMBOL_TEXT_ID = 6
 };
 
-#define BASE_SYMBOL_COUNT 8
+#define BASE_SYMBOL_COUNT 7
 
 static const BaseSymbol BASE_SYMBOLS[BASE_SYMBOL_COUNT] = {
     /* Has Constants */
@@ -32,8 +31,6 @@ static const BaseSymbol BASE_SYMBOLS[BASE_SYMBOL_COUNT] = {
     {"space", BASE_SYMBOL_SPACE_ID, " ", NULL},
     {"tab", BASE_SYMBOL_TAB_ID, "\t", NULL},
     {"newline", BASE_SYBMOL_NL_ID, "\n", NULL},
-    /* Does not have constants */
-    {"special_no_more_constants", BASE_SYMBOL_NO_MORE_CONSTANTS, NULL, NULL},
     {"text", BASE_SYMBOL_TEXT_ID, NULL, " \t\n"}, // NOTE: Add more terminators as I add symbols
 };
 
