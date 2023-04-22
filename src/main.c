@@ -20,12 +20,21 @@ void printSybmols(Symbol* symbols) {
 }
 
 int main(int argc, char **argv) {
+
+    // char *line = NULL;
+    // size_t len = 0;
+    // size_t line_size = 0;
+    // line_size = getline(&line, &len, stdin);
+    // printf("line: %s\n", line);
+
+    FILE* fd;
+
     if (argc > 1) {
-        FILE* fd = openFile(argv[1]);
-        Symbol* symbols = lex(fd);
-        printSybmols(symbols);
+        fd = openFile(argv[1]);
     } else {
-        showUsage("No file name given.");
+        fd = stdin;
     }
+    Symbol* symbols = lex(fd);
+    printSybmols(symbols);
     return 0;
 }

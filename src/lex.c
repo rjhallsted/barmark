@@ -7,12 +7,13 @@
 #include "util.h"
 
 Symbol* handle_line(char* line, size_t *num_sybmols) {
-    char *token, *toFree;
+    char *token, *local_line;
     Symbol *symbols = NULL;
     
-    *num_sybmols = 0; 
-    toFree = line;
-    while ((token = strsep(&line, " ")) != NULL && token[0] != '\0') {
+    local_line = line;
+    *num_sybmols = 0;
+    while ((token = strsep(&local_line, " ")) != NULL && token[0] != '\0') {
+        printf("token: %s\n", token);
         char* newLineLoc = strchr(token, '\n');
         int trailingSpace = line != NULL;
         if (newLineLoc == token) { // have new line but no other token, token and newLineLoc are the same
@@ -36,7 +37,6 @@ Symbol* handle_line(char* line, size_t *num_sybmols) {
             *num_sybmols += 1;
         }
     }
-    free(toFree);
     return symbols;
 }
 
@@ -50,9 +50,9 @@ Symbol* concat(Symbol* a, Symbol* b, size_t aSize, size_t bSize) {
 }
 
 Symbol* lex(FILE* fd) {
-    size_t symbol_count = 0;
+    size_t symbol_count, buff_len, line_len = 0;
     size_t *read_symbols = malloc(sizeof(size_t));
-    char *line;
+    char *line = NULL;
     Symbol* allSymbols = malloc(sizeof(Symbol) * 1);
     allSymbols[0] = nullSymbol();
 
@@ -61,9 +61,9 @@ Symbol* lex(FILE* fd) {
             printf("File reading error. Errno: %d\n", errno);
             exit(EXIT_FAILURE);
         }
-
-        line = barmarkGetLine(fd);
-        Symbol* symbols = handle_line(line, read_symbols); //line is freed by handle_line
+        
+        line_len = getline(&line, &buff_len, fd);
+        Symbol* symbols = handle_line(line, read_symbols);
         //copy symbol pointers to our all sybmols array
         allSymbols = concat(allSymbols, symbols, symbol_count, *read_symbols);
         symbol_count += *read_symbols;
