@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include "symbols.h"
 
-
-// TODO: Write a bunch of unit tests to figure out what's not working here
-
-
 ///////////////////////////////
 // SYMBOL TREE STUFF
 ///////////////////////////////
