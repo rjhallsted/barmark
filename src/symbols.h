@@ -45,7 +45,7 @@ typedef struct SymbolTreeItem {
     size_t children_count;
 } SymbolTreeItem;
 
-SymbolTreeItem* buildSymbolTree();
+SymbolTreeItem* buildSymbolTree(void);
 void freeSymbolTree(SymbolTreeItem *root);
 
 /* Symbol lookup stuff */
@@ -56,7 +56,7 @@ typedef struct {
 
 char* lookupBaseSymbol(SymbolTreeItem *tree, char *input, const BaseSymbol** symbol, char **contents);
 Symbol newSymbol(const BaseSymbol* base, char* contents);
-Symbol nullSymbol();
+Symbol nullSymbol(void);
 
 
 #endif // SYMBOLS_H

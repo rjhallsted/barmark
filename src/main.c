@@ -13,6 +13,7 @@ void showUsage(char* errorMessage) {
 void printSybmols(Symbol* symbols) {
     size_t i = 0;
     while(symbols[i].base->id != BASE_SYMBOL_NULL_ID) {
+        printf("i: %zu\n", i);
         char *symbolName = symbols[i].base->name;
         printf("%s: '%s'\n", symbolName, symbols[i].contents);
         i++;

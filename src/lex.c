@@ -55,8 +55,17 @@ Symbol* concat(Symbol* a, Symbol* b, size_t aSize, size_t bSize) {
     return a;
 }
 
+void traverseSymbolTree(SymbolTreeItem *root, Symbol *container) {
+    if (root->symbol) {
+        container[root->symbol->id - 1] = newSymbol(root->symbol, strdup("foo"));
+    }
+    for (unsigned int i = 0; i < root->children_count; i++) {
+        traverseSymbolTree(root->children[i], container);
+    }
+}
+
 Symbol* lex(FILE* fd) {
-    size_t symbol_count, buff_len, line_len = 0;
+    size_t symbol_count = 0, buff_len = 0;
     size_t *read_symbols = malloc(sizeof(size_t));
     char *line = NULL;
     Symbol* allSymbols = malloc(sizeof(Symbol) * 1);
@@ -69,7 +78,7 @@ Symbol* lex(FILE* fd) {
             exit(EXIT_FAILURE);
         }
         
-        line_len = getline(&line, &buff_len, fd);
+        getline(&line, &buff_len, fd);
         Symbol* symbols = handle_line(line, read_symbols, symbolTree);
         //copy symbol pointers to our all sybmols array
         allSymbols = concat(allSymbols, symbols, symbol_count, *read_symbols);

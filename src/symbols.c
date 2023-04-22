@@ -27,7 +27,7 @@ void addChildToSymbolTreeItem(SymbolTreeItem *item, SymbolTreeItem *child) {
 }
 
 SymbolTreeItem* findSymbolTreeItemChild(SymbolTreeItem *item, char c) {
-    for (unsigned int i; i < item->children_count; i++) {
+    for (unsigned int i = 0; i < item->children_count; i++) {
         if (item->children[i]->c == c) {
             return item->children[i];
         }
@@ -50,7 +50,7 @@ void addToSymbolTree(SymbolTreeItem *root, const BaseSymbol *symbol) {
     current->symbol = symbol;
 }
 
-SymbolTreeItem* buildSymbolTree() {
+SymbolTreeItem* buildSymbolTree(void) {
     SymbolTreeItem *root = newSymbolTreeItem('\0', &(BASE_SYMBOLS[BASE_SYMBOL_TEXT_ID]));
     const BaseSymbol *symbol;
     // we skip the null symbol at index 0;
@@ -75,6 +75,14 @@ void freeSymbolTree(SymbolTreeItem *root) {
 // SYMBOL LOOKUP STUFF
 ///////////////////////////////
 
+unsigned int shouldStopLookAhead(char *input, const BaseSymbol* symbol) {
+    if (strchr(symbol->lookAheadTerminators, *input)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem* item, char *input) {
     SymbolTreeItem *child = findSymbolTreeItemChild(item, *input);
     const BaseSymbol *symbol = NULL;
@@ -85,14 +93,6 @@ const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem* item, char *input) {
         symbol = item->symbol;
     }
     return symbol;
-}
-
-unsigned int shouldStopLookAhead(char *input, const BaseSymbol* symbol) {
-    if (strchr(symbol->lookAheadTerminators, *input)) {
-        return 1;
-    } else {
-        return 0;
-    }
 }
 
 /**
@@ -106,7 +106,6 @@ unsigned int shouldStopLookAhead(char *input, const BaseSymbol* symbol) {
  * @return A pointer to the next character after the found symbol. Returns null if at end of string
  */
 char* lookupBaseSymbol(SymbolTreeItem *tree, char *input, const BaseSymbol** symbol, char **contents) {
-    SymbolTreeItem *current = tree;
     *symbol = lookupBaseSymbolInner(tree, input);
 
     size_t offset;
@@ -132,6 +131,6 @@ Symbol newSymbol(const BaseSymbol* base, char* contents) {
     return sym;
 }
 
-Symbol nullSymbol() {
+Symbol nullSymbol(void) {
     return newSymbol(&(BASE_SYMBOLS[BASE_SYMBOL_NULL_ID]), strdup(""));
 }
