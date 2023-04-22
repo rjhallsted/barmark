@@ -10,7 +10,7 @@ void showUsage(char *errorMessage)
     printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
-void printSybmols(Symbol *symbols)
+void printSymbols(Symbol *symbols)
 {
     size_t i = 0;
     while (symbols[i].base->id != BASE_SYMBOL_NULL_ID)
@@ -35,6 +35,6 @@ int main(int argc, char **argv)
         fd = stdin;
     }
     Symbol *symbols = lex(fd);
-    printSybmols(symbols);
+    printSymbols(symbols);
     return 0;
 }
