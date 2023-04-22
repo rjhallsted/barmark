@@ -31,14 +31,17 @@ void test_lookupBaseSybmol_findsSymbolAndAdvancesPtrCorrectly(void) {
     SymbolTreeItem *tree = buildSymbolTree();
     const BaseSymbol *expected = &(BASE_SYMBOLS[BASE_SYMBOL_H2_ID]);
     const BaseSymbol *found;
-    char *contents, *advanced;
-    char *input = "## This is a heading";
-    char *expectedAfterAdvance = " This is a heading";
+    char *contents;
+    const char *advanced;
+    const char *input = "## This is a heading";
+    const char *expectedAfterAdvance = " This is a heading";
 
     advanced = lookupBaseSymbol(tree, input, &found, &contents);
     TEST_ASSERT_EQUAL(expected->id, found->id);
     TEST_ASSERT_EQUAL_STRING("##", contents);
     TEST_ASSERT_EQUAL_STRING(expectedAfterAdvance, advanced);
+    free(contents);
+    free(tree);
 }
 
 void symbolsTests(void) {

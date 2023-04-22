@@ -51,8 +51,8 @@ typedef struct {
     char *contents;
 } Symbol;
 
-char* lookupBaseSymbol(SymbolTreeItem *tree, char *input, const BaseSymbol** symbol, char **contents);
-Symbol newSymbol(const BaseSymbol* base, char* contents);
+const char *lookupBaseSymbol(SymbolTreeItem *tree, const char *input, const BaseSymbol **symbol, char **contents);
+Symbol newSymbol(const BaseSymbol *base, char *contents);
 Symbol nullSymbol(void);
 
 

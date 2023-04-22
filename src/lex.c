@@ -12,7 +12,7 @@ Symbol* handle_line(char* line, size_t *num_sybmols, SymbolTreeItem *symbolTree)
     *num_sybmols = 0;
     char *contents = NULL;
     
-    char *lp = line;
+    const char *lp = line;
     while ((lp = lookupBaseSymbol(symbolTree, lp, &base, &contents)) != NULL) {
         symbols = realloc(symbols, sizeof(Symbol) * (*num_sybmols + 1));
         symbols[*num_sybmols] = newSymbol(base, contents);

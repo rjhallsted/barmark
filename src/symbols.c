@@ -71,7 +71,7 @@ void freeSymbolTree(SymbolTreeItem *root) {
 // SYMBOL LOOKUP STUFF
 ///////////////////////////////
 
-unsigned int shouldStopLookAhead(char *input, const BaseSymbol* symbol) {
+unsigned int shouldStopLookAhead(const char *input, const BaseSymbol* symbol) {
     if (strchr(symbol->lookAheadTerminators, *input)) {
         return 1;
     } else {
@@ -79,7 +79,7 @@ unsigned int shouldStopLookAhead(char *input, const BaseSymbol* symbol) {
     }
 }
 
-const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem* item, char *input) {
+const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem* item, const char *input) {
     SymbolTreeItem *child = findSymbolTreeItemChild(item, *input);
     const BaseSymbol *symbol = NULL;
     if (child) {
@@ -101,7 +101,7 @@ const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem* item, char *input) {
  * 
  * @return A pointer to the next character after the found symbol. Returns null if at end of string
  */
-char* lookupBaseSymbol(SymbolTreeItem *tree, char *input, const BaseSymbol** symbol, char **contents) {
+const char *lookupBaseSymbol(SymbolTreeItem *tree, const char *input, const BaseSymbol** symbol, char **contents) {
     *symbol = lookupBaseSymbolInner(tree, input);
 
     size_t offset;
