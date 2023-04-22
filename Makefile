@@ -19,7 +19,7 @@ $(NAME): $(OBJS) $(MAIN).o
 	@$(CC_CMD)
 
 clean:
-	rm -f $(OBJS) $(MAIN).o $(NAME) $(TEST_OBJS) $(NAME)_test
+	rm -f $(OBJS) $(MAIN).o $(NAME) $(TEST_OBJS) $(TEST_MAIN).o $(NAME)_test vendor/unity/unity.o
 
 re: clean all
 
