@@ -1,19 +1,18 @@
 #include <string.h>
 #include "symbols.h"
 
+#include <stdio.h>
+
 // TODO: Change this to a lookup table at some point for O(symbols) ops instead of 0(strlen * symbols)
 int find_symbol_id(char * item) {
-    if (strcmp(item, "#") == 0) {
-        return BASE_SYMBOL_H1_ID;
-    } else if (strcmp(item, "##") == 0) {
-        return BASE_SYMBOL_H2_ID;
-    } else if (strcmp(item, " ") == 0) {
-        return BASE_SYMBOL_SPACE_ID;
-    } else if (strcmp(item, "\n") == 0) {
-        return BASE_SYBMOL_NL_ID;
-    } else {
-        return BASE_SYBMOL_TEXT_ID;
+    int i = 0;
+    while (i < BASE_SYMBOL_NO_MORE_CONSTANTS) {
+        if (strcmp(item, BASE_SYMBOLS[i].constant) == 0) {
+            return BASE_SYMBOLS[i].id;
+        }
+        i++;
     }
+    return BASE_SYBMOL_TEXT_ID;
 }
 
 Symbol newSymbol(int token_id, char* contents) {

@@ -4,24 +4,32 @@
 typedef struct {
     char *name;
     int id;
+    int hasConst;
+    char *constant;
 } BaseSymbol;
 
 enum BASE_SYMBOL_IDS {
+    /* Has constants */
     BASE_SYMBOL_NULL_ID = 0,
     BASE_SYMBOL_H1_ID = 1,
     BASE_SYMBOL_H2_ID = 2,
     BASE_SYMBOL_SPACE_ID = 3,
     BASE_SYBMOL_NL_ID = 4,
-    BASE_SYBMOL_TEXT_ID = 5,
+    /* Does not have constants */
+    BASE_SYMBOL_NO_MORE_CONSTANTS = 5,
+    BASE_SYBMOL_TEXT_ID = 6
 };
 
-static const BaseSymbol BASE_SYMBOLS[6] = {
-    {"null", BASE_SYMBOL_NULL_ID},
-    {"H1", BASE_SYMBOL_H1_ID},
-    {"H2", BASE_SYMBOL_H2_ID},
-    {"space", BASE_SYMBOL_SPACE_ID},
-    {"newline", BASE_SYBMOL_NL_ID},
-    {"text", BASE_SYBMOL_TEXT_ID},
+static const BaseSymbol BASE_SYMBOLS[7] = {
+    /* Has Constants */
+    {"null", BASE_SYMBOL_NULL_ID, 1, ""},
+    {"H1", BASE_SYMBOL_H1_ID, 1, "#"},
+    {"H2", BASE_SYMBOL_H2_ID, 1, "##"},
+    {"space", BASE_SYMBOL_SPACE_ID, 1, " "},
+    {"newline", BASE_SYBMOL_NL_ID, 1, "\n"},
+    /* Does not have constants */
+    {"special_no_more_constants", BASE_SYMBOL_NO_MORE_CONSTANTS, 0, NULL},
+    {"text", BASE_SYBMOL_TEXT_ID, 0, NULL},
 };
 
 typedef struct {
