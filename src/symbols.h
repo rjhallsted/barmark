@@ -1,6 +1,8 @@
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
+#include <stdlib.h>
+
 /* Base Symbol lookup stuff */
 typedef struct {
   char *name;
