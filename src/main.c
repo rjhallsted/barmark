@@ -10,7 +10,7 @@ void showUsage(char *errorMessage) {
   printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
-void printTokens(Token *tokens) {
+void printTokens(TokenStream tokens) {
   size_t i = 0;
   while (tokens[i].symbol->id != SYMBOL_NULL_ID) {
     printf("i: %zu\n", i);
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   } else {
     fd = stdin;
   }
-  Token *tokens = lex(fd);
+  TokenStream tokens = lex(fd);
   printTokens(tokens);
   return 0;
 }

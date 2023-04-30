@@ -49,13 +49,19 @@ SymbolTreeItem *buildSymbolTree(void);
 void freeSymbolTree(SymbolTreeItem *root);
 
 /* Symbol lookup stuff */
+const char *lookupSymbol(SymbolTreeItem *tree, const char *input,
+                         const Symbol **symbol, char **contents);
+
+/* Token stuff */
 typedef struct {
   const Symbol *symbol;
   char *contents;
 } Token;
 
-const char *lookupSymbol(SymbolTreeItem *tree, const char *input,
-                         const Symbol **symbol, char **contents);
+/* Use of TokenStream implies that this pointer points to a contiguous array and
+we can increment through it until we hit a null token */
+typedef Token *TokenStream;
+
 Token newToken(const Symbol *symbol, char *contents);
 Token nullToken(void);
 

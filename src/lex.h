@@ -5,6 +5,6 @@
 
 #include "symbols.h"
 
-Token *lex(FILE *fd);
+TokenStream lex(FILE *fd);
 
 #endif  // LEX_H

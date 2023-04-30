@@ -8,8 +8,9 @@
 #include "symbols.h"
 #include "util.h"
 
-Token *handle_line(char *line, size_t *num_tokens, SymbolTreeItem *symbolTree) {
-  Token *tokens = NULL;
+TokenStream handle_line(char *line, size_t *num_tokens,
+                        SymbolTreeItem *symbolTree) {
+  TokenStream tokens = NULL;
   const Symbol *symbol;
   *num_tokens = 0;
   char *contents = NULL;
@@ -23,7 +24,7 @@ Token *handle_line(char *line, size_t *num_tokens, SymbolTreeItem *symbolTree) {
   return tokens;
 }
 
-Token *concat(Token *a, Token *b, size_t aSize, size_t bSize) {
+TokenStream concat(Token *a, Token *b, size_t aSize, size_t bSize) {
   a = realloc(a, sizeof(Token) * (aSize + bSize + 1));
   for (size_t i = 0; i < bSize; i++) {
     a[aSize + i] = b[i];
@@ -41,11 +42,11 @@ void traverseSymbolTree(SymbolTreeItem *root, Token *container) {
   }
 }
 
-Token *lex(FILE *fd) {
+TokenStream lex(FILE *fd) {
   size_t token_count = 0, buff_len = 0;
   size_t *read_tokens = malloc(sizeof(size_t));
   char *line = NULL;
-  Token *allTokens = malloc(sizeof(Token) * 1);
+  TokenStream allTokens = malloc(sizeof(Token) * 1);
   allTokens[0] = nullToken();
   SymbolTreeItem *symbolTree = buildSymbolTree();
 
@@ -56,7 +57,7 @@ Token *lex(FILE *fd) {
     }
 
     getline(&line, &buff_len, fd);
-    Token *tokens = handle_line(line, read_tokens, symbolTree);
+    TokenStream tokens = handle_line(line, read_tokens, symbolTree);
     // copy symbol pointers to our all sybmols array
     allTokens = concat(allTokens, tokens, token_count, *read_tokens);
     token_count += *read_tokens;
