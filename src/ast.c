@@ -29,6 +29,7 @@ char *join_token_contents(TokenStream tokens, size_t tokens_count) {
     len += strlen((tokens + i)->contents);
   }
   output = malloc(o_offset + 1);
+  i = 0;
   while (o_offset < len) {
     if ((tokens + i)->contents[t_offset] == '\0') {
       i += 1;
@@ -132,4 +133,24 @@ ASTNode *ast_from_tokens(TokenStream tokens) {
 
   // if is tab, make code block. Contents is everything until there is a line
   // that does not begin with a tab
+}
+
+int cmp_ast_nodes(ASTNode *a, ASTNode *b) {
+  int non_child_cases = ((a->type == b->type) &&
+                         ((a->contents == NULL && b->contents == NULL) ||
+                          (strcmp(a->contents, b->contents) == 0)) &&
+                         (a->children_count == b->children_count));
+
+  if (!non_child_cases) {
+    return 0;
+  }
+
+  int child_cases = 1;
+  for (size_t i = 0; i < a->children_count; ++i) {
+    child_cases = child_cases && cmp_ast_nodes(a->children[i], b->children[i]);
+  }
+  if (!child_cases) {
+    return 0;
+  }
+  return 1;
 }

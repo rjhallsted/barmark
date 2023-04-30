@@ -28,4 +28,6 @@ void ast_add_child(ASTNode *parent, ASTNode *child);
 
 ASTNode *ast_from_tokens(TokenStream tokens);
 
+int cmp_ast_nodes(ASTNode *a, ASTNode *b);
+
 #endif  // AST_H
