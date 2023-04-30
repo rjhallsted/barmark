@@ -10,12 +10,12 @@ void showUsage(char *errorMessage) {
   printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
-void printSymbols(Symbol *symbols) {
+void printTokens(Token *tokens) {
   size_t i = 0;
-  while (symbols[i].base->id != BASE_SYMBOL_NULL_ID) {
+  while (tokens[i].symbol->id != SYMBOL_NULL_ID) {
     printf("i: %zu\n", i);
-    char *symbolName = symbols[i].base->name;
-    printf("%s: '%s'\n", symbolName, symbols[i].contents);
+    char *symbolName = tokens[i].symbol->name;
+    printf("%s: '%s'\n", symbolName, tokens[i].contents);
     i++;
   }
 }
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   } else {
     fd = stdin;
   }
-  Symbol *symbols = lex(fd);
-  printSymbols(symbols);
+  Token *tokens = lex(fd);
+  printTokens(tokens);
   return 0;
 }

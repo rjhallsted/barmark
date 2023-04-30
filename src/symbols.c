@@ -7,7 +7,7 @@
 // SYMBOL TREE STUFF
 ///////////////////////////////
 
-SymbolTreeItem *newSymbolTreeItem(char c, const BaseSymbol *symbol) {
+SymbolTreeItem *newSymbolTreeItem(char c, const Symbol *symbol) {
   SymbolTreeItem *item = malloc(sizeof(SymbolTreeItem));
   item->c = c;
   item->symbol = symbol;
@@ -32,7 +32,7 @@ SymbolTreeItem *findSymbolTreeItemChild(SymbolTreeItem *item, char c) {
   return NULL;
 }
 
-void addToSymbolTree(SymbolTreeItem *root, const BaseSymbol *symbol) {
+void addToSymbolTree(SymbolTreeItem *root, const Symbol *symbol) {
   SymbolTreeItem *current, *child;
 
   current = root;
@@ -48,12 +48,11 @@ void addToSymbolTree(SymbolTreeItem *root, const BaseSymbol *symbol) {
 }
 
 SymbolTreeItem *buildSymbolTree(void) {
-  SymbolTreeItem *root =
-      newSymbolTreeItem('\0', &(BASE_SYMBOLS[BASE_SYMBOL_TEXT_ID]));
-  const BaseSymbol *symbol;
+  SymbolTreeItem *root = newSymbolTreeItem('\0', &(SYMBOLS[SYMBOL_TEXT_ID]));
+  const Symbol *symbol;
   // we skip the null symbol at index 0;
-  for (unsigned int i = 1; i < BASE_SYMBOL_COUNT; i++) {
-    symbol = &(BASE_SYMBOLS[i]);
+  for (unsigned int i = 1; i < SYMBOL_COUNT; i++) {
+    symbol = &(SYMBOLS[i]);
     if (symbol->constant) {
       addToSymbolTree(root, symbol);
     }
@@ -72,7 +71,7 @@ void freeSymbolTree(SymbolTreeItem *root) {
 // SYMBOL LOOKUP STUFF
 ///////////////////////////////
 
-unsigned int shouldStopLookAhead(const char *input, const BaseSymbol *symbol) {
+unsigned int shouldStopLookAhead(const char *input, const Symbol *symbol) {
   if (strchr(symbol->lookAheadTerminators, *input)) {
     return 1;
   } else {
@@ -80,12 +79,11 @@ unsigned int shouldStopLookAhead(const char *input, const BaseSymbol *symbol) {
   }
 }
 
-const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem *item,
-                                        const char *input) {
+const Symbol *lookupSymbolInner(SymbolTreeItem *item, const char *input) {
   SymbolTreeItem *child = findSymbolTreeItemChild(item, *input);
-  const BaseSymbol *symbol = NULL;
+  const Symbol *symbol = NULL;
   if (child) {
-    symbol = lookupBaseSymbolInner(child, input + 1);
+    symbol = lookupSymbolInner(child, input + 1);
   }
   if (!symbol) {
     symbol = item->symbol;
@@ -94,20 +92,20 @@ const BaseSymbol *lookupBaseSymbolInner(SymbolTreeItem *item,
 }
 
 /**
- * @brief find the next base symbol available
+ * @brief find the next symbol symbol available
  *
  * @param tree A pointer to the root of the symbol tree to search
  * @param input A char * to begin lookup from
- * @param symbol A base symbol pointer to store the address of the found symbol
- * in
+ * @param symbol A symbol symbol pointer to store the address of the found
+ * symbol in
  * @param contents A char ** to store the contents of the symbol in.
  *
  * @return A pointer to the next character after the found symbol. Returns null
  * if at end of string
  */
-const char *lookupBaseSymbol(SymbolTreeItem *tree, const char *input,
-                             const BaseSymbol **symbol, char **contents) {
-  *symbol = lookupBaseSymbolInner(tree, input);
+const char *lookupSymbol(SymbolTreeItem *tree, const char *input,
+                         const Symbol **symbol, char **contents) {
+  *symbol = lookupSymbolInner(tree, input);
 
   size_t offset;
   if ((*symbol)->lookAheadTerminators != NULL) {
@@ -128,11 +126,11 @@ const char *lookupBaseSymbol(SymbolTreeItem *tree, const char *input,
   }
 }
 
-Symbol newSymbol(const BaseSymbol *base, char *contents) {
-  Symbol sym = {base, contents};
+Token newToken(const Symbol *symbol, char *contents) {
+  Token sym = {symbol, contents};
   return sym;
 }
 
-Symbol nullSymbol(void) {
-  return newSymbol(&(BASE_SYMBOLS[BASE_SYMBOL_NULL_ID]), strdup(""));
+Token nullToken(void) {
+  return newToken(&(SYMBOLS[SYMBOL_NULL_ID]), strdup(""));
 }

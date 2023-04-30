@@ -8,46 +8,45 @@
 #include "symbols.h"
 #include "util.h"
 
-Symbol *handle_line(char *line, size_t *num_sybmols,
-                    SymbolTreeItem *symbolTree) {
-  Symbol *symbols = NULL;
-  const BaseSymbol *base;
-  *num_sybmols = 0;
+Token *handle_line(char *line, size_t *num_tokens, SymbolTreeItem *symbolTree) {
+  Token *tokens = NULL;
+  const Symbol *symbol;
+  *num_tokens = 0;
   char *contents = NULL;
 
   const char *lp = line;
-  while ((lp = lookupBaseSymbol(symbolTree, lp, &base, &contents)) != NULL) {
-    symbols = realloc(symbols, sizeof(Symbol) * (*num_sybmols + 1));
-    symbols[*num_sybmols] = newSymbol(base, contents);
-    *num_sybmols += 1;
+  while ((lp = lookupSymbol(symbolTree, lp, &symbol, &contents)) != NULL) {
+    tokens = realloc(tokens, sizeof(Symbol) * (*num_tokens + 1));
+    tokens[*num_tokens] = newToken(symbol, contents);
+    *num_tokens += 1;
   }
-  return symbols;
+  return tokens;
 }
 
-Symbol *concat(Symbol *a, Symbol *b, size_t aSize, size_t bSize) {
-  a = realloc(a, sizeof(Symbol) * (aSize + bSize + 1));
+Token *concat(Token *a, Token *b, size_t aSize, size_t bSize) {
+  a = realloc(a, sizeof(Token) * (aSize + bSize + 1));
   for (size_t i = 0; i < bSize; i++) {
     a[aSize + i] = b[i];
   }
-  a[aSize + bSize] = nullSymbol();
+  a[aSize + bSize] = nullToken();
   return a;
 }
 
-void traverseSymbolTree(SymbolTreeItem *root, Symbol *container) {
+void traverseSymbolTree(SymbolTreeItem *root, Token *container) {
   if (root->symbol) {
-    container[root->symbol->id - 1] = newSymbol(root->symbol, strdup("foo"));
+    container[root->symbol->id - 1] = newToken(root->symbol, strdup("foo"));
   }
   for (unsigned int i = 0; i < root->children_count; i++) {
     traverseSymbolTree(root->children[i], container);
   }
 }
 
-Symbol *lex(FILE *fd) {
-  size_t symbol_count = 0, buff_len = 0;
-  size_t *read_symbols = malloc(sizeof(size_t));
+Token *lex(FILE *fd) {
+  size_t token_count = 0, buff_len = 0;
+  size_t *read_tokens = malloc(sizeof(size_t));
   char *line = NULL;
-  Symbol *allSymbols = malloc(sizeof(Symbol) * 1);
-  allSymbols[0] = nullSymbol();
+  Token *allTokens = malloc(sizeof(Token) * 1);
+  allTokens[0] = nullToken();
   SymbolTreeItem *symbolTree = buildSymbolTree();
 
   while (!feof(fd)) {
@@ -57,13 +56,13 @@ Symbol *lex(FILE *fd) {
     }
 
     getline(&line, &buff_len, fd);
-    Symbol *symbols = handle_line(line, read_symbols, symbolTree);
+    Token *tokens = handle_line(line, read_tokens, symbolTree);
     // copy symbol pointers to our all sybmols array
-    allSymbols = concat(allSymbols, symbols, symbol_count, *read_symbols);
-    symbol_count += *read_symbols;
-    free(symbols);  // free tmp symbol pointer array
+    allTokens = concat(allTokens, tokens, token_count, *read_tokens);
+    token_count += *read_tokens;
+    free(tokens);  // free tmp symbol pointer array
   }
-  free(read_symbols);
+  free(read_tokens);
   freeSymbolTree(symbolTree);
-  return allSymbols;
+  return allTokens;
 }
