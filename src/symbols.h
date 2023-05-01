@@ -18,7 +18,7 @@ enum SYMBOL_IDS {
   SYMBOL_H2_ID = 2,
   SYMBOL_SPACE_ID = 3,
   SYMBOL_TAB_ID = 4,
-  SYBMOL_NL_ID = 5,
+  SYMBOL_NL_ID = 5,
   /* Does not have constants */
   SYMBOL_TEXT_ID = 6
 };
@@ -32,7 +32,7 @@ static const Symbol SYMBOLS[SYMBOL_COUNT] = {
     {"H2", SYMBOL_H2_ID, "##", NULL},
     {"space", SYMBOL_SPACE_ID, " ", NULL},
     {"tab", SYMBOL_TAB_ID, "\t", NULL},
-    {"newline", SYBMOL_NL_ID, "\n", NULL},
+    {"newline", SYMBOL_NL_ID, "\n", NULL},
     {"text", SYMBOL_TEXT_ID, NULL, " \t\n"},  // NOTE: Add more terminators as I
                                               // add symbols
 };
@@ -53,16 +53,19 @@ const char *lookupSymbol(SymbolTreeItem *tree, const char *input,
                          const Symbol **symbol, char **contents);
 
 /* Token stuff */
-typedef struct {
+typedef struct Token {
   const Symbol *symbol;
   char *contents;
+  struct Token *next;
 } Token;
 
-/* Use of TokenStream implies that this pointer points to a contiguous array and
-we can increment through it until we hit a null token */
-typedef Token *TokenStream;
+Token *newToken(const Symbol *symbol, char *contents);
+Token *nullToken(void);
+void free_token(Token *token);
+void free_token_list(Token *head);
+int is_whitespace_token(Token *token);
 
-Token newToken(const Symbol *symbol, char *contents);
-Token nullToken(void);
+Token *join_token_array(Token **tokens, size_t count);
+Token *advance_token_list_by(Token *head, size_t num);
 
 #endif  // SYMBOLS_H

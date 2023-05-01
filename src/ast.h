@@ -22,12 +22,12 @@ typedef struct ASTNode {
 } ASTNode;
 
 ASTNode *ast_create_node(unsigned int type);
-char *join_token_contents(TokenStream tokens, size_t tokens_count);
+char *join_token_contents(Token *token, size_t tokens_count);
 void ast_free_node(ASTNode *node);
 void ast_add_child(ASTNode *parent, ASTNode *child);
 
-ASTNode *ast_from_tokens(TokenStream tokens);
+ASTNode *ast_from_tokens(Token *tokens);
 
-int cmp_ast_nodes(ASTNode *a, ASTNode *b);
+int ast_nodes_equal(ASTNode *a, ASTNode *b);
 
 #endif  // AST_H

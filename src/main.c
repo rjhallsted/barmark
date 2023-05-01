@@ -10,13 +10,13 @@ void showUsage(char *errorMessage) {
   printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
-void printTokens(TokenStream tokens) {
+void printTokens(Token *token) {
   size_t i = 0;
-  while (tokens[i].symbol->id != SYMBOL_NULL_ID) {
+  while (token) {
     printf("i: %zu\n", i);
-    char *symbolName = tokens[i].symbol->name;
-    printf("%s: '%s'\n", symbolName, tokens[i].contents);
+    printf("%s: '%s'\n", token->symbol->name, token->contents);
     i++;
+    token = token->next;
   }
 }
 
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   } else {
     fd = stdin;
   }
-  TokenStream tokens = lex(fd);
+  Token *tokens = lex(fd);
   printTokens(tokens);
   return 0;
 }

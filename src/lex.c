@@ -8,32 +8,35 @@
 #include "symbols.h"
 #include "util.h"
 
-TokenStream handle_line(char *line, size_t *num_tokens,
-                        SymbolTreeItem *symbolTree) {
-  TokenStream tokens = NULL;
+Token *handle_line(char *line, SymbolTreeItem *symbolTree) {
+  Token *head = nullToken();
+  Token *current = head;
   const Symbol *symbol;
-  *num_tokens = 0;
   char *contents = NULL;
 
   const char *lp = line;
   while ((lp = lookupSymbol(symbolTree, lp, &symbol, &contents)) != NULL) {
-    tokens = realloc(tokens, sizeof(Symbol) * (*num_tokens + 1));
-    tokens[*num_tokens] = newToken(symbol, contents);
-    *num_tokens += 1;
+    current->next = newToken(symbol, contents);
   }
-  return tokens;
+  current = head->next;
+  free_token(head);
+  return current;
 }
 
-TokenStream concat(Token *a, Token *b, size_t aSize, size_t bSize) {
-  a = realloc(a, sizeof(Token) * (aSize + bSize + 1));
-  for (size_t i = 0; i < bSize; i++) {
-    a[aSize + i] = b[i];
+Token *concat(Token *a, Token *b) {
+  Token *head = nullToken();
+  Token *current = head;
+  current->next = a;
+  while (current->next) {
+    current = current->next;
   }
-  a[aSize + bSize] = nullToken();
-  return a;
+  current->next = b;
+  current = head->next;
+  free_token(head);
+  return current;
 }
 
-void traverseSymbolTree(SymbolTreeItem *root, Token *container) {
+void traverseSymbolTree(SymbolTreeItem *root, Token **container) {
   if (root->symbol) {
     container[root->symbol->id - 1] = newToken(root->symbol, strdup("foo"));
   }
@@ -42,12 +45,18 @@ void traverseSymbolTree(SymbolTreeItem *root, Token *container) {
   }
 }
 
-TokenStream lex(FILE *fd) {
-  size_t token_count = 0, buff_len = 0;
-  size_t *read_tokens = malloc(sizeof(size_t));
+Token *find_last_token(Token *head) {
+  while (head->next) {
+    head = head->next;
+  }
+  return head;
+}
+
+Token *lex(FILE *fd) {
+  size_t buff_len = 0;
   char *line = NULL;
-  TokenStream allTokens = malloc(sizeof(Token) * 1);
-  allTokens[0] = nullToken();
+  Token *head = nullToken();
+  Token *current = head;
   SymbolTreeItem *symbolTree = buildSymbolTree();
 
   while (!feof(fd)) {
@@ -57,13 +66,14 @@ TokenStream lex(FILE *fd) {
     }
 
     getline(&line, &buff_len, fd);
-    TokenStream tokens = handle_line(line, read_tokens, symbolTree);
+    Token *new_tokens = handle_line(line, symbolTree);
     // copy symbol pointers to our all sybmols array
-    allTokens = concat(allTokens, tokens, token_count, *read_tokens);
-    token_count += *read_tokens;
-    free(tokens);  // free tmp symbol pointer array
+    current = concat(current, new_tokens);
+    current =
+        find_last_token(current);  // advance to save iterations in the future
   }
-  free(read_tokens);
   freeSymbolTree(symbolTree);
-  return allTokens;
+  current = head->next;
+  free_token(head);
+  return current;
 }

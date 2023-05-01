@@ -5,13 +5,13 @@
 #include "symbols.h"
 
 // Parsing rules:
-int pr_is_double_newline(TokenStream tokens);
-int pr_is_indented(TokenStream tokens);
+int pr_is_double_newline(Token *tokens);
+int pr_is_indented(Token *tokens);
 
 // Consumption functions:
-ASTNode *produce_code_block(TokenStream *stream_ptr);
+ASTNode *produce_code_block(Token **stream_ptr);
 
-typedef ASTNode *(*ConsumerPtr)(TokenStream *);
+typedef ASTNode *(*ConsumerPtr)(Token **);
 
 static const ConsumerPtr AST_CONSUMERS[] = {
     (ConsumerPtr)NULL,  // document standin

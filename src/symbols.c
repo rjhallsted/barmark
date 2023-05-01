@@ -126,11 +126,66 @@ const char *lookupSymbol(SymbolTreeItem *tree, const char *input,
   }
 }
 
-Token newToken(const Symbol *symbol, char *contents) {
-  Token sym = {symbol, contents};
-  return sym;
+Token *newToken(const Symbol *symbol, char *contents) {
+  Token *token = malloc(sizeof(Token));
+  token->symbol = symbol;
+  token->contents = contents;
+  token->next = NULL;
+  return token;
 }
 
-Token nullToken(void) {
+Token *nullToken(void) {
   return newToken(&(SYMBOLS[SYMBOL_NULL_ID]), strdup(""));
+}
+
+void free_token(Token *token) {
+  free(token->contents);
+  free(token);
+}
+
+void free_token_list(Token *head) {
+  Token *next = head;
+  while (head) {
+    free(head);
+    next = next->next;
+    head = next;
+  }
+}
+
+int is_whitespace_token(Token *token) {
+  const unsigned int whitespace_symbols[3] = {SYMBOL_SPACE_ID, SYMBOL_TAB_ID,
+                                              SYMBOL_NL_ID};
+
+  if (token == NULL) {
+    return 0;
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    if (token->symbol->id == whitespace_symbols[i]) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+Token *join_token_array(Token **tokens, size_t count) {
+  Token *head = nullToken();
+  Token *current = head;
+
+  for (size_t i = 0; i < count; i++) {
+    current->next = tokens[i];
+    current = current->next;
+  }
+  current = head->next;
+  free_token(head);
+  return current;
+}
+
+Token *advance_token_list_by(Token *head, size_t num) {
+  size_t i = 0;
+  while (i < num && head) {
+    head = head->next;
+    i += 1;
+  }
+  return head;
 }

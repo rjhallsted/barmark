@@ -18,24 +18,24 @@ ASTNode *ast_create_node(unsigned int type) {
   return node;
 }
 
-// TODO: Test
 /* Note that this expects tokens_count > 0 */
-char *join_token_contents(TokenStream tokens, size_t tokens_count) {
+char *join_token_contents(Token *token, size_t tokens_count) {
   char *output;
   size_t len = 0, o_offset = 0, t_offset = 0;
-  unsigned int i;
+  Token *ptr = token;
 
-  for (i = 0; i < tokens_count; i++) {
-    len += strlen((tokens + i)->contents);
+  for (size_t i = 0; i < tokens_count; i++) {
+    len += strlen(ptr->contents);
+    ptr = ptr->next;
   }
   output = malloc(o_offset + 1);
-  i = 0;
+  ptr = token;
   while (o_offset < len) {
-    if ((tokens + i)->contents[t_offset] == '\0') {
-      i += 1;
+    if (ptr->contents[t_offset] == '\0') {
+      ptr = ptr->next;
       t_offset = 0;
     }
-    output[o_offset] = (tokens + i)->contents[t_offset];
+    output[o_offset] = ptr->contents[t_offset];
     o_offset += 1;
     t_offset += 1;
   }
@@ -61,14 +61,14 @@ void ast_add_child(ASTNode *parent, ASTNode *child) {
 }
 
 /* A return value of less-than-zero indicates a problem */
-int ast_determine_node_type(TokenStream stream_ptr) {
+int ast_determine_node_type(Token *stream_ptr) {
   if (pr_is_indented(stream_ptr)) {
     return ASTN_CODE_BLOCK;
   }
   return -1;
 }
 
-ASTNode *ast_consume_tokens_for_node(TokenStream *stream_ptr, int node_type) {
+ASTNode *ast_consume_tokens_for_node(Token **stream_ptr, int node_type) {
   ConsumerPtr consume = AST_CONSUMERS[node_type];
   return (*consume)(stream_ptr);
 }
@@ -79,7 +79,7 @@ ASTNode *ast_consume_tokens_for_node(TokenStream *stream_ptr, int node_type) {
 a new node, and advances stream ptr)
 - return this node
 */
-ASTNode *ast_get_next_node(TokenStream *stream_ptr) {
+ASTNode *ast_get_next_node(Token **stream_ptr) {
   unsigned int node_type = ast_determine_node_type(*stream_ptr);
   if (node_type < 0) {
     printf(
@@ -89,14 +89,14 @@ ASTNode *ast_get_next_node(TokenStream *stream_ptr) {
   return ast_consume_tokens_for_node(stream_ptr, node_type);
 }
 
-ASTNode *ast_from_tokens(TokenStream tokens) {
+ASTNode *ast_from_tokens(Token *stream) {
   ASTNode *root = ast_create_node(ASTN_DOCUMENT);
   ASTNode *node;
-  TokenStream *stream_ptr = &tokens;
+  Token **stream_ptr = &stream;
 
   while (1) {
     // skip new lines
-    while ((*stream_ptr)->symbol->id == SYBMOL_NL_ID) {
+    while ((*stream_ptr)->symbol->id == SYMBOL_NL_ID) {
       *stream_ptr += 1;
     }
     if ((*stream_ptr)->symbol->id != SYMBOL_NULL_ID) {
@@ -135,19 +135,22 @@ ASTNode *ast_from_tokens(TokenStream tokens) {
   // that does not begin with a tab
 }
 
-int cmp_ast_nodes(ASTNode *a, ASTNode *b) {
+int ast_nodes_equal(ASTNode *a, ASTNode *b) {
   int non_child_cases = ((a->type == b->type) &&
                          ((a->contents == NULL && b->contents == NULL) ||
-                          (strcmp(a->contents, b->contents) == 0)) &&
+                          (a->contents != NULL && b->contents != NULL &&
+                           strcmp(a->contents, b->contents) == 0)) &&
                          (a->children_count == b->children_count));
 
+  printf("have non child cases\n");
   if (!non_child_cases) {
     return 0;
   }
 
   int child_cases = 1;
   for (size_t i = 0; i < a->children_count; ++i) {
-    child_cases = child_cases && cmp_ast_nodes(a->children[i], b->children[i]);
+    child_cases =
+        child_cases && ast_nodes_equal(a->children[i], b->children[i]);
   }
   if (!child_cases) {
     return 0;
