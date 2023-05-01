@@ -28,6 +28,4 @@ void ast_add_child(ASTNode *parent, ASTNode *child);
 
 ASTNode *ast_from_tokens(Token *tokens);
 
-int ast_nodes_equal(ASTNode *a, ASTNode *b);
-
 #endif  // AST_H

@@ -14,6 +14,6 @@ int main(void) {
   UNITY_BEGIN();
   symbolsTests();
   astTests();
-  // parseTests();
+  parseTests();
   return UNITY_END();
 }

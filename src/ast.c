@@ -134,26 +134,3 @@ ASTNode *ast_from_tokens(Token *stream) {
   // if is tab, make code block. Contents is everything until there is a line
   // that does not begin with a tab
 }
-
-int ast_nodes_equal(ASTNode *a, ASTNode *b) {
-  int non_child_cases = ((a->type == b->type) &&
-                         ((a->contents == NULL && b->contents == NULL) ||
-                          (a->contents != NULL && b->contents != NULL &&
-                           strcmp(a->contents, b->contents) == 0)) &&
-                         (a->children_count == b->children_count));
-
-  printf("have non child cases\n");
-  if (!non_child_cases) {
-    return 0;
-  }
-
-  int child_cases = 1;
-  for (size_t i = 0; i < a->children_count; ++i) {
-    child_cases =
-        child_cases && ast_nodes_equal(a->children[i], b->children[i]);
-  }
-  if (!child_cases) {
-    return 0;
-  }
-  return 1;
-}

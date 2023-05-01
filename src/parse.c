@@ -6,9 +6,10 @@
 #include "ast.h"
 #include "symbols.h"
 
+// TODO: Add spec tests to document all cases
 int pr_is_standard_node_ender(Token *token) {
   int tokens_read = 0;
-  while (token && tokens_read < 2) {
+  while (token && tokens_read < 2 && token->symbol->id == SYMBOL_NL_ID) {
     tokens_read += 1;
     token = token->next;
   }
@@ -39,8 +40,6 @@ ASTNode *produce_code_block(Token **stream_ptr) {
   }
   *stream_ptr = (*stream_ptr)->next;
 
-  printf("checked for bad start\n");
-
   ASTNode *node = ast_create_node(ASTN_CODE_BLOCK);
   node->contents = strdup("");
 
@@ -49,7 +48,6 @@ ASTNode *produce_code_block(Token **stream_ptr) {
   size_t tokens_read = 0;
 
   while (ptr && !pr_is_standard_node_ender(ptr)) {
-    printf("next token: '%s'\n", ptr->contents);
     if (ptr->symbol->id == SYMBOL_NL_ID) {
       if (ptr->next && ptr->next->symbol->id == SYMBOL_TAB_ID) {
         // copy contents thus far (including newline) into node contents as text
