@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "ast.h"
+#include "ast_to_html.h"
 #include "lex.h"
+#include "parse.h"
 #include "symbols.h"
 #include "util.h"
 
@@ -28,8 +31,12 @@ int main(int argc, char **argv) {
   } else {
     fd = stdin;
   }
+
   Token *tokens = lex(fd);
   printTokens(tokens);
+  ASTNode *root = ast_from_tokens(tokens);
   free_token_list(tokens);
+  ast_to_html(root, stdout);  // TODO: allow for output files other than stdout
+  ast_free_node(root);
   return 0;
 }

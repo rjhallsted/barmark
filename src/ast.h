@@ -13,7 +13,9 @@ enum AST_NODE_TYPES {
   ASTN_CODE,
 };
 
-/* Note while using ASTNode: Contents may be null. */
+/* NOTE: ASTNodes should only ever have contents or children, never both.
+ * Output functions will preference contents over children.
+ */
 typedef struct ASTNode {
   unsigned int type;
   char *contents;
