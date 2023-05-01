@@ -6,14 +6,14 @@
 #include "ast.h"
 #include "symbols.h"
 
-// TODO: Add spec tests to document all cases
 int pr_is_standard_node_ender(Token *token) {
   int tokens_read = 0;
   while (token && tokens_read < 2 && token->symbol->id == SYMBOL_NL_ID) {
     tokens_read += 1;
     token = token->next;
   }
-  if (tokens_read != 2 || (token && is_whitespace_token(token->next))) {
+  if (tokens_read != 2 || token == NULL ||
+      (token && is_whitespace_token(token))) {
     return 0;
   }
   return 1;
@@ -30,7 +30,6 @@ int pr_is_indented(Token *token) {
 // Consumption
 //////////////////
 
-// TODO: test
 /* Note that this expects the first token to always be a tab. */
 ASTNode *produce_code_block(Token **stream_ptr) {
   if ((*stream_ptr) && (*stream_ptr)->symbol->id != SYMBOL_TAB_ID) {

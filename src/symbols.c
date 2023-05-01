@@ -157,15 +157,15 @@ int is_whitespace_token(Token *token) {
                                               SYMBOL_NL_ID};
 
   if (token == NULL) {
-    return 0;
+    return 1;
   }
 
   for (int i = 0; i < 3; ++i) {
     if (token->symbol->id == whitespace_symbols[i]) {
-      return 0;
+      return 1;
     }
   }
-  return 1;
+  return 0;
 }
 
 Token *join_token_array(Token **tokens, size_t count) {

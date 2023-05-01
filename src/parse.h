@@ -5,7 +5,7 @@
 #include "symbols.h"
 
 // Parsing rules:
-int pr_is_double_newline(Token *tokens);
+int pr_is_standard_node_ender(Token *token);
 int pr_is_indented(Token *tokens);
 
 // Consumption functions:

@@ -116,9 +116,52 @@ void test_produce_code_block_end_of_stream_ending(void) {
   ast_free_node(actual);
 }
 
+void test_pr_is_standard_node_ender_double_nl(void) {
+  Token *tokens[3] = {
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foobar"),
+  };
+
+  Token *stream = join_token_array(tokens, 3);
+  TEST_ASSERT_TRUE(pr_is_standard_node_ender(stream));
+
+  free_token_list(stream);
+}
+
+void test_pr_is_standard_node_ender_triple_nl(void) {
+  Token *tokens[3] = {
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+  };
+
+  Token *stream = join_token_array(tokens, 3);
+  TEST_ASSERT_FALSE(pr_is_standard_node_ender(stream));
+
+  free_token_list(stream);
+}
+
+void test_pr_is_standard_node_ender_double_nl_end_of_stream(void) {
+  Token *tokens[2] = {
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
+  };
+
+  Token *stream = join_token_array(tokens, 2);
+  TEST_ASSERT_FALSE(pr_is_standard_node_ender(stream));
+
+  free_token_list(stream);
+}
+
 void parseTests(void) {
   printf("running parse tests\n");
+  printf("---produce_code_block:\n");
   RUN_TEST(test_produce_code_block_double_newline_ending);
   RUN_TEST(test_produce_code_block_newline_missing_tab_ending);
   RUN_TEST(test_produce_code_block_end_of_stream_ending);
+  printf("---pr_is_standard_node_ender:\n");
+  RUN_TEST(test_pr_is_standard_node_ender_double_nl);
+  RUN_TEST(test_pr_is_standard_node_ender_triple_nl);
+  RUN_TEST(test_pr_is_standard_node_ender_double_nl_end_of_stream);
 }

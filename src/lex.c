@@ -17,6 +17,7 @@ Token *handle_line(char *line, SymbolTreeItem *symbolTree) {
   const char *lp = line;
   while ((lp = lookupSymbol(symbolTree, lp, &symbol, &contents)) != NULL) {
     current->next = newToken(symbol, contents);
+    current = current->next;
   }
   current = head->next;
   free_token(head);

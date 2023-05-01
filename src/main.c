@@ -30,5 +30,6 @@ int main(int argc, char **argv) {
   }
   Token *tokens = lex(fd);
   printTokens(tokens);
+  free_token_list(tokens);
   return 0;
 }
