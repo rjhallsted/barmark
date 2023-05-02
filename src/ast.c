@@ -80,7 +80,7 @@ a new node, and advances stream ptr)
 - return this node
 */
 ASTNode *ast_get_next_node(Token **stream_ptr) {
-  unsigned int node_type = ast_determine_node_type(*stream_ptr);
+  int node_type = ast_determine_node_type(*stream_ptr);
   if (node_type < 0) {
     printf(
         "INVALID token sequence found. Could not determine AST node type.\n");
