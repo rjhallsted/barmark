@@ -96,11 +96,13 @@ ASTNode *ast_from_tokens(Token *stream) {
 
   while ((*stream_ptr)) {
     // skip new lines
-    while ((*stream_ptr)->symbol->id == SYMBOL_NL_ID) {
-      *stream_ptr += 1;
+    while ((*stream_ptr) && (*stream_ptr)->symbol->id == SYMBOL_NL_ID) {
+      *stream_ptr = (*stream_ptr)->next;
     }
-    node = ast_get_next_node(stream_ptr);
-    ast_add_child(root, node);
+    if (*stream_ptr) {
+      node = ast_get_next_node(stream_ptr);
+      ast_add_child(root, node);
+    }
   }
 
   return root;

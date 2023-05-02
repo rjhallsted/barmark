@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
   }
 
   Token *tokens = lex(fd);
-  printTokens(tokens);
+  // printTokens(tokens);
   ASTNode *root = ast_from_tokens(tokens);
   free_token_list(tokens);
   ast_to_html(root, stdout);  // TODO: allow for output files other than stdout
