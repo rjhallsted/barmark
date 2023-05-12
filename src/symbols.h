@@ -25,17 +25,44 @@ enum SYMBOL_IDS {
 
 #define SYMBOL_COUNT 7
 
+#define SYMBOL_NULL \
+  { "null", SYMBOL_NULL_ID, "", NULL }
+#define SYMBOL_H1 \
+  { "H1", SYMBOL_H1_ID, "#", NULL }
+#define SYMBOL_H2 \
+  { "H2", SYMBOL_H2_ID, "##", NULL }
+#define SYMBOL_SPACE \
+  { "space", SYMBOL_SPACE_ID, " ", NULL }
+#define SYMBOL_TAB \
+  { "tab", SYMBOL_TAB_ID, "\t", NULL }
+#define SYMBOL_NL \
+  { "newline", SYMBOL_NL_ID, "\n", NULL }
+#define SYMBOL_TEXT \
+  { "text", SYMBOL_TEXT_ID, NULL, " \t\n" }
+
 static const Symbol SYMBOLS[SYMBOL_COUNT] = {
     /* Has Constants */
-    {"null", SYMBOL_NULL_ID, "", NULL},
-    {"H1", SYMBOL_H1_ID, "#", NULL},
-    {"H2", SYMBOL_H2_ID, "##", NULL},
-    {"space", SYMBOL_SPACE_ID, " ", NULL},
-    {"tab", SYMBOL_TAB_ID, "\t", NULL},
-    {"newline", SYMBOL_NL_ID, "\n", NULL},
-    {"text", SYMBOL_TEXT_ID, NULL, " \t\n"},  // NOTE: Add more terminators as I
-                                              // add symbols
+    SYMBOL_NULL, SYMBOL_H1,     SYMBOL_H2, SYMBOL_SPACE,
+    SYMBOL_NL,   SYMBOL_TEXT_ID
+    // NOTE: Add more terminators
+    // as I add symbols
 };
+
+/*
+  SymbolPattern pattern[] = [or(SYMBOL_TAB, [SYMBOL_SPACE,SYMBOL_SPACE,
+  SYMBOL_SPACE, SYMBOL_SPACE]), SYMBOL_SPLAT, SYMBOL_NL]
+  if (match_symbol_pattern(token, pattern)) {
+    ....
+  }
+
+  to do this, i'll need a symbol pattern struct. It can contain multiple
+  sequences of tokens to match against. and has a pointer to another symbol
+  pattern or null. Basically, will try to match against all possible sequences,
+  if one matches, move forward to next pattern. If null, return true.
+
+  Then will need to write some defines (or other preprocessor directive) that
+  generate those easily.
+*/
 
 /* Symbol Tree stuff */
 typedef struct SymbolTreeItem {
@@ -67,5 +94,7 @@ int is_whitespace_token(Token *token);
 
 Token *join_token_array(Token **tokens, size_t count);
 Token *advance_token_list_by(Token *head, size_t num);
+
+/* Token stream DSL stuff */
 
 #endif  // SYMBOLS_H
