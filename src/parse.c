@@ -26,6 +26,26 @@ int pr_is_indented(Token *token) {
   return 0;
 }
 
+int matches_symbol_seq(Token *ptr, SymbolSeq seq) {
+  size_t i = 0;
+  while (ptr && i < seq.seq_len &&
+         (ptr->symbol->id == seq.seq[i] || seq.seq[i] == SYMBOL_SPLAT_ID)) {
+    while (seq.seq[i] == SYMBOL_SPLAT_ID && ptr->next &&
+           ptr->next->symbol->id != seq.seq[i + 1]) {
+      // NOTE: Not sure if being greedy with the splat will ultimately work. may
+      // need to be more exhaustive.
+      ptr = ptr->next;
+      i += 1;
+    }
+    ptr = ptr->next;
+    i += 1;
+  }
+  if (i == seq.seq_len) {
+    return 1;
+  }
+  return 0;
+}
+
 //////////////////
 // Consumption
 //////////////////

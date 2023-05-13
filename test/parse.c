@@ -154,6 +154,47 @@ void test_pr_is_standard_node_ender_double_nl_end_of_stream(void) {
   free_token_list(stream);
 }
 
+void test_matches_symbol_seq_code_block_seq1(void) {
+  Token *tokens[5] = {newToken(&(SYMBOLS[SYMBOL_TAB_ID]), "\t"),
+                      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foo"),
+                      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+                      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "bar"),
+                      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n")};
+
+  Token *stream = join_token_array(tokens, 5);
+  SymbolSeq seq = {CODE_BLOCK_SEQ1, CODE_BLOCK_SEQ1_SIZE};
+  TEST_ASSERT_TRUE(matches_symbol_seq(stream, seq));
+
+  Token *head = stream;
+  stream = stream->next;
+  free(head);
+  TEST_ASSERT_FALSE(matches_symbol_seq(stream, seq));
+
+  free_token_list(stream);
+}
+
+void test_matches_symbol_seq_code_block_seq2(void) {
+  Token *tokens[8] = {newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+                      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+                      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+                      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+                      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foo"),
+                      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+                      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "bar"),
+                      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n")};
+
+  Token *stream = join_token_array(tokens, 8);
+  SymbolSeq seq = {CODE_BLOCK_SEQ2, CODE_BLOCK_SEQ2_SIZE};
+  TEST_ASSERT_TRUE(matches_symbol_seq(stream, seq));
+
+  Token *head = stream;
+  stream = stream->next;
+  free(head);
+  TEST_ASSERT_FALSE(matches_symbol_seq(stream, seq));
+
+  free_token_list(stream);
+}
+
 void parseTests(void) {
   printf("running parse tests\n");
   printf("---produce_code_block:\n");
@@ -164,4 +205,7 @@ void parseTests(void) {
   RUN_TEST(test_pr_is_standard_node_ender_double_nl);
   RUN_TEST(test_pr_is_standard_node_ender_triple_nl);
   RUN_TEST(test_pr_is_standard_node_ender_double_nl_end_of_stream);
+  printf("---matches_symbol_seq\n");
+  RUN_TEST(test_matches_symbol_seq_code_block_seq1);
+  RUN_TEST(test_matches_symbol_seq_code_block_seq2);
 }

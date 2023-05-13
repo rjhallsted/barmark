@@ -62,7 +62,11 @@ void ast_add_child(ASTNode *parent, ASTNode *child) {
 
 /* A return value of less-than-zero indicates a problem */
 int ast_determine_node_type(Token *stream_ptr) {
-  if (pr_is_indented(stream_ptr)) {
+  const SymbolSeq code_block1 = {CODE_BLOCK_SEQ1, CODE_BLOCK_SEQ1_SIZE};
+  const SymbolSeq code_block2 = {CODE_BLOCK_SEQ2, CODE_BLOCK_SEQ2_SIZE};
+
+  if (matches_symbol_seq(stream_ptr, code_block1) ||
+      matches_symbol_seq(stream_ptr, code_block2)) {
     return ASTN_CODE_BLOCK;
   }
   return -1;
