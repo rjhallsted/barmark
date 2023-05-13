@@ -14,7 +14,8 @@ void test_constructSymbolTree_constructsCorrectly(void) {
   // test that it contains every base symbol
   // NOTE: Will cause problems if I ever add symbols other than "text" that have
   // no constant
-  for (unsigned int i = 1; i < SYMBOL_COUNT; i++) {  // ignoring null symbol
+  for (unsigned int i = SYMBOL_H1_ID; i < SYMBOL_COUNT;
+       i++) {  // ignoring stuff before h1 and ignoring text
     actual = &(SYMBOLS[i]);
     if (actual->constant) {
       lookupSymbol(tree, actual->constant, &found, &contents);

@@ -50,8 +50,8 @@ void addToSymbolTree(SymbolTreeItem *root, const Symbol *symbol) {
 SymbolTreeItem *buildSymbolTree(void) {
   SymbolTreeItem *root = newSymbolTreeItem('\0', &(SYMBOLS[SYMBOL_TEXT_ID]));
   const Symbol *symbol;
-  // we skip the null symbol at index 0;
-  for (unsigned int i = 1; i < SYMBOL_COUNT; i++) {
+  // we skip everything before H1 and TEXT at the end
+  for (unsigned int i = SYMBOL_H1_ID; i < SYMBOL_COUNT; i++) {
     symbol = &(SYMBOLS[i]);
     if (symbol->constant) {
       addToSymbolTree(root, symbol);
