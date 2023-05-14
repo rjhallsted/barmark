@@ -5,7 +5,6 @@
 #include "ast_to_html.h"
 #include "lex.h"
 #include "parse.h"
-#include "preprocess.h"
 #include "symbols.h"
 #include "util.h"
 
@@ -34,14 +33,6 @@ int main(int argc, char **argv) {
   }
 
   Token *tokens = lex(fd);
-  tokens = preprocess_tokens(tokens);
-  /*
-    TODO:
-    It'd be useful to do some preprocessing step here, do things like:
-      - convert 4 spaces after a newline to a tab
-      - deal with back-slash escaped characters
-    and so on..
-  */
   // printTokens(tokens);
   ASTNode *root = ast_from_tokens(tokens);
   free_token_list(tokens);
