@@ -73,10 +73,8 @@ ASTNode *produce_code_block(Token **stream_ptr, size_t tokens_read) {
   size_t opening_size;
   if ((opening_size = matches_symbol_seq(*stream_ptr, tabOpening)) ||
       (opening_size = matches_symbol_seq(*stream_ptr, spaceOpening))) {
-    for (size_t i = 0; i < opening_size; i++) {
-      *stream_ptr = (*stream_ptr)->next;
-      tokens_read -= 1;
-    }
+    consume_x_tokens(stream_ptr, opening_size);
+    tokens_read -= opening_size;
   } else {
     printf("Bad token sequence found for producing code block at token: '%s'\n",
            (*stream_ptr)->contents);

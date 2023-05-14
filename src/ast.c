@@ -75,7 +75,6 @@ ASTNode *ast_get_next_node(Token **stream_ptr) {
 
   if ((tokens_read = matches_symbol_seq(*stream_ptr, code_block1)) ||
       (tokens_read = matches_symbol_seq(*stream_ptr, code_block2))) {
-    consume_x_tokens(stream_ptr, tokens_read);
     consumer = AST_CONSUMERS[ASTN_CODE_BLOCK];
     return (*consumer)(stream_ptr, tokens_read);
   } else {

@@ -28,6 +28,7 @@ char *join_token_contents(Token *token, size_t tokens_count);
 void ast_free_node(ASTNode *node);
 void ast_add_child(ASTNode *parent, ASTNode *child);
 
+ASTNode *ast_get_next_node(Token **stream_ptr);
 ASTNode *ast_from_tokens(Token *tokens);
 
 #endif  // AST_H
