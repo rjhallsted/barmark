@@ -60,23 +60,6 @@ void ast_add_child(ASTNode *parent, ASTNode *child) {
   parent->children_count += 1;
 }
 
-/* A return value of less-than-zero indicates a problem */
-int ast_determine_node_type(Token *stream_ptr) {
-  const SymbolSeq code_block1 = {CODE_BLOCK_SEQ1, CODE_BLOCK_SEQ1_SIZE};
-  const SymbolSeq code_block2 = {CODE_BLOCK_SEQ2, CODE_BLOCK_SEQ2_SIZE};
-
-  if (matches_symbol_seq(stream_ptr, code_block1) ||
-      matches_symbol_seq(stream_ptr, code_block2)) {
-    return ASTN_CODE_BLOCK;
-  }
-  return -1;
-}
-
-ASTNode *ast_consume_tokens_for_node(Token **stream_ptr, int node_type) {
-  ConsumerPtr consume = AST_CONSUMERS[node_type];
-  return (*consume)(stream_ptr);
-}
-
 /*
 - determine type of next node
 - consume for next node (this will entail handling possible children) (returns
@@ -84,13 +67,22 @@ a new node, and advances stream ptr)
 - return this node
 */
 ASTNode *ast_get_next_node(Token **stream_ptr) {
-  int node_type = ast_determine_node_type(*stream_ptr);
-  if (node_type < 0) {
+  const SymbolSeq code_block1 = {CODE_BLOCK_SEQ1, CODE_BLOCK_SEQ1_SIZE};
+  const SymbolSeq code_block2 = {CODE_BLOCK_SEQ2, CODE_BLOCK_SEQ2_SIZE};
+
+  size_t tokens_read;
+  ConsumerPtr consumer;
+
+  if ((tokens_read = matches_symbol_seq(*stream_ptr, code_block1)) ||
+      (tokens_read = matches_symbol_seq(*stream_ptr, code_block2))) {
+    consume_x_tokens(stream_ptr, tokens_read);
+    consumer = AST_CONSUMERS[ASTN_CODE_BLOCK];
+    return (*consumer)(stream_ptr, tokens_read);
+  } else {
     printf(
         "INVALID token sequence found. Could not determine AST node type.\n");
     exit(EXIT_FAILURE);
   }
-  return ast_consume_tokens_for_node(stream_ptr, node_type);
 }
 
 ASTNode *ast_from_tokens(Token *stream) {

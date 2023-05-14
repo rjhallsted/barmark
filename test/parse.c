@@ -23,8 +23,8 @@ void assert_ast_nodes_equal(ASTNode *expected, ASTNode *actual) {
   }
 }
 
-void test_produce_code_block_double_newline_ending(void) {
-  Token *tokens[15] = {
+void test_produce_code_block_tab_start(void) {
+  Token *tokens[11] = {
       newToken(&(SYMBOLS[SYMBOL_TAB_ID]), "\t"),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foobar"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
@@ -32,22 +32,18 @@ void test_produce_code_block_double_newline_ending(void) {
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "here"),
       newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_TAB_ID]), "\t"),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "also"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "here"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "not_included"),
   };
 
-  Token *stream = join_token_array(tokens, 15);
+  Token *stream = join_token_array(tokens, 11);
   Token **stream_ptr = &stream;
   ASTNode *expected = ast_create_node(ASTN_CODE_BLOCK);
-  expected->contents = strdup("foobar was here\nalso here");
-  Token *expected_ptr = advance_token_list_by(*stream_ptr, 11);
+  expected->contents = strdup("foobar was here\n");
+  Token *expected_ptr = advance_token_list_by(*stream_ptr, 7);
 
-  ASTNode *actual = produce_code_block(stream_ptr);
+  ASTNode *actual = produce_code_block(stream_ptr, 7);
   assert_ast_nodes_equal(expected, actual);
   TEST_ASSERT_EQUAL_PTR(expected_ptr, *stream_ptr);
 
@@ -56,8 +52,10 @@ void test_produce_code_block_double_newline_ending(void) {
   ast_free_node(actual);
 }
 
-void test_produce_code_block_newline_missing_tab_ending(void) {
-  Token *tokens[14] = {
+void test_produce_code_block_space_tab_start(void) {
+  Token *tokens[12] = {
+      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TAB_ID]), "\t"),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foobar"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
@@ -68,18 +66,15 @@ void test_produce_code_block_newline_missing_tab_ending(void) {
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "also"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "here"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "not_included"),
   };
 
-  Token *stream = join_token_array(tokens, 14);
+  Token *stream = join_token_array(tokens, 12);
   Token **stream_ptr = &stream;
   ASTNode *expected = ast_create_node(ASTN_CODE_BLOCK);
-  expected->contents = strdup("foobar was here");
-  Token *expected_ptr = advance_token_list_by(*stream_ptr, 6);
+  expected->contents = strdup("foobar was here\n");
+  Token *expected_ptr = advance_token_list_by(*stream_ptr, 9);
 
-  ASTNode *actual = produce_code_block(stream_ptr);
+  ASTNode *actual = produce_code_block(stream_ptr, 9);
   assert_ast_nodes_equal(expected, actual);
   TEST_ASSERT_EQUAL_PTR(expected_ptr, *stream_ptr);
 
@@ -88,70 +83,36 @@ void test_produce_code_block_newline_missing_tab_ending(void) {
   ast_free_node(actual);
 }
 
-void test_produce_code_block_end_of_stream_ending(void) {
-  Token *tokens[10] = {
-      newToken(&(SYMBOLS[SYMBOL_TAB_ID]), "\t"),
+void test_produce_code_block_space_start(void) {
+  Token *tokens[13] = {
+      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+      newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foobar"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "was"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "here"),
       newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_TAB_ID]), "\t"),
       newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "also"),
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), " "),
+      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "here"),
   };
 
-  Token *stream = join_token_array(tokens, 10);
+  Token *stream = join_token_array(tokens, 13);
   Token **stream_ptr = &stream;
   ASTNode *expected = ast_create_node(ASTN_CODE_BLOCK);
-  expected->contents = strdup("foobar was here\nalso ");
+  expected->contents = strdup("foobar was here\n");
+  Token *expected_ptr = advance_token_list_by(*stream_ptr, 10);
 
-  ASTNode *actual = produce_code_block(stream_ptr);
+  ASTNode *actual = produce_code_block(stream_ptr, 10);
   assert_ast_nodes_equal(expected, actual);
-  TEST_ASSERT_NULL(*stream_ptr);
+  TEST_ASSERT_EQUAL_PTR(expected_ptr, *stream_ptr);
 
   free_token_list(stream);
   ast_free_node(expected);
   ast_free_node(actual);
-}
-
-void test_pr_is_standard_node_ender_double_nl(void) {
-  Token *tokens[3] = {
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_TEXT_ID]), "foobar"),
-  };
-
-  Token *stream = join_token_array(tokens, 3);
-  TEST_ASSERT_TRUE(pr_is_standard_node_ender(stream));
-
-  free_token_list(stream);
-}
-
-void test_pr_is_standard_node_ender_triple_nl(void) {
-  Token *tokens[3] = {
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-  };
-
-  Token *stream = join_token_array(tokens, 3);
-  TEST_ASSERT_FALSE(pr_is_standard_node_ender(stream));
-
-  free_token_list(stream);
-}
-
-void test_pr_is_standard_node_ender_double_nl_end_of_stream(void) {
-  Token *tokens[2] = {
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-      newToken(&(SYMBOLS[SYMBOL_NL_ID]), "\n"),
-  };
-
-  Token *stream = join_token_array(tokens, 2);
-  TEST_ASSERT_FALSE(pr_is_standard_node_ender(stream));
-
-  free_token_list(stream);
 }
 
 void test_matches_symbol_seq_code_block_seq1(void) {
@@ -198,13 +159,9 @@ void test_matches_symbol_seq_code_block_seq2(void) {
 void parseTests(void) {
   printf("running parse tests\n");
   printf("---produce_code_block:\n");
-  RUN_TEST(test_produce_code_block_double_newline_ending);
-  RUN_TEST(test_produce_code_block_newline_missing_tab_ending);
-  RUN_TEST(test_produce_code_block_end_of_stream_ending);
-  printf("---pr_is_standard_node_ender:\n");
-  RUN_TEST(test_pr_is_standard_node_ender_double_nl);
-  RUN_TEST(test_pr_is_standard_node_ender_triple_nl);
-  RUN_TEST(test_pr_is_standard_node_ender_double_nl_end_of_stream);
+  RUN_TEST(test_produce_code_block_tab_start);
+  RUN_TEST(test_produce_code_block_space_tab_start);
+  RUN_TEST(test_produce_code_block_space_start);
   printf("---matches_symbol_seq\n");
   RUN_TEST(test_matches_symbol_seq_code_block_seq1);
   RUN_TEST(test_matches_symbol_seq_code_block_seq2);

@@ -13,8 +13,8 @@ typedef struct {
 
 enum SYMBOL_IDS {
   /* Has constants */
-  SYMBOL_NULL_ID = 0,
-  SYMBOL_SPLAT_ID = 1,
+  SYMBOL_SPLAT_ID = 0,  // MUST BE 0 for splat matching to work
+  SYMBOL_NULL_ID = 1,
   SYMBOL_H1_ID = 2,  // MUST BE FIRST MATCHABLE SYMBOL
   SYMBOL_H2_ID = 3,
   SYMBOL_SPACE_ID = 4,
@@ -26,10 +26,10 @@ enum SYMBOL_IDS {
 
 #define SYMBOL_COUNT 8
 
-#define SYMBOL_NULL \
-  { "null", SYMBOL_NULL_ID, "", NULL }
 #define SYMBOL_SPLAT \
   { "splat", SYMBOL_SPLAT_ID, "*", NULL }
+#define SYMBOL_NULL \
+  { "null", SYMBOL_NULL_ID, "", NULL }
 #define SYMBOL_H1 \
   { "H1", SYMBOL_H1_ID, "#", NULL }
 #define SYMBOL_H2 \
@@ -45,8 +45,8 @@ enum SYMBOL_IDS {
 
 static const Symbol SYMBOLS[SYMBOL_COUNT] = {
     /* Has Constants */
-    SYMBOL_NULL, SYMBOL_SPLAT, SYMBOL_H1,  SYMBOL_H2, SYMBOL_SPACE,
-    SYMBOL_TAB,  SYMBOL_NL,    SYMBOL_TEXT
+    SYMBOL_SPLAT, SYMBOL_NULL, SYMBOL_H1,  SYMBOL_H2, SYMBOL_SPACE,
+    SYMBOL_TAB,   SYMBOL_NL,   SYMBOL_TEXT
     // NOTE: Add more terminators
     // as I add symbols
 };
