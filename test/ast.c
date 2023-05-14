@@ -70,10 +70,54 @@ void test_ast_get_next_node_basic_code_block(void) {
   ast_free_node(actual);
 }
 
+void test_ast_condense_tree_merges_code_blocks(void) {
+  // setup input
+  ASTNode *root = ast_create_node(ASTN_DOCUMENT);
+  ASTNode *text = ast_create_node(ASTN_TEXT);
+  text->contents = strdup("foo");
+  ASTNode *block1 = ast_create_node(ASTN_CODE_BLOCK);
+  block1->contents = strdup("foo bar\n");
+  ASTNode *block2 = ast_create_node(ASTN_CODE_BLOCK);
+  block2->contents = strdup("foo bar baz\n");
+  ASTNode *last = ast_create_node(ASTN_TEXT);
+  last->contents = strdup("fin");
+  ast_add_child(root, text);
+  ast_add_child(root, block1);
+  ast_add_child(root, block2);
+  ast_add_child(root, last);
+
+  // setup expected
+  ASTNode *exp_root = ast_create_node(ASTN_DOCUMENT);
+  ASTNode *exp_text = ast_create_node(ASTN_TEXT);
+  exp_text->contents = strdup("foo");
+  ASTNode *exp_block = ast_create_node(ASTN_CODE_BLOCK);
+  exp_block->contents = strdup("foo bar\nfoo bar baz\n");
+  ASTNode *exp_last = ast_create_node(ASTN_TEXT);
+  exp_last->contents = strdup("fin");
+  ast_add_child(exp_root, exp_text);
+  ast_add_child(exp_root, exp_block);
+  ast_add_child(exp_root, exp_last);
+
+  ASTNode *act_root = ast_condense_tree(root);
+
+  // compare
+  TEST_ASSERT_EQUAL(exp_root->children_count, act_root->children_count);
+  for (size_t i = 0; i < exp_root->children_count; i++) {
+    TEST_ASSERT_EQUAL(exp_root->children[i]->type, act_root->children[i]->type);
+    TEST_ASSERT_EQUAL_STRING(exp_root->children[i]->contents,
+                             act_root->children[i]->contents);
+  }
+
+  ast_free_node(exp_root);
+  ast_free_node(act_root);
+}
+
 void astTests(void) {
   printf("running ast tests\n");
   printf("---join_token_contents\n");
   RUN_TEST(test_join_token_contents_joins_correctly);
   printf("---ast_get_next_node\n");
   RUN_TEST(test_ast_get_next_node_basic_code_block);
+  printf("---ast_condense_tree\n");
+  RUN_TEST(test_ast_condense_tree_merges_code_blocks);
 }

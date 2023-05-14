@@ -43,14 +43,18 @@ char *join_token_contents(Token *token, size_t tokens_count) {
   return output;
 }
 
-void ast_free_node(ASTNode *node) {
-  for (unsigned int i = 0; i < node->children_count; i++) {
-    ast_free_node(node->children[i]);
-  }
+void ast_free_node_only(ASTNode *node) {
   if (node->contents) {
     free(node->contents);
   }
   free(node);
+}
+
+void ast_free_node(ASTNode *node) {
+  for (unsigned int i = 0; i < node->children_count; i++) {
+    ast_free_node(node->children[i]);
+  }
+  ast_free_node_only(node);
 }
 
 void ast_add_child(ASTNode *parent, ASTNode *child) {
@@ -84,6 +88,55 @@ ASTNode *ast_get_next_node(Token **stream_ptr) {
   }
 }
 
+ASTNode *ast_merge_nodes(ASTNode *a, ASTNode *b) {
+  if (a->type != b->type) {
+    printf("Tried to merge AST Nodes of differing types\n");
+    exit(EXIT_FAILURE);
+  }
+  ASTNode *new_node = ast_create_node(a->type);
+  size_t new_contents_size = strlen(a->contents) + strlen(b->contents) + 1;
+  new_node->contents = malloc(new_contents_size);
+  strlcat(new_node->contents, a->contents, new_contents_size);
+  strlcat(new_node->contents, b->contents, new_contents_size);
+  for (size_t i = 0; i < a->children_count; i++) {
+    ast_add_child(new_node, a->children[i]);
+  }
+  for (size_t i = 0; i < b->children_count; i++) {
+    ast_add_child(new_node, b->children[i]);
+  }
+  return new_node;
+}
+
+/*
+* Condenses the provided ast. This mainly involves things like
+* joining combinable node types, (for instance, consecutive code
+blocks can be merged)
+*
+* Currently only does top-level condensation
+*/
+ASTNode *ast_condense_tree(ASTNode *root) {
+  ASTNode *new_root = ast_create_node(ASTN_DOCUMENT);
+  ASTNode *a, *b;
+
+  for (size_t i = 0; i < root->children_count; i++) {
+    // join code blocks
+    if (root->children[i]->type == ASTN_CODE_BLOCK &&
+        new_root->children_count > 0 &&
+        new_root->children[new_root->children_count - 1]->type ==
+            ASTN_CODE_BLOCK) {
+      a = new_root->children[new_root->children_count - 1];
+      b = root->children[i];
+      new_root->children[new_root->children_count - 1] = ast_merge_nodes(a, b);
+      ast_free_node_only(a);
+      ast_free_node_only(b);
+    } else {
+      ast_add_child(new_root, root->children[i]);
+    }
+  }
+  ast_free_node_only(root);
+  return new_root;
+}
+
 ASTNode *ast_from_tokens(Token *stream) {
   ASTNode *root = ast_create_node(ASTN_DOCUMENT);
   ASTNode *node;
@@ -99,6 +152,8 @@ ASTNode *ast_from_tokens(Token *stream) {
       ast_add_child(root, node);
     }
   }
+
+  root = ast_condense_tree(root);
 
   return root;
   /*
