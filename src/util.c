@@ -10,3 +10,11 @@ FILE *openFile(char *path) {
   }
   return fd;
 }
+
+char *str_append(char *dst, const char *s2) {
+  size_t len = strlen(dst) + strlen(s2) + 1;
+  char *output = realloc(dst, len);
+  output[0] = '\0';
+  strlcat(output, s2, len);
+  return output;
+}

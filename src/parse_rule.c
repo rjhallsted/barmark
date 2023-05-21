@@ -26,8 +26,18 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
+#include "ast.h"
 #include "symbols.h"
+
+ASTNode *flatten_and_change_type(ASTNode *node, unsigned int new_type) {
+  if (node) {
+    ast_move_children_to_contents(node);
+    node->type = new_type;
+  }
+  return node;
+}
 
 /*
  * Each matcher should modify the stream ptr it is given, but only if the match
@@ -37,112 +47,129 @@
 /******************
  * Symbol matchers
  *******************/
+ASTNode *m_text_node_from_next_token(Token ***stream) {
+  ASTNode *node = ast_create_node(ASTN_TEXT);
+  node->contents = strdup((**stream)->contents);
+  *stream = &((**stream)->next);
+  return node;
+}
 
-int m_matches_symbol(Token ***stream, unsigned int symbol_id) {
+ASTNode *m_matches_symbol(Token ***stream, unsigned int symbol_id) {
   if (**stream == NULL) {
     return 0;
   }
   if ((**stream)->symbol->id == symbol_id) {
-    *stream = &((**stream)->next);
-    return 1;
+    return m_text_node_from_next_token(stream);
   }
-  return 0;
+  return NULL;
 }
 
-int m_wildcard(Token ***stream) {
+ASTNode *m_wildcard(Token ***stream) {
   if (**stream == NULL) {
     return 0;
   }
-  *stream = &((**stream)->next);
-  return 1;
+  return m_text_node_from_next_token(stream);
 }
 
-int m_anything_but(Token ***stream, unsigned int symbol_id) {
+ASTNode *m_anything_but(Token ***stream, unsigned int symbol_id) {
   if (**stream == NULL || (**stream)->symbol->id == symbol_id) {
     return 0;
   }
-  *stream = &((**stream)->next);
-  return 1;
+  return m_text_node_from_next_token(stream);
 }
 
-int m_text(Token ***stream) { return m_matches_symbol(stream, SYMBOL_TEXT_ID); }
+ASTNode *m_text(Token ***stream) {
+  return m_matches_symbol(stream, SYMBOL_TEXT_ID);
+}
 
-int m_space(Token ***stream) {
+ASTNode *m_space(Token ***stream) {
   return m_matches_symbol(stream, SYMBOL_SPACE_ID);
 }
 
-int m_newline(Token ***stream) {
+ASTNode *m_newline(Token ***stream) {
   return m_matches_symbol(stream, SYMBOL_NL_ID);
 }
 
-int m_tab(Token ***stream) { return m_matches_symbol(stream, SYMBOL_TAB_ID); }
+ASTNode *m_tab(Token ***stream) {
+  return m_matches_symbol(stream, SYMBOL_TAB_ID);
+}
 
 /*******************
 ** Generic matchers
 *******************/
 
-int m_wild(MatcherFn matcher, size_t min_matches, size_t max_matches,
-           Token ***stream) {
+ASTNode *m_wild(MatcherFn matcher, size_t min_matches, size_t max_matches,
+                Token ***stream) {
   Token **stream_cpy = *stream;
   size_t i = 0;
-  while (i < max_matches && matcher(&stream_cpy)) {
+  ASTNode *node = ast_create_node(ASTN_DEFAULT);
+  ASTNode *child;
+  while (i < max_matches && (child = matcher(&stream_cpy))) {
     i += 1;
+    ast_add_child(node, child);
   }
   if (min_matches <= i && i <= max_matches) {
     *stream = stream_cpy;
-    return 1;
+    return node;
   }
-  return 0;
+  ast_free_node(node);
+  return NULL;
 }
 
-int m_or(MatcherFn m1, MatcherFn m2, Token ***stream) {
+ASTNode *m_or(MatcherFn m1, MatcherFn m2, Token ***stream) {
   Token **stream_cpy = *stream;
-  int res;
+  ASTNode *node;
 
-  if ((res = m1(&stream_cpy))) {
+  if ((node = m1(&stream_cpy))) {
     *stream = stream_cpy;
-    return 1;
+    return node;
   }
   stream_cpy = *stream;
-  if ((res = m2(&stream_cpy))) {
+  if ((node = m2(&stream_cpy))) {
     *stream = stream_cpy;
-    return 1;
+    return node;
   }
-  return 0;
+  return NULL;
 }
 
-int m_then(MatcherFn m1, MatcherFn m2, Token ***stream) {
+ASTNode *m_then(MatcherFn m1, MatcherFn m2, Token ***stream) {
   Token **stream_cpy = *stream;
-  int res, res2;
+  ASTNode *node, *res, *res2;
 
+  node = ast_create_node(ASTN_DEFAULT);
   res = m1(&stream_cpy);
   if (res) {
+    ast_add_child(node, res);
     res2 = m2(&stream_cpy);
     if (res2) {
+      ast_add_child(node, res2);
       *stream = stream_cpy;
-      return 1;
+      return node;
     }
   }
-  return 0;
+  ast_free_node(node);
+  return NULL;
 }
 
 /*********************
  * Utility matchers
  **********************/
 
-int m_up_to_3_spaces(Token ***stream) { return m_wild(m_space, 0, 3, stream); }
-int m_exactly_4_spaces(Token ***stream) {
+ASTNode *m_up_to_3_spaces(Token ***stream) {
+  return m_wild(m_space, 0, 3, stream);
+}
+ASTNode *m_exactly_4_spaces(Token ***stream) {
   return m_wild(m_space, 4, 4, stream);
 }
-int m_wild_newline(Token ***stream) {
+ASTNode *m_wild_newline(Token ***stream) {
   return m_wild(m_newline, 0, SIZE_MAX, stream);
 }
 
-int m_anything_but_newline(Token ***stream) {
+ASTNode *m_anything_but_newline(Token ***stream) {
   return m_anything_but(stream, SYMBOL_NL_ID);
 }
 
-int m_wild_anything_but_newline(Token ***stream) {
+ASTNode *m_wild_anything_but_newline(Token ***stream) {
   return m_wild(m_anything_but_newline, 0, SIZE_MAX, stream);
 }
 
@@ -150,42 +177,79 @@ int m_wild_anything_but_newline(Token ***stream) {
  * m_text_line
  **********************/
 
-int m_text_line_or1(Token ***stream) { return m_or(m_text, m_space, stream); }
+ASTNode *m_text_line_or1(Token ***stream) {
+  return m_or(m_text, m_space, stream);
+}
 
-int m_text_line_wild1(Token ***stream) {
+ASTNode *m_text_line_wild1(Token ***stream) {
   return m_wild(m_text_line_or1, 0, SIZE_MAX, stream);
 }
 
-int m_text_line(Token ***stream) {
-  return m_then(m_text_line_wild1, m_newline, stream);
+ASTNode *m_text_line(Token ***stream) {
+  ASTNode *res = m_then(m_text_line_wild1, m_newline, stream);
+  flatten_and_change_type(res, ASTN_TEXT);
+  return res;
 }
 
 /*******************
  * m_opening_tab
  *******************/
-int m_opening_tab_with_tab(Token ***stream) {
+ASTNode *m_opening_tab_with_tab(Token ***stream) {
   return m_then(m_up_to_3_spaces, m_tab, stream);
 }
 
-int m_opening_tab(Token ***stream) {
-  return m_or(m_opening_tab_with_tab, m_exactly_4_spaces, stream);
+/**
+ * @brief If successfully matches, will return a single ASTNode
+ * With the contents of the openging tab, and no children
+ *
+ * @param stream
+ * @return ASTNode*
+ */
+ASTNode *m_opening_tab(Token ***stream) {
+  ASTNode *res = m_or(m_opening_tab_with_tab, m_exactly_4_spaces, stream);
+  flatten_and_change_type(res, ASTN_TEXT);
+  return res;
 }
 
 /*******************
  * m_code_block
  *******************/
-int m_code_block_opening_then_contents(Token ***stream) {
-  return m_then(m_opening_tab, m_wild_anything_but_newline, stream);
+/***
+ * Will flatten result into 1 node with children: (opening tab, ...line
+ * contents)
+ */
+ASTNode *m_code_block_opening_then_contents(Token ***stream) {
+  ASTNode *res = m_then(m_opening_tab, m_wild_anything_but_newline, stream);
+  if (res) {
+    ast_flatten_children(res);
+  }
+  return res;
 }
 
-int m_code_block_line(Token ***stream) {
-  return m_then(m_code_block_opening_then_contents, m_wild_newline, stream);
+/***
+ * Will drop opening tab, and join the rest of the nodes into the contents of
+ * this node.
+ */
+ASTNode *m_code_block_line(Token ***stream) {
+  ASTNode *res =
+      m_then(m_code_block_opening_then_contents, m_wild_newline, stream);
+  if (res) {
+    ast_flatten_children(res);
+    ast_remove_child_at_index(res, 0);
+    flatten_and_change_type(res, ASTN_TEXT);
+  }
+  return res;
 }
 
-int m_wild_code_block(Token ***stream) {
+ASTNode *m_wild_code_block(Token ***stream) {
   return m_wild(m_code_block, 0, SIZE_MAX, stream);
 }
 
-int m_code_block(Token ***stream) {
-  return m_then(m_code_block_line, m_wild_code_block, stream);
+/* Returns a code block node */
+ASTNode *m_code_block(Token ***stream) {
+  ASTNode *node = m_then(m_code_block_line, m_wild_code_block, stream);
+  if (node) {
+    flatten_and_change_type(node, ASTN_CODE_BLOCK);
+  }
+  return node;
 }

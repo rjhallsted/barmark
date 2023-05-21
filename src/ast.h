@@ -7,6 +7,7 @@
 
 enum AST_NODE_TYPES {
   ASTN_DOCUMENT = 0,
+  ASTN_DEFAULT,
   ASTN_TEXT,
   ASTN_CODE_BLOCK,
   ASTN_PARAGRAPH,
@@ -28,6 +29,9 @@ char *join_token_contents(Token *token, size_t tokens_count);
 void ast_free_node_only(ASTNode *node);
 void ast_free_node(ASTNode *node);
 void ast_add_child(ASTNode *parent, ASTNode *child);
+void ast_move_children_to_contents(ASTNode *node);
+void ast_remove_child_at_index(ASTNode *node, size_t index);
+void ast_flatten_children(ASTNode *node);
 
 ASTNode *ast_get_next_node(Token **stream_ptr);
 ASTNode *ast_condense_tree(ASTNode *root);

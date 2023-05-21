@@ -5,5 +5,6 @@
 #include <stdlib.h>
 
 FILE *openFile(char *path);
+char *str_append(char *dst, const char *s2);
 
 #endif  // UTIL_H
