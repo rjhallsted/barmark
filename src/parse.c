@@ -86,3 +86,26 @@ ASTNode *produce_code_block(Token **stream_ptr, size_t tokens_read) {
   consume_x_tokens(stream_ptr, tokens_read);
   return node;
 }
+
+/***
+ * Recursive Descent notes:
+ *
+ * Grammar definitions:
+ * - wild(C, min, max) - Matches C at least min times and no more than max times
+ * - * - expression that matches any token
+ * - Opening tab
+ *   (wild(\s, 3) > \t) || wild(\s, 4, 4)
+ * - Code block:
+ *   (Opening tab > wild(*, 0, INF) > wild(\n, 1, INF)) > wild(Code block, 0,
+ * INF)
+ * - text line:
+ *   wild((text || \s), 0, INF) > \n
+ * - h1
+ *   # > \s > text line
+ * - h2
+ *   # > # > \s > text line
+ *
+ *
+ *
+ *
+ */

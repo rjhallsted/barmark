@@ -49,7 +49,7 @@ void test_lookupBaseSybmol_findsSymbolAndAdvancesPtrCorrectly(void) {
 }
 
 void symbolsTests(void) {
-  printf("running symbols tests\n");
+  printf("--symbols tests\n");
   RUN_TEST(test_constructSymbolTree_constructsCorrectly);
   RUN_TEST(test_lookupBaseSybmol_findsSymbolAndAdvancesPtrCorrectly);
 }

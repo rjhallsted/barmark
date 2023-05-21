@@ -140,7 +140,7 @@ void test_matches_symbol_seq_code_block_seq2(void) {
 }
 
 void parseTests(void) {
-  printf("running parse tests\n");
+  printf("--parse tests\n");
   printf("---produce_code_block:\n");
   RUN_TEST(test_produce_code_block_tab_start);
   RUN_TEST(test_produce_code_block_space_tab_start);

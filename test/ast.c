@@ -113,7 +113,7 @@ void test_ast_condense_tree_merges_code_blocks(void) {
 }
 
 void astTests(void) {
-  printf("running ast tests\n");
+  printf("--ast tests\n");
   printf("---join_token_contents\n");
   RUN_TEST(test_join_token_contents_joins_correctly);
   printf("---ast_get_next_node\n");
