@@ -116,10 +116,12 @@ int m_then(MatcherFn m1, MatcherFn m2, Token ***stream) {
   int res, res2;
 
   res = m1(&stream_cpy);
-  res2 = m2(&stream_cpy);
-  if (res && res2) {
-    *stream = stream_cpy;
-    return 1;
+  if (res) {
+    res2 = m2(&stream_cpy);
+    if (res2) {
+      *stream = stream_cpy;
+      return 1;
+    }
   }
   return 0;
 }
@@ -165,7 +167,6 @@ int m_opening_tab_with_tab(Token ***stream) {
   return m_then(m_up_to_3_spaces, m_tab, stream);
 }
 
-// TODO: Test
 int m_opening_tab(Token ***stream) {
   return m_or(m_opening_tab_with_tab, m_exactly_4_spaces, stream);
 }
@@ -181,7 +182,10 @@ int m_code_block_line(Token ***stream) {
   return m_then(m_code_block_opening_then_contents, m_wild_newline, stream);
 }
 
-// TODO: Test
+int m_wild_code_block(Token ***stream) {
+  return m_wild(m_code_block, 0, SIZE_MAX, stream);
+}
+
 int m_code_block(Token ***stream) {
-  return m_then(m_code_block_line, m_code_block, stream);
+  return m_then(m_code_block_line, m_wild_code_block, stream);
 }
