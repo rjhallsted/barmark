@@ -13,9 +13,10 @@ typedef struct {
 
 enum SYMBOL_IDS {
   /* Has constants */
-  SYMBOL_SPLAT_ID = 0,  // MUST BE 0 for splat matching to work
+  SYMBOL_WILDCARD_ID = 0,
   SYMBOL_NULL_ID = 1,
-  SYMBOL_H1_ID = 2,  // MUST BE FIRST MATCHABLE SYMBOL
+  SYMBOL_H1_ID =
+      2,  // MUST BE FIRST MATCHABLE SYMBOL (actually probably not now)
   SYMBOL_H2_ID = 3,
   SYMBOL_SPACE_ID = 4,
   SYMBOL_TAB_ID = 5,
@@ -26,8 +27,8 @@ enum SYMBOL_IDS {
 
 #define SYMBOL_COUNT 8
 
-#define SYMBOL_SPLAT \
-  { "splat", SYMBOL_SPLAT_ID, "*", NULL }
+#define SYMBOL_WILDCARD \
+  { "splat", SYMBOL_WILDCARD_ID, "*", NULL }
 #define SYMBOL_NULL \
   { "null", SYMBOL_NULL_ID, "", NULL }
 #define SYMBOL_H1 \
@@ -45,8 +46,8 @@ enum SYMBOL_IDS {
 
 static const Symbol SYMBOLS[SYMBOL_COUNT] = {
     /* Has Constants */
-    SYMBOL_SPLAT, SYMBOL_NULL, SYMBOL_H1,  SYMBOL_H2, SYMBOL_SPACE,
-    SYMBOL_TAB,   SYMBOL_NL,   SYMBOL_TEXT
+    SYMBOL_WILDCARD, SYMBOL_NULL, SYMBOL_H1,  SYMBOL_H2, SYMBOL_SPACE,
+    SYMBOL_TAB,      SYMBOL_NL,   SYMBOL_TEXT
     // NOTE: Add more terminators
     // as I add symbols
 };
@@ -91,7 +92,7 @@ Token *advance_token_list_by(Token *head, size_t num);
 
 /*
   SymbolPattern pattern[] = [or(SYMBOL_TAB, [SYMBOL_SPACE,SYMBOL_SPACE,
-  SYMBOL_SPACE, SYMBOL_SPACE]), SYMBOL_SPLAT, SYMBOL_NL]
+  SYMBOL_SPACE, SYMBOL_SPACE]), SYMBOL_WILDCARD, SYMBOL_NL]
   if (match_symbol_pattern(token, pattern)) {
     ....
   }

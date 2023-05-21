@@ -30,27 +30,27 @@ size_t matches_symbol_seq(Token *ptr, SymbolSeq seq);
  * - All splats must have at least one symbol following the splat + 2 arguments,
  *   or you will get a segfault.
  *  BASIC SPLAT:
- *   - def: SYMBOL_SPLAT_ID, <symbol_id>, <max_count>
+ *   - def: SYMBOL_WILDCARD_ID, <symbol_id>, <max_count>
  *   - kind is the symbol to match
  *   - max count is the number to match up to.
  * UNIVERSAL SPLAT:
- *   - def: SYMBOL_SPLAT_ID, SYMBOL_SPLAT_ID, <max_count>
+ *   - def: SYMBOL_WILDCARD_ID, SYMBOL_WILDCARD_ID, <max_count>
  *   - 2 splats followed my max_count match any symbols for up to max count
  * UNIVERSAL INFINITE SPLAT:
- *   - def : SYMBOL_SPLAT_ID, SYMBOL_SPLAT_ID, SYMBOL_SPLAT_ID
+ *   - def : SYMBOL_WILDCARD_ID, SYMBOL_WILDCARD_ID, SYMBOL_WILDCARD_ID
  *   - 3 splats match any symbols for any length
  */
 
 /* [splat(' ', 4), \t, splat(*, *), \n] */
 static const unsigned int CODE_BLOCK_SEQ1[] = {
-    SYMBOL_SPLAT_ID, SYMBOL_SPACE_ID, 4,
-    SYMBOL_TAB_ID,   SYMBOL_SPLAT_ID, SYMBOL_SPLAT_ID,
-    SYMBOL_SPLAT_ID, SYMBOL_NL_ID};
+    SYMBOL_WILDCARD_ID, SYMBOL_SPACE_ID,    4,
+    SYMBOL_TAB_ID,      SYMBOL_WILDCARD_ID, SYMBOL_WILDCARD_ID,
+    SYMBOL_WILDCARD_ID, SYMBOL_NL_ID};
 #define CODE_BLOCK_SEQ1_SIZE 8
 /* [' ', ' ', ' ', ' ', splat(*, *), \n] */
 static const unsigned int CODE_BLOCK_SEQ2[] = {
-    SYMBOL_SPACE_ID, SYMBOL_SPACE_ID, SYMBOL_SPACE_ID, SYMBOL_SPACE_ID,
-    SYMBOL_SPLAT_ID, SYMBOL_SPLAT_ID, SYMBOL_SPLAT_ID, SYMBOL_NL_ID};
+    SYMBOL_SPACE_ID,    SYMBOL_SPACE_ID,    SYMBOL_SPACE_ID,    SYMBOL_SPACE_ID,
+    SYMBOL_WILDCARD_ID, SYMBOL_WILDCARD_ID, SYMBOL_WILDCARD_ID, SYMBOL_NL_ID};
 #define CODE_BLOCK_SEQ2_SIZE 8
 
 #endif  // PARSE_H

@@ -18,16 +18,16 @@ size_t matches_symbol_seq(Token *ptr, SymbolSeq seq) {
 
   while (ptr && i < seq.seq_len) {
     // handle splats
-    if (seq.seq[i] == SYMBOL_SPLAT_ID) {
+    if (seq.seq[i] == SYMBOL_WILDCARD_ID) {
       splat_symbol_id = seq.seq[i + 1];
-      if (seq.seq[i + 2] == SYMBOL_SPLAT_ID) {
+      if (seq.seq[i + 2] == SYMBOL_WILDCARD_ID) {
         splat_max_count = -1;  // Intentially underflow to get max value
       } else {
         splat_max_count = seq.seq[i + 2];
       }
       // while token == symbol, advance.
       while (ptr && splat_max_count > 0 &&
-             (splat_symbol_id == SYMBOL_SPLAT_ID ||
+             (splat_symbol_id == SYMBOL_WILDCARD_ID ||
               ptr->symbol->id == splat_symbol_id) &&
              ptr->symbol->id != seq.seq[i + 3]) {
         ptr = ptr->next;
@@ -63,7 +63,7 @@ void consume_x_tokens(Token **stream_ptr, size_t to_consume) {
 ASTNode *produce_code_block(Token **stream_ptr, size_t tokens_read) {
   // advance past indent:
   SymbolSeq tabOpening = {
-      .seq = (const unsigned int[]){SYMBOL_SPLAT_ID, SYMBOL_SPACE_ID, 3,
+      .seq = (const unsigned int[]){SYMBOL_WILDCARD_ID, SYMBOL_SPACE_ID, 3,
                                     SYMBOL_TAB_ID},
       .seq_len = 4};
   SymbolSeq spaceOpening = {
