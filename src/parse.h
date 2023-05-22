@@ -12,6 +12,7 @@ typedef ASTNode *(*ConsumerPtr)(Token **, size_t);
 
 static const ConsumerPtr AST_CONSUMERS[] = {
     (ConsumerPtr)NULL,  // document standin
+    (ConsumerPtr)NULL,  // Default standin
     (ConsumerPtr)NULL,  // TODO: Replace with text consumer,
     &produce_code_block,
     (ConsumerPtr)NULL,  // TODO: Replace with paragraph consumer,

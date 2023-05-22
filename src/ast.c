@@ -81,6 +81,9 @@ void ast_move_children_to_contents(ASTNode *node) {
     }
     ast_free_node(node->children[i]);
   }
+  free(node->children);
+  node->children = NULL;
+  node->children_count = 0;
   node->contents = new_contents;
 }
 
