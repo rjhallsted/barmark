@@ -4,8 +4,6 @@
 #include "ast.h"
 #include "symbols.h"
 
-// TODO: Modify all MatcherFn to return an ASTNode
-
 typedef ASTNode *MatcherFn(Token ***);
 
 ASTNode *m_wild(MatcherFn matcher, size_t min_matches, size_t max_matches,

@@ -6,6 +6,8 @@
 #include "../src/symbols.h"
 #include "../vendor/unity/unity.h"
 
+// TODO: Modify these tests to test for ASTNode stuff, instead of boolean
+
 void test_m_wild(void) {
   Token *tokens[6] = {
       newToken(&(SYMBOLS[SYMBOL_SPACE_ID]), "1"),
