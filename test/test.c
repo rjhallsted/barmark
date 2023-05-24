@@ -6,6 +6,7 @@
 #include "parse.h"
 #include "parse_rule.h"
 #include "symbols.h"
+#include "util.h"
 
 void setUp(void) {}
 
@@ -17,5 +18,6 @@ int main(void) {
   astTests();
   parseTests();
   parse_rule_tests();
+  util_tests();
   return UNITY_END();
 }

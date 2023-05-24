@@ -200,7 +200,7 @@ ASTNode *m_opening_tab_with_tab(Token ***stream) {
 
 /**
  * @brief If successfully matches, will return a single ASTNode
- * With the contents of the openging tab, and no children
+ * With the contents of the opening tab, and no children
  *
  * @param stream
  * @return ASTNode*

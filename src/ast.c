@@ -67,12 +67,18 @@ void ast_add_child(ASTNode *parent, ASTNode *child) {
 
 /**
  * @brief Recursively moves the contents of children into the contents of this
- * node and deletes the children.
+ * node and deletes the children. Replaces existing contents if there is any
  *
  * @param node
  */
 // TODO: Test
 void ast_move_children_to_contents(ASTNode *node) {
+  if (node->children_count == 0) {
+    return;
+  }
+  if (node->contents) {
+    free(node->contents);
+  }
   char *new_contents = strdup("");
   for (size_t i = 0; i < node->children_count; i++) {
     ast_move_children_to_contents(node->children[i]);
