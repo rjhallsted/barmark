@@ -100,7 +100,8 @@ const Symbol *lookupSymbolInner(SymbolTreeItem *item, const char *input) {
  * symbol in
  * @param contents A char ** to store the contents of the symbol in.
  *
- * @return A pointer to the next character after the found symbol. Returns null
+ * @return A pointer to the next character after the found symbol. Returns
+ null
  * if at end of string
  */
 const char *lookupSymbol(SymbolTreeItem *tree, const char *input,
@@ -150,22 +151,6 @@ void free_token_list(Token *head) {
     next = next->next;
     head = next;
   }
-}
-
-int is_whitespace_token(Token *token) {
-  const unsigned int whitespace_symbols[3] = {SYMBOL_SPACE_ID, SYMBOL_TAB_ID,
-                                              SYMBOL_NL_ID};
-
-  if (token == NULL) {
-    return 1;
-  }
-
-  for (int i = 0; i < 3; ++i) {
-    if (token->symbol->id == whitespace_symbols[i]) {
-      return 1;
-    }
-  }
-  return 0;
 }
 
 Token *join_token_array(Token **tokens, size_t count) {
