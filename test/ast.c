@@ -61,7 +61,7 @@ void test_ast_get_next_node_basic_code_block(void) {
   expected->contents = strdup("foo\tbaz\t\tbim\n");
   Token *expected_ptr = advance_token_list_by(*stream_ptr, 8);
 
-  ASTNode *actual = ast_get_next_node(stream_ptr);
+  ASTNode *actual = ast_get_next_node(&stream_ptr);
   assert_ast_nodes_equal(expected, actual);
   TEST_ASSERT_EQUAL_PTR(expected_ptr, *stream_ptr);
 

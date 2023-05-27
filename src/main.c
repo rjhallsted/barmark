@@ -4,7 +4,6 @@
 #include "ast.h"
 #include "ast_to_html.h"
 #include "lex.h"
-#include "parse.h"
 #include "symbols.h"
 #include "util.h"
 

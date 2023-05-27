@@ -33,7 +33,7 @@ void ast_move_children_to_contents(ASTNode *node);
 void ast_remove_child_at_index(ASTNode *node, size_t index);
 void ast_flatten_children(ASTNode *node);
 
-ASTNode *ast_get_next_node(Token **stream_ptr);
+ASTNode *ast_get_next_node(Token ***stream_ptr);
 ASTNode *ast_condense_tree(ASTNode *root);
 ASTNode *ast_from_tokens(Token *tokens);
 
