@@ -15,6 +15,7 @@ typedef struct {
 // NOTE: These must be in the same order as the AST_NODE_TYPES enum in ast.h
 static const HTML_TAG HTML_TAGS[] = {
     {.open = "", .close = ""},                          // DOCUMENT
+    {.open = "", .close = ""},                          // DEFAULT
     {.open = "", .close = ""},                          // TEXT
     {.open = "<pre><code>", .close = "</code></pre>"},  // CODE_BLOCK
     {.open = "<p>", .close = "</p>"},                   // PARAGRAPH
