@@ -15,17 +15,17 @@ enum SYMBOL_IDS {
   /* Has constants */
   SYMBOL_WILDCARD_ID = 0,
   SYMBOL_NULL_ID = 1,
-  SYMBOL_H1_ID =
-      2,  // MUST BE FIRST MATCHABLE SYMBOL (actually probably not now)
-  SYMBOL_H2_ID = 3,
-  SYMBOL_SPACE_ID = 4,
-  SYMBOL_TAB_ID = 5,
-  SYMBOL_NL_ID = 6,
+  SYMBOL_H1_ID = 2,
+  SYMBOL_H2_ID,
+  SYMBOL_SPACE_ID,
+  SYMBOL_TAB_ID,
+  SYMBOL_NL_ID,
+  SYMBOL_DASH_ID,
   /* Does not have constants */
-  SYMBOL_TEXT_ID = 7
+  SYMBOL_TEXT_ID
 };
 
-#define SYMBOL_COUNT 8
+#define SYMBOL_COUNT 9
 
 #define SYMBOL_WILDCARD \
   { "splat", SYMBOL_WILDCARD_ID, "*", NULL }
@@ -41,13 +41,15 @@ enum SYMBOL_IDS {
   { "tab", SYMBOL_TAB_ID, "\t", NULL }
 #define SYMBOL_NL \
   { "newline", SYMBOL_NL_ID, "\n", NULL }
+#define SYMBOL_DASH \
+  { "dash", SYMBOL_DASH_ID, "-", NULL }
 #define SYMBOL_TEXT \
   { "text", SYMBOL_TEXT_ID, NULL, " \t\n" }
 
 static const Symbol SYMBOLS[SYMBOL_COUNT] = {
     /* Has Constants */
     SYMBOL_WILDCARD, SYMBOL_NULL, SYMBOL_H1,  SYMBOL_H2, SYMBOL_SPACE,
-    SYMBOL_TAB,      SYMBOL_NL,   SYMBOL_TEXT
+    SYMBOL_TAB,      SYMBOL_NL,   SYMBOL_DASH, SYMBOL_TEXT
     // NOTE: Add more terminators
     // as I add symbols
 };

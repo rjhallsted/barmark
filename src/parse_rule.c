@@ -94,6 +94,10 @@ ASTNode *m_tab(Token ***stream) {
   return m_matches_symbol(stream, SYMBOL_TAB_ID);
 }
 
+ASTNode *m_dash(Token ***stream) {
+  return m_matches_symbol(stream, SYMBOL_DASH_ID);
+}
+
 /*******************
 ** Generic matchers
 *******************/
@@ -252,4 +256,28 @@ ASTNode *m_code_block(Token ***stream) {
     flatten_and_change_type(node, ASTN_CODE_BLOCK);
   }
   return node;
+}
+
+/****************************
+ * m_unordered_list_item
+ ***************************/
+
+ASTNode *m_ul_item_opener_wild1(Token ***stream) {
+  return m_wild(m_space, 0, 3, stream);
+}
+
+ASTNode *m_ul_item_opener_then1(Token ***stream) {
+  return m_then(m_ul_item_opener_wild1, m_dash, stream);
+}
+
+ASTNode *m_ul_item_opener(Token ***stream) {
+  return m_then(m_ul_item_opener_then1, m_space, stream);
+}
+
+// TODO: Finish writing this
+ASTNode *m_ul_item(Token ***stream) {
+  /*
+    wild(' ') then '-' then text_line then m_wild(\n) then
+    m_wild(then(opening_tab, text_line))
+  */
 }

@@ -93,6 +93,11 @@ void ast_move_children_to_contents(ASTNode *node) {
   node->contents = new_contents;
 }
 
+/***
+ * Recursively descends the tree and flattens the entire thing
+ * so that all descendent children are now direct children of
+ * the provided node.
+ */
 // TODO: test
 void ast_flatten_children(ASTNode *node) {
   ASTNode **old_children = node->children;
