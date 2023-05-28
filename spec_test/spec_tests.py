@@ -9,6 +9,20 @@ import json
 from cmark import CMark
 from normalize import normalize_html
 
+def tests_from_range_input(input_arg: str) -> set[int]:
+    segments = input_arg.split(",")
+    tests = set()
+    for segment in segments:
+        parts = segment.split("-")
+        if len(parts) > 1:
+            low = int(parts[0])
+            high = int(parts[1])
+            assert high > low
+            tests = set(range(low, high + 1)).union(tests)
+        else:
+            tests.add(int(parts[0])) 
+    return tests
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run cmark tests.')
     parser.add_argument('-p', '--program', dest='program', nargs='?', default=None,
@@ -36,8 +50,7 @@ if __name__ == "__main__":
             help='track which test cases pass/fail in the given JSON file and only report changes')
     args = parser.parse_args(sys.argv[1:])
     if args.range:
-        low, high = args.range.split("-")
-        args.range = range(int(low), int(high)+1)
+        args.range = tests_from_range_input(args.range)
 
 def out(str):
     sys.stdout.buffer.write(str.encode('utf-8')) 
