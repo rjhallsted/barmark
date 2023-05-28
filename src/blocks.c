@@ -1,5 +1,6 @@
 #include "blocks.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -7,7 +8,6 @@
 #include "util.h"
 
 int matches_continuation_markers(ASTNode *node, const char *line) {
-  printf("matching markers\n");
   if (!(node->cont_markers)) {
     return 1;
   }
@@ -22,7 +22,6 @@ int matches_continuation_markers(ASTNode *node, const char *line) {
 }
 
 void add_line_to_node(ASTNode *node, const char *line) {
-  printf("adding line to node\n");
   if (node->contents == NULL) {
     node->contents = strdup("");
   }
@@ -34,8 +33,12 @@ int matches_opening_tab(const char *line) {
   while (line[i] == ' ' && i < 4) {
     i++;
   }
-  if (i == 4 || line[i] == '\t') {
-    return 1;
+  if (i < 4 && line[i] == '\t') {
+    i++;
+    return i;
+  }
+  if (i == 4) {
+    return i;
   }
   return 0;
 }
@@ -43,8 +46,8 @@ int matches_opening_tab(const char *line) {
 /***
  * Returns 0 if no block start is found.
  */
-int block_start_type(const char *line) {
-  if (matches_opening_tab(line)) {
+int block_start_type(const char *line, size_t *match_len) {
+  if ((*match_len = matches_opening_tab(line))) {
     return ASTN_CODE_BLOCK;
   }
   return 0;
@@ -57,38 +60,51 @@ int block_start_type(const char *line) {
 // begin new block as child of last matched block
 // incorporate remainder of line in last open block
 void add_line_to_ast(ASTNode *root, const char *line) {
-  printf("adding line\n");
   size_t line_pos = 0;
+  size_t match_len = 0;
   ASTNode *node = root;
   unsigned int node_type;
   ASTNode *new_node;
 
   while (node->children_count > 0 && line[line_pos] &&
          matches_continuation_markers(node, line + line_pos)) {
-    printf("in while loop\n");
     line_pos += strlen(node->cont_markers);
     node = node->children[node->children_count - 1];
   }
-  line = line + line_pos;
-  if ((node_type = block_start_type(line))) {
-    printf("new node\n");
+  if ((node_type = block_start_type(line + line_pos, &match_len))) {
+    line_pos += match_len;
     new_node = ast_create_node(node_type);
+    new_node->cont_markers = strndup(line, line_pos);
     ast_add_child(node, new_node);
     node = new_node;
   }
-  add_line_to_node(node, line);
+  add_line_to_node(node, line + line_pos);
 }
+
+/*
+TODO: In order to get spec_test 1 to pass:
+- paragraph is the only node type with contents. everything else spits out
+children instead
+- if adding a new block that is not a paragraph, add paragraph as child to start
+- if last node is paragraph and line is new line only, close paragraph and open
+a new one.
+-
+*/
 
 ASTNode *build_block_structure(FILE *fd) {
   ASTNode *document = ast_create_node(ASTN_DOCUMENT);
   char *line = NULL;
-  size_t buff_size = 0;
-  while (getline(&line, &buff_size, fd)) {
-    printf("beginning of get line loop\n");
-    printf("line: %s", line);
-    add_line_to_ast(document, line);
-    printf("end of get line loop\n");
+  size_t buff_len = 0;
+  while (!feof(fd)) {
+    if (ferror(fd)) {
+      printf("File reading error. Errno: %d\n", errno);
+      exit(EXIT_FAILURE);
+    }
+
+    getline(&line, &buff_len, fd);
+    if (line[0] != '\n') {
+      add_line_to_ast(document, line);
+    }
   }
-  printf("built structure\n");
   return document;
 }

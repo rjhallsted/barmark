@@ -5,6 +5,7 @@
 #include "ast.h"
 
 void ast_to_html(ASTNode *ast, FILE *output_fd) {
+  printf("NODE TYPE: %u\n", ast->type);
   printf("%s", HTML_TAGS[ast->type].open);
   if (ast->contents) {
     printf("%s", ast->contents);
