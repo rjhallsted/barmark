@@ -1,0 +1,6 @@
+#ifndef BLOCKS_H
+#define BLOCKS_H
+
+ASTNode *build_block_structure(FILE fd);
+
+#endif  // BLOCKS_H

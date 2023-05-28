@@ -4,44 +4,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parse_rule.h"
-#include "symbols.h"
 #include "util.h"
 
 /* Note that this allows, by design, passing NULL as the value of contents */
 ASTNode *ast_create_node(unsigned int type) {
   ASTNode *node = malloc(sizeof(ASTNode));
   node->type = type;
+  node->open = 1;
   node->contents = NULL;
   node->children = NULL;
   node->children_count = 0;
 
   return node;
-}
-
-/* Note that this expects tokens_count > 0 */
-char *join_token_contents(Token *token, size_t tokens_count) {
-  char *output;
-  size_t len = 0, o_offset = 0, t_offset = 0;
-  Token *ptr = token;
-
-  for (size_t i = 0; i < tokens_count; i++) {
-    len += strlen(ptr->contents);
-    ptr = ptr->next;
-  }
-  output = malloc(o_offset + 1);
-  ptr = token;
-  while (o_offset < len) {
-    if (ptr->contents[t_offset] == '\0') {
-      ptr = ptr->next;
-      t_offset = 0;
-    }
-    output[o_offset] = ptr->contents[t_offset];
-    o_offset += 1;
-    t_offset += 1;
-  }
-  output[o_offset] = '\0';
-  return output;
 }
 
 void ast_free_node_only(ASTNode *node) {
@@ -143,34 +117,4 @@ void ast_remove_child_at_index(ASTNode *node, size_t index) {
   node->children_count -= 1;
   ast_free_node(child);
   free(old_children);
-}
-
-/*
-- determine type of next node
-- consume for next node (this will entail handling possible children) (returns
-a new node, and advances stream ptr)
-- return this node
-*/
-ASTNode *ast_get_next_node(Token ***stream_ptr) {
-  ASTNode *node;
-
-  if ((node = m_code_block(stream_ptr))) {
-    return node;
-  } else {
-    printf(
-        "INVALID token sequence found. Could not determine AST node type.\n");
-    exit(EXIT_FAILURE);
-  }
-}
-
-ASTNode *ast_from_tokens(Token *stream) {
-  ASTNode *root = ast_create_node(ASTN_DOCUMENT);
-  ASTNode *node;
-  Token **stream_ptr = &stream;
-
-  while (*stream_ptr && (node = ast_get_next_node(&stream_ptr))) {
-    ast_add_child(root, node);
-  }
-  // root = ast_condense_tree(root);
-  return root;
 }
