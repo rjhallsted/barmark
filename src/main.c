@@ -3,6 +3,7 @@
 
 #include "ast.h"
 #include "ast_to_html.h"
+#include "blocks.h"
 #include "util.h"
 
 void showUsage(char *errorMessage) {
@@ -19,8 +20,6 @@ int main(int argc, char **argv) {
     fd = stdin;
   }
 
-  // printTokens(tokens);
-  // ASTNode *root = ast_from_tokens(tokens);
   ASTNode *root = build_block_structure(fd);
   ast_to_html(root, stdout);  // TODO: allow for output files other than stdout
   ast_free_node(root);

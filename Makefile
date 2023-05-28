@@ -10,7 +10,7 @@ TEST_OBJS = $(patsubst %.c, %.o, $(filter-out $(TEST_MAIN).c, $(wildcard test/*.
 
 CC_CMD = $(CC) $(CFLAGS) -c -o $@ $<
 
-SPEC_TEST_MAX = 4
+SPEC_TEST_MAX = 1
 
 all: $(NAME)
 

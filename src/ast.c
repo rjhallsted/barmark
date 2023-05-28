@@ -10,8 +10,8 @@
 ASTNode *ast_create_node(unsigned int type) {
   ASTNode *node = malloc(sizeof(ASTNode));
   node->type = type;
-  node->open = 1;
   node->contents = NULL;
+  node->cont_markers = NULL;
   node->children = NULL;
   node->children_count = 0;
 
@@ -21,6 +21,9 @@ ASTNode *ast_create_node(unsigned int type) {
 void ast_free_node_only(ASTNode *node) {
   if (node->contents) {
     free(node->contents);
+  }
+  if (node->cont_markers) {
+    free(node->cont_markers);
   }
   free(node);
 }

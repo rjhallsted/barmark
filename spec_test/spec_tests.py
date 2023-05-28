@@ -17,7 +17,7 @@ def tests_from_range_input(input_arg: str) -> set[int]:
         if len(parts) > 1:
             low = int(parts[0])
             high = int(parts[1])
-            assert high > low
+            assert high >= low
             tests = set(range(low, high + 1)).union(tests)
         else:
             tests.add(int(parts[0])) 

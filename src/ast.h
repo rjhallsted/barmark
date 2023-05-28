@@ -21,8 +21,8 @@ Things like:
 
 typedef struct ASTNode {
   unsigned int type;
-  unsigned int open;
   char *contents;
+  char *cont_markers;
   struct ASTNode **children;
   size_t children_count;
 } ASTNode;
