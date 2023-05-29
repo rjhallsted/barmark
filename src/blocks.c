@@ -66,9 +66,14 @@ void add_line_to_ast(ASTNode *root, const char *line) {
   unsigned int node_type;
   ASTNode *new_node;
 
-  while (node->children_count > 0 && line[line_pos] &&
+  while (line[line_pos] &&
          matches_continuation_markers(node, line + line_pos)) {
-    line_pos += strlen(node->cont_markers);
+    if (node->cont_markers) {
+      line_pos += strlen(node->cont_markers);
+    }
+    if (node->children_count == 0) {
+      break;
+    }
     node = node->children[node->children_count - 1];
   }
   if ((node_type = block_start_type(line + line_pos, &match_len))) {

@@ -10,7 +10,7 @@ TEST_OBJS = $(patsubst %.c, %.o, $(filter-out $(TEST_MAIN).c, $(wildcard test/*.
 
 CC_CMD = $(CC) $(CFLAGS) -c -o $@ $<
 
-SPEC_TEST_MAX = 1
+SPEC_TEST_RANGES = 1-3
 
 all: $(NAME)
 
@@ -35,7 +35,7 @@ $(NAME)_test: $(OBJS) $(TEST_OBJS) $(TEST_MAIN).o vendor/unity/unity.o
 	@$(CC) $(CFLAGS) -o $(NAME)_test $(OBJS) $(TEST_OBJS) $(TEST_MAIN).o vendor/unity/unity.o 
 
 spec_test: clean $(NAME)
-	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -r=1-$(SPEC_TEST_MAX)
+	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -r=$(SPEC_TEST_RANGES)
 
 test: clean $(NAME)_test
 	@./$(NAME)_test
