@@ -77,8 +77,13 @@ void add_line_to_ast(ASTNode *root, const char *line) {
     new_node->cont_markers = strndup(line, line_pos);
     ast_add_child(node, new_node);
     node = new_node;
+    add_line_to_node(node, line + line_pos);
+  } else {
+    while (node->children_count > 0) {
+      node = node->children[node->children_count - 1];
+    }
+    add_line_to_node(node, line + line_pos);
   }
-  add_line_to_node(node, line + line_pos);
 }
 
 /*
@@ -102,9 +107,7 @@ ASTNode *build_block_structure(FILE *fd) {
     }
 
     getline(&line, &buff_len, fd);
-    if (line[0] != '\n') {
-      add_line_to_ast(document, line);
-    }
+    add_line_to_ast(document, line);
   }
   return document;
 }
