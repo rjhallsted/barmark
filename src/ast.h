@@ -21,6 +21,7 @@ Things like:
 
 typedef struct ASTNode {
   unsigned int type;
+  unsigned int open;
   char *contents;
   char *cont_markers;
   struct ASTNode **children;
@@ -28,6 +29,8 @@ typedef struct ASTNode {
 } ASTNode;
 
 ASTNode *ast_create_node(unsigned int type);
+ASTNode *ast_child_node_from_line_opening(ASTNode *node, unsigned int type,
+                                          const char *line, size_t len);
 void ast_free_node_only(ASTNode *node);
 void ast_free_node(ASTNode *node);
 void ast_add_child(ASTNode *parent, ASTNode *child);

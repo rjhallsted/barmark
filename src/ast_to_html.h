@@ -5,21 +5,24 @@
 
 #include "ast.h"
 
-void ast_to_html(ASTNode *ast, FILE *output_fd);
+void ast_to_html(ASTNode *ast, FILE *output_fd, unsigned int print_tags);
 
 typedef struct {
   const char *open;
   const char *close;
+  unsigned int wrap_internals;
 } HTML_TAG;
 
 // NOTE: These must be in the same order as the AST_NODE_TYPES enum in ast.h
 static const HTML_TAG HTML_TAGS[] = {
-    {.open = "", .close = ""},                          // DOCUMENT
-    {.open = "<pre><code>", .close = "</code></pre>"},  // CODE_BLOCK
-    {.open = "", .close = ""},                          // BLOCK_QUOTE
-    {.open = "<ul>", .close = "</ul>"},                 // LIST
-    {.open = "<li>", .close = "</li>"},                 // LIST_ITEM
-    {.open = "<p>", .close = "</p>"},                   // PARAGRAPH
+    {.open = "", .close = "", .wrap_internals = 1},  // DOCUMENT
+    {.open = "<pre><code>",
+     .close = "</code></pre>",
+     .wrap_internals = 0},                                    // CODE_BLOCK
+    {.open = "", .close = "", .wrap_internals = 1},           // BLOCK_QUOTE
+    {.open = "<ul>", .close = "</ul>", .wrap_internals = 1},  // LIST
+    {.open = "<li>", .close = "</li>", .wrap_internals = 1},  // LIST_ITEM
+    {.open = "<p>", .close = "</p>", .wrap_internals = 1},    // PARAGRAPH
 };
 
 #endif  // AST_TO_HTML_H

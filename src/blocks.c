@@ -64,31 +64,37 @@ void add_line_to_ast(ASTNode *root, const char *line) {
   size_t match_len = 0;
   ASTNode *node = root;
   unsigned int node_type;
-  ASTNode *new_node;
+  ASTNode *tmp;
 
-  while (line[line_pos] &&
-         matches_continuation_markers(node, line + line_pos)) {
+  // traverse to last matching node
+  while (line[line_pos] && node->open && node->children_count > 0 &&
+         matches_continuation_markers(node->children[node->children_count - 1],
+                                      line + line_pos)) {
+    node = node->children[node->children_count - 1];
     if (node->cont_markers) {
       line_pos += strlen(node->cont_markers);
     }
-    if (node->children_count == 0) {
-      break;
-    }
-    node = node->children[node->children_count - 1];
   }
-  if ((node_type = block_start_type(line + line_pos, &match_len))) {
+  while ((node_type = block_start_type(line + line_pos, &match_len))) {
+    // close remaining open nodes
+    tmp = node;
+    while (tmp->children_count > 0) {
+      tmp = tmp->children[node->children_count - 1];
+      tmp->open = 0;
+    }
+    if (tmp != node) {
+      tmp->open = 0;
+    }
     line_pos += match_len;
-    new_node = ast_create_node(node_type);
-    new_node->cont_markers = strndup(line, line_pos);
-    ast_add_child(node, new_node);
-    node = new_node;
-    add_line_to_node(node, line + line_pos);
-  } else {
-    while (node->children_count > 0) {
-      node = node->children[node->children_count - 1];
-    }
-    add_line_to_node(node, line + line_pos);
+    node = ast_child_node_from_line_opening(node, node_type, line, line_pos);
   }
+  if (line[0] == '\n' && node->type == ASTN_PARAGRAPH) {
+    node->open = 0;
+  } else if (line[0] != '\n' && node->type != ASTN_PARAGRAPH) {
+    node =
+        ast_child_node_from_line_opening(node, ASTN_PARAGRAPH, line, line_pos);
+  }
+  add_line_to_node(node, line + line_pos);
 }
 
 /*
