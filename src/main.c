@@ -21,8 +21,8 @@ int main(int argc, char **argv) {
   }
 
   ASTNode *root = build_block_structure(fd);
-  ast_to_html(root, stdout,
-              1);  // TODO: allow for output files other than stdout
+  // TODO: allow for output files other than stdout
+  ast_to_html(root, stdout, 1);
   ast_free_node(root);
   return 0;
 }

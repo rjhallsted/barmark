@@ -11,11 +11,27 @@ int matches_continuation_markers(ASTNode *node, const char *line) {
   if (!(node->cont_markers)) {
     return 1;
   }
-  size_t i = 0;
-  while (line[i] && node->cont_markers[i] && line[i] == node->cont_markers[i]) {
-    i++;
+  size_t ni = 0, li = 0;
+  while (line[li] && node->cont_markers[ni]) {
+    if (node->cont_markers[ni] == '\t') {
+      unsigned int spaces = 0;
+      while (line[li + spaces] && line[li + spaces] == ' ' && spaces < 4) {
+        spaces++;
+      }
+      if (spaces == 4) {
+        li += 4;
+        ni++;
+        continue;
+      }
+    }
+    if (line[li] == node->cont_markers[ni]) {
+      li++;
+      ni++;
+    } else {
+      break;
+    }
   }
-  if (node->cont_markers[i] == '\0') {
+  if (node->cont_markers[ni] == '\0') {
     return 1;
   }
   return 0;
@@ -65,6 +81,15 @@ void add_line_to_ast(ASTNode *root, const char *line) {
   ASTNode *node = root;
   unsigned int node_type;
   ASTNode *tmp;
+
+  /*
+  * Theres 3(?) steps here:
+    - traverse line and ast following continuation markers
+    - From there, examine contents, determine if it continues block or not
+    - If not, add new block(s) (depenending on context) and consume necessary
+  tokens
+    - Add remaining line to this block
+  */
 
   // traverse to last matching node
   while (line[line_pos] && node->open && node->children_count > 0 &&

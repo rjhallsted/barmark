@@ -1,6 +1,8 @@
 NAME = barmark
 
-CFLAGS = -g -Wall -Wextra -pedantic -Werror -std=c18
+CFLAGS = -D UNITY_OUTPUT_COLOR -g -Wall -Wextra -pedantic -Werror -std=c18
+
+CC		= clang 
 
 MAIN 	= src/main
 OBJS 	= $(patsubst %.c, %.o, $(filter-out $(MAIN).c, $(wildcard src/*.c)))

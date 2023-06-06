@@ -1,0 +1,40 @@
+#include "../src/blocks.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "../src/ast.h"
+#include "../vendor/unity/unity.h"
+
+void test_matches_continuation_markers_matches(void) {
+  ASTNode *node = ast_create_node(ASTN_PARAGRAPH);
+  node->cont_markers = strdup("abcdef");
+  char *line = "abcdefghi";
+  TEST_ASSERT_TRUE(matches_continuation_markers(node, line));
+
+  char *line2 = "abcdef";
+  TEST_ASSERT_TRUE(matches_continuation_markers(node, line2));
+
+  char *line3 = "abcde";
+  TEST_ASSERT_FALSE(matches_continuation_markers(node, line3));
+  ast_free_node(node);
+}
+
+void test_matches_continuation_markers_treats_4spaces_as_tab(void) {
+  ASTNode *node = ast_create_node(ASTN_PARAGRAPH);
+  node->cont_markers = strdup("\txyz");
+  char *four_spaces = "    xyz";
+  TEST_ASSERT_TRUE(matches_continuation_markers(node, four_spaces));
+
+  char *three_spaces = "   xyz";
+  TEST_ASSERT_FALSE(matches_continuation_markers(node, three_spaces));
+
+  ast_free_node(node);
+}
+
+void run_blocks_tests(void) {
+  printf("--blocks tests\n");
+  printf("---matches_continuation_markers\n");
+  RUN_TEST(test_matches_continuation_markers_matches);
+  RUN_TEST(test_matches_continuation_markers_treats_4spaces_as_tab);
+}
