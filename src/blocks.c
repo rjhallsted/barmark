@@ -57,6 +57,12 @@ void add_line_to_node(ASTNode *node, const char *line) {
   str_append(node->contents, line);
 }
 
+/* matching functions */
+/*
+ * these return 0 if not matched. If matched, return the number
+ * of bytes used in match.
+ */
+
 int matches_opening_tab(const char *line) {
   size_t i = 0;
   while (line[i] == ' ' && i < 4) {
@@ -71,6 +77,20 @@ int matches_opening_tab(const char *line) {
   }
   return 0;
 }
+
+int matches_list_opening(const char *line) {
+  size_t i = 0;
+  while (line[i] == ' ' && i < 3) {
+    i++;
+  }
+  if (line[i] == '-') {
+    i++;
+    return i;
+  }
+  return 0;
+}
+
+/* end matching functions */
 
 void close_descendent_blocks(ASTNode *node) {
   node->open = 0;
@@ -96,6 +116,8 @@ int is_all_whitespace(const char *line) {
 int block_start_type(const char *line, size_t *match_len) {
   if ((*match_len = matches_opening_tab(line))) {
     return ASTN_CODE_BLOCK;
+  } else if ((*match_len = matches_list_opening(line))) {
+    return ASTN_UNORDERED_LIST_ITEM;
   } else if (!is_all_whitespace(line)) {
     *match_len = 0;
     return ASTN_PARAGRAPH;
@@ -120,6 +142,17 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     cont_markers = str_append(cont_markers, "\t");
     child->cont_markers = cont_markers;
     ast_add_child(node, child);
+    return add_child_block(child, ASTN_PARAGRAPH, cont_markers);
+  } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
+             node->type != ASTN_UNORDERED_LIST) {
+    child = ast_create_node(ASTN_UNORDERED_LIST);
+    child->cont_markers = cont_markers;
+    ast_add_child(node, child);
+    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, cont_markers);
+  } else if (node_type == ASTN_UNORDERED_LIST_ITEM) {
+    child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
+    cont_markers = str_append(cont_markers, "\t");
+    child->cont_markers = cont_markers;
     return add_child_block(child, ASTN_PARAGRAPH, cont_markers);
   } else if (node_type == ASTN_PARAGRAPH) {
     child = ast_create_node(ASTN_PARAGRAPH);

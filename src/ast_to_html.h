@@ -20,7 +20,7 @@ static const HTML_TAG HTML_TAGS[] = {
      .close = "</code></pre>",
      .wrap_internals = 0},                                    // CODE_BLOCK
     {.open = "", .close = "", .wrap_internals = 1},           // BLOCK_QUOTE
-    {.open = "<ul>", .close = "</ul>", .wrap_internals = 1},  // LIST
+    {.open = "<ul>", .close = "</ul>", .wrap_internals = 1},  // UNORDERED_LIST
     {.open = "<li>", .close = "</li>", .wrap_internals = 1},  // LIST_ITEM
     {.open = "<p>", .close = "</p>", .wrap_internals = 1},    // PARAGRAPH
 };
