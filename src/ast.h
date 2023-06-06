@@ -12,10 +12,18 @@ enum AST_NODE_TYPES {
   ASTN_PARAGRAPH,
 };
 
+static const unsigned int NODE_ALLOWS_CONTENTS[] = {
+    0,  // DOCUMENT
+    1,  // CODE_BLOCK
+    0,  // BLOCK_QUOTE
+    0,  // UNORDERED_LIST
+    0,  // UNORDERED_LIST_ITEM
+    1,  // PARAGRAPH
+};
+
 /* TODO: Figure out how to add "options"
 Things like:
 - list type
-- continuation characters
 - beginning val for ordered lists
 */
 
