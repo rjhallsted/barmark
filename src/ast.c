@@ -12,28 +12,11 @@ ASTNode *ast_create_node(unsigned int type) {
   node->type = type;
   node->open = 1;
   node->contents = NULL;
-  node->cont_markers = NULL;
+  node->cont_markers = strdup("");
   node->children = NULL;
   node->children_count = 0;
 
   return node;
-}
-
-/**
- * @brief Returns a pointer to the new child node
- *
- * @param node
- * @param type
- * @param line
- * @param len
- * @return ASTNode*
- */
-ASTNode *ast_child_node_from_line_opening(ASTNode *node, unsigned int type,
-                                          const char *line, size_t len) {
-  ASTNode *new_node = ast_create_node(type);
-  new_node->cont_markers = strndup(line, len);
-  ast_add_child(node, new_node);
-  return new_node;
 }
 
 void ast_free_node_only(ASTNode *node) {

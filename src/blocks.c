@@ -7,7 +7,18 @@
 #include "ast.h"
 #include "util.h"
 
-int matches_continuation_markers(ASTNode *node, const char *line) {
+/**
+ * @brief Returns whether a match was found. Takes a pointer to a size_t
+ * and sets that to the number of bytes matched against. 0 is a valid value
+ * for this.
+ *
+ * @param node
+ * @param line
+ * @param match_len
+ * @return int
+ */
+int matches_continuation_markers(ASTNode *node, const char *line,
+                                 size_t *match_len) {
   if (!(node->cont_markers)) {
     return 1;
   }
@@ -32,8 +43,10 @@ int matches_continuation_markers(ASTNode *node, const char *line) {
     }
   }
   if (node->cont_markers[ni] == '\0') {
+    *match_len = li;
     return 1;
   }
+  *match_len = 0;
   return 0;
 }
 
@@ -59,14 +72,64 @@ int matches_opening_tab(const char *line) {
   return 0;
 }
 
+void close_descendent_blocks(ASTNode *node) {
+  node->open = 0;
+  if (node->children_count > 0) {
+    close_descendent_blocks(node->children[node->children_count - 1]);
+  }
+}
+
+int is_all_whitespace(const char *line) {
+  size_t i = 0;
+  while (line[i]) {
+    if (line[i] != ' ' && line[i] != '\t' && line[i] != '\n') {
+      return 0;
+    }
+    i++;
+  }
+  return 1;
+}
+
 /***
  * Returns 0 if no block start is found.
  */
 int block_start_type(const char *line, size_t *match_len) {
   if ((*match_len = matches_opening_tab(line))) {
     return ASTN_CODE_BLOCK;
+  } else if (!is_all_whitespace(line)) {
+    *match_len = 0;
+    return ASTN_PARAGRAPH;
   }
   return 0;
+}
+
+int is_block_end(unsigned int node_type, const char *line) {
+  if (node_type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
+    return 1;
+  }
+  return 0;
+}
+
+/* Returns a pointer to the deepest added child */
+ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
+                         const char *base_cont_markers) {
+  ASTNode *child;
+  char *cont_markers = strdup(base_cont_markers);
+  if (node_type == ASTN_CODE_BLOCK) {
+    child = ast_create_node(ASTN_CODE_BLOCK);
+    cont_markers = str_append(cont_markers, "\t");
+    child->cont_markers = cont_markers;
+    ast_add_child(node, child);
+    return add_child_block(child, ASTN_PARAGRAPH, cont_markers);
+  } else if (node_type == ASTN_PARAGRAPH) {
+    child = ast_create_node(ASTN_PARAGRAPH);
+    child->cont_markers = cont_markers;
+    ast_add_child(node, child);
+    return child;
+  } else {
+    printf("BAD CHILD BLOCK TYPE %u. CANT ADD IT\n", node_type);
+    exit(EXIT_FAILURE);
+  }
 }
 
 // traverse to deepest/lastest open block, building up continuation markers
@@ -80,57 +143,26 @@ void add_line_to_ast(ASTNode *root, const char *line) {
   size_t match_len = 0;
   ASTNode *node = root;
   unsigned int node_type;
-  ASTNode *tmp;
-
-  /*
-  * Theres 3(?) steps here:
-    - traverse line and ast following continuation markers
-    - From there, examine contents, determine if it continues block or not
-    - If not, add new block(s) (depenending on context) and consume necessary
-  tokens
-    - Add remaining line to this block
-  */
 
   // traverse to last matching node
-  while (line[line_pos] && node->open && node->children_count > 0 &&
+  while (line[line_pos] && node->children_count > 0 &&
+         node->children[node->children_count - 1]->open &&
          matches_continuation_markers(node->children[node->children_count - 1],
-                                      line + line_pos)) {
+                                      line + line_pos, &match_len)) {
     node = node->children[node->children_count - 1];
-    if (node->cont_markers) {
-      line_pos += strlen(node->cont_markers);
-    }
-  }
-  while ((node_type = block_start_type(line + line_pos, &match_len))) {
-    // close remaining open nodes
-    tmp = node;
-    while (tmp->children_count > 0) {
-      tmp = tmp->children[node->children_count - 1];
-      tmp->open = 0;
-    }
-    if (tmp != node) {
-      tmp->open = 0;
-    }
     line_pos += match_len;
-    node = ast_child_node_from_line_opening(node, node_type, line, line_pos);
   }
-  if (line[0] == '\n' && node->type == ASTN_PARAGRAPH) {
+  if ((node_type = block_start_type(line + line_pos, &match_len))) {
+    close_descendent_blocks(node);
+    line_pos += match_len;
+    node = add_child_block(node, node_type, node->cont_markers);
+    add_line_to_node(node, line + line_pos);
+  } else if (is_block_end(node->type, line + line_pos)) {
     node->open = 0;
-  } else if (line[0] != '\n' && node->type != ASTN_PARAGRAPH) {
-    node =
-        ast_child_node_from_line_opening(node, ASTN_PARAGRAPH, line, line_pos);
+  } else if (node->type != ASTN_DOCUMENT) {
+    add_line_to_node(node, line + line_pos);
   }
-  add_line_to_node(node, line + line_pos);
 }
-
-/*
-TODO: In order to get spec_test 1 to pass:
-- paragraph is the only node type with contents. everything else spits out
-children instead
-- if adding a new block that is not a paragraph, add paragraph as child to start
-- if last node is paragraph and line is new line only, close paragraph and open
-a new one.
--
-*/
 
 ASTNode *build_block_structure(FILE *fd) {
   ASTNode *document = ast_create_node(ASTN_DOCUMENT);

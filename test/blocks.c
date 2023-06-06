@@ -9,25 +9,33 @@
 void test_matches_continuation_markers_matches(void) {
   ASTNode *node = ast_create_node(ASTN_PARAGRAPH);
   node->cont_markers = strdup("abcdef");
+  size_t match_len = 0;
   char *line = "abcdefghi";
-  TEST_ASSERT_TRUE(matches_continuation_markers(node, line));
+  TEST_ASSERT_TRUE(matches_continuation_markers(node, line, &match_len));
+  TEST_ASSERT_EQUAL(6, match_len);
 
   char *line2 = "abcdef";
-  TEST_ASSERT_TRUE(matches_continuation_markers(node, line2));
+  TEST_ASSERT_TRUE(matches_continuation_markers(node, line2, &match_len));
+  TEST_ASSERT_EQUAL(6, match_len);
 
   char *line3 = "abcde";
-  TEST_ASSERT_FALSE(matches_continuation_markers(node, line3));
+  TEST_ASSERT_FALSE(matches_continuation_markers(node, line3, &match_len));
+  TEST_ASSERT_EQUAL(0, match_len);
   ast_free_node(node);
 }
 
 void test_matches_continuation_markers_treats_4spaces_as_tab(void) {
   ASTNode *node = ast_create_node(ASTN_PARAGRAPH);
   node->cont_markers = strdup("\txyz");
+  size_t match_len = 0;
   char *four_spaces = "    xyz";
-  TEST_ASSERT_TRUE(matches_continuation_markers(node, four_spaces));
+  TEST_ASSERT_TRUE(matches_continuation_markers(node, four_spaces, &match_len));
+  TEST_ASSERT_EQUAL(7, match_len);
 
   char *three_spaces = "   xyz";
-  TEST_ASSERT_FALSE(matches_continuation_markers(node, three_spaces));
+  TEST_ASSERT_FALSE(
+      matches_continuation_markers(node, three_spaces, &match_len));
+  TEST_ASSERT_EQUAL(0, match_len);
 
   ast_free_node(node);
 }
