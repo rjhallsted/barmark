@@ -113,56 +113,83 @@ int is_all_whitespace(const char *line) {
 /***
  * Returns 0 if no block start is found.
  */
-int block_start_type(const char *line, size_t *match_len) {
+int block_start_type(const char *line, unsigned int current_node_type,
+                     size_t *match_len) {
   if ((*match_len = matches_opening_tab(line))) {
     return ASTN_CODE_BLOCK;
   } else if ((*match_len = matches_list_opening(line))) {
     return ASTN_UNORDERED_LIST_ITEM;
-  } else if (!is_all_whitespace(line)) {
+  } else if (current_node_type != ASTN_PARAGRAPH && !is_all_whitespace(line)) {
     *match_len = 0;
     return ASTN_PARAGRAPH;
   }
   return 0;
 }
 
-int is_block_end(unsigned int node_type, const char *line) {
-  if (node_type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
-    return 1;
+/**
+ * @brief Recursively checks if this node or any of its open children are closed
+ * by this line. Returns NULL if false, and a pointer to the node-to-be-closed
+ * if true.
+ *
+ * @param node_type
+ * @param line
+ * @return int
+ */
+
+ASTNode *is_block_end(ASTNode *node, const char *line) {
+  // printf("   is_block_end on type %u\n", node->type);
+  if (node->type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
+    return node;
   }
-  return 0;
+  if (node->children_count == 0) {
+    return NULL;
+  }
+  return is_block_end(node->children[node->children_count - 1], line);
 }
 
 /* Returns a pointer to the deepest added child */
-ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
-                         const char *base_cont_markers) {
+ASTNode *add_child_block(ASTNode *node, unsigned int node_type) {
   ASTNode *child;
-  char *cont_markers = strdup(base_cont_markers);
   if (node_type == ASTN_CODE_BLOCK) {
     child = ast_create_node(ASTN_CODE_BLOCK);
-    cont_markers = str_append(cont_markers, "\t");
-    child->cont_markers = cont_markers;
+    child->cont_markers = strdup("\t");
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_PARAGRAPH, cont_markers);
+    return add_child_block(child, ASTN_PARAGRAPH);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST);
-    child->cont_markers = cont_markers;
+    child->cont_markers = strdup("");
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, cont_markers);
-  } else if (node_type == ASTN_UNORDERED_LIST_ITEM) {
+    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM);
+  } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
+             node->type == ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
-    cont_markers = str_append(cont_markers, "\t");
-    child->cont_markers = cont_markers;
-    return add_child_block(child, ASTN_PARAGRAPH, cont_markers);
+    child->cont_markers = strdup("\t");
+    ast_add_child(node, child);
+    return add_child_block(child, ASTN_PARAGRAPH);
   } else if (node_type == ASTN_PARAGRAPH) {
     child = ast_create_node(ASTN_PARAGRAPH);
-    child->cont_markers = cont_markers;
+    child->cont_markers = strdup("");
     ast_add_child(node, child);
     return child;
   } else {
     printf("BAD CHILD BLOCK TYPE %u. CANT ADD IT\n", node_type);
     exit(EXIT_FAILURE);
   }
+}
+
+void print_trailing_end_of_tree(ASTNode *node) {
+  char *output = strdup("");
+  char tmp[100];
+  while (1) {
+    sprintf(tmp, "%u->", node->type);
+    output = str_append(output, tmp);
+    if (node->children_count == 0) {
+      break;
+    }
+    node = node->children[node->children_count - 1];
+  }
+  printf("%s\n", output);
 }
 
 // traverse to deepest/lastest open block, building up continuation markers
@@ -175,7 +202,10 @@ void add_line_to_ast(ASTNode *root, const char *line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
+  ASTNode *node_to_close = NULL;
   unsigned int node_type;
+
+  // printf("line: '%s'\n", line);
 
   // traverse to last matching node
   while (line[line_pos] && node->children_count > 0 &&
@@ -183,16 +213,21 @@ void add_line_to_ast(ASTNode *root, const char *line) {
          matches_continuation_markers(node->children[node->children_count - 1],
                                       line + line_pos, &match_len)) {
     node = node->children[node->children_count - 1];
+    // printf("   matches %u\n", node->type);
     line_pos += match_len;
   }
-  if ((node_type = block_start_type(line + line_pos, &match_len))) {
+  if ((node_type = block_start_type(line + line_pos, node->type, &match_len))) {
+    // printf("   block start %u\n", node_type);
     close_descendent_blocks(node);
     line_pos += match_len;
-    node = add_child_block(node, node_type, node->cont_markers);
+    node = add_child_block(node, node_type);
+    // print_trailing_end_of_tree(root);
     add_line_to_node(node, line + line_pos);
-  } else if (is_block_end(node->type, line + line_pos)) {
-    node->open = 0;
+  } else if ((node_to_close = is_block_end(node, line + line_pos))) {
+    // printf("   block end %u\n", node_to_close->type);
+    node_to_close->open = 0;
   } else if (node->type != ASTN_DOCUMENT) {
+    // printf("   add to %u\n", node->type);
     add_line_to_node(node, line + line_pos);
   }
 }
