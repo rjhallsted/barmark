@@ -24,17 +24,17 @@ int matches_continuation_markers(ASTNode *node, const char *line,
   }
   size_t ni = 0, li = 0;
   while (line[li] && node->cont_markers[ni]) {
-    if (node->cont_markers[ni] == '\t') {
-      unsigned int spaces = 0;
-      while (line[li + spaces] && line[li + spaces] == ' ' && spaces < 4) {
-        spaces++;
-      }
-      if (spaces == 4) {
-        li += 4;
-        ni++;
-        continue;
-      }
-    }
+    // if (node->cont_markers[ni] == '\t') {
+    //   unsigned int spaces = 0;
+    //   while (line[li + spaces] && line[li + spaces] == ' ' && spaces < 4) {
+    //     spaces++;
+    //   }
+    //   if (spaces == 4) {
+    //     li += 4;
+    //     ni++;
+    //     continue;
+    //   }
+    // }
     if (line[li] == node->cont_markers[ni]) {
       li++;
       ni++;
@@ -67,10 +67,6 @@ int matches_opening_tab(const char *line) {
   size_t i = 0;
   while (line[i] == ' ' && i < 4) {
     i++;
-  }
-  if (i < 4 && line[i] == '\t') {
-    i++;
-    return i;
   }
   if (i == 4) {
     return i;
@@ -152,7 +148,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type) {
   ASTNode *child;
   if (node_type == ASTN_CODE_BLOCK) {
     child = ast_create_node(ASTN_CODE_BLOCK);
-    child->cont_markers = strdup("\t");
+    child->cont_markers = repeat_x(' ', 4);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_PARAGRAPH);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
@@ -164,7 +160,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type) {
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
-    child->cont_markers = strdup("\t");
+    child->cont_markers = repeat_x(' ', 4);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_PARAGRAPH);
   } else if (node_type == ASTN_PARAGRAPH) {
@@ -192,13 +188,48 @@ void print_trailing_end_of_tree(ASTNode *node) {
   printf("%s\n", output);
 }
 
+/**
+ * @brief Expands the next tab if present in the next 4 chars,
+ * starting at line_pos. returns new line_pos
+ *
+ * @param line
+ * @param line_pos
+ * @return size_t
+ */
+// TODO: test
+void tab_expand(char **line, size_t line_pos) {
+  char *line_ref = *line;
+  unsigned int i = 0;
+
+  while (line_ref[line_pos + i] == ' ' && i < 3) {
+    i++;
+  }
+  if (line_ref[line_pos + i] != '\t') {
+    return;
+  }
+  unsigned int spaces_to_add = 4 - i;
+
+  char *out = strndup(line_ref, line_pos + i);
+  char *tmp = repeat_x(' ', spaces_to_add);
+  out = str_append(out, tmp);
+  free(tmp);
+  tmp = strdup(line_ref + line_pos + i + 1);
+  out = str_append(out, tmp);
+  free(tmp);
+  free(line_ref);
+  *line = out;
+}
+
 // traverse to deepest/lastest open block, building up continuation markers
 // along the way consume continuation as you go, stop when no longer matching
 // look for new block starts
 // if found, close remaining unmatched blocks
 // begin new block as child of last matched block
 // incorporate remainder of line in last open block
-void add_line_to_ast(ASTNode *root, const char *line) {
+
+// TODO: Add structural tab expansion (tab can be replaced with x spaces where x
+// is however many spaces are necessary to get to the next multiple of 4
+void add_line_to_ast(ASTNode *root, char *line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
@@ -209,13 +240,17 @@ void add_line_to_ast(ASTNode *root, const char *line) {
 
   // traverse to last matching node
   while (line[line_pos] && node->children_count > 0 &&
-         node->children[node->children_count - 1]->open &&
-         matches_continuation_markers(node->children[node->children_count - 1],
+         node->children[node->children_count - 1]->open) {
+    tab_expand(&line, line_pos);
+    if (!matches_continuation_markers(node->children[node->children_count - 1],
                                       line + line_pos, &match_len)) {
+      break;
+    }
     node = node->children[node->children_count - 1];
     // printf("   matches %u\n", node->type);
     line_pos += match_len;
   }
+  tab_expand(&line, line_pos);
   if ((node_type = block_start_type(line + line_pos, node->type, &match_len))) {
     // printf("   block start %u\n", node_type);
     close_descendent_blocks(node);
