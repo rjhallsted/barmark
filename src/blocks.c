@@ -23,24 +23,10 @@ int matches_continuation_markers(ASTNode *node, const char *line,
     return 1;
   }
   size_t ni = 0, li = 0;
-  while (line[li] && node->cont_markers[ni]) {
-    // if (node->cont_markers[ni] == '\t') {
-    //   unsigned int spaces = 0;
-    //   while (line[li + spaces] && line[li + spaces] == ' ' && spaces < 4) {
-    //     spaces++;
-    //   }
-    //   if (spaces == 4) {
-    //     li += 4;
-    //     ni++;
-    //     continue;
-    //   }
-    // }
-    if (line[li] == node->cont_markers[ni]) {
-      li++;
-      ni++;
-    } else {
-      break;
-    }
+  while (line[li] && node->cont_markers[ni] &&
+         line[li] == node->cont_markers[ni]) {
+    li++;
+    ni++;
   }
   if (node->cont_markers[ni] == '\0') {
     *match_len = li;
@@ -172,7 +158,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     child = ast_create_node(ASTN_CODE_BLOCK);
     child->cont_markers = repeat_x(' ', 4);
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_PARAGRAPH, 0);
+    return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST);
@@ -184,7 +170,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
     child->cont_markers = repeat_x(' ', opener_match_len);
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_PARAGRAPH, 0);
+    return child;
   } else if (node_type == ASTN_PARAGRAPH) {
     child = ast_create_node(ASTN_PARAGRAPH);
     child->cont_markers = strdup("");
@@ -209,8 +195,6 @@ void print_trailing_end_of_tree(ASTNode *node) {
   }
   printf("%s\n", output);
 }
-
-// TODO: Work on getting correct tab expansion to handle spec test 7
 
 /**
  * @brief Expands the next tab if present in the next 4 chars,
@@ -272,6 +256,9 @@ void add_line_to_ast(ASTNode *root, char **line) {
     line_pos += match_len;
   }
   // printf("expanded: '%s'\n", line);
+
+  // If a block start exists, create it, then keep checking for more.
+  // add the line to the last one
   if ((node_type = block_start_type(line, line_pos, node->type, &match_len))) {
     // printf("   block start %u\n", node_type);
     // printf("   match_len: %lu\n", match_len);
@@ -279,8 +266,17 @@ void add_line_to_ast(ASTNode *root, char **line) {
     line_pos += match_len;
     // printf("   line_pos: %lu\n", line_pos);
     node = add_child_block(node, node_type, match_len);
+    while ((node_type =
+                block_start_type(line, line_pos, node->type, &match_len))) {
+      line_pos += match_len;
+      // printf("   line_pos: %lu\n", line_pos);
+      node = add_child_block(node, node_type, match_len);
+    }
     // print_trailing_end_of_tree(root);
     // printf("   adding line: '%s'\n", line + line_pos);
+    if (node->type != ASTN_PARAGRAPH) {
+      node = add_child_block(node, ASTN_PARAGRAPH, 0);
+    }
     add_line_to_node(node, (*line) + line_pos);
   } else if ((node_to_close = is_block_end(node, (*line) + line_pos))) {
     // printf("   block end %u\n", node_to_close->type);
