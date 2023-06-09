@@ -43,58 +43,78 @@ void test_matches_continuation_markers_matches(void) {
 void test_tab_expand(void) {
   char *line = strdup("");
 
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("", line);
   free(line);
 
   line = strdup(" ");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING(" ", line);
   free(line);
 
   line = strdup("  ");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("  ", line);
   free(line);
 
   line = strdup("   ");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("   ", line);
   free(line);
 
   line = strdup("    ");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("    ", line);
   free(line);
 
   line = strdup("\tx");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("    x", line);
   free(line);
 
   line = strdup(" \tx");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("    x", line);
   free(line);
 
   line = strdup("  \tx");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("    x", line);
   free(line);
 
   line = strdup("   \tx");
-  tab_expand(&line, 0);
+  tab_expand(&line, 0, 4);
   TEST_ASSERT_EQUAL_STRING("    x", line);
   free(line);
 
   line = strdup("    \tx");
-  tab_expand(&line, 2);
+  tab_expand(&line, 2, 4);
   TEST_ASSERT_EQUAL_STRING("        x", line);
   free(line);
 
   line = strdup("     \tx");
-  tab_expand(&line, 2);
+  tab_expand(&line, 2, 4);
   TEST_ASSERT_EQUAL_STRING("        x", line);
+  free(line);
+
+  line = strdup(" \tx");
+  tab_expand(&line, 0, 1);
+  TEST_ASSERT_EQUAL_STRING(" \tx", line);
+  free(line);
+
+  line = strdup(" \tx");
+  tab_expand(&line, 0, 2);
+  TEST_ASSERT_EQUAL_STRING("    x", line);
+  free(line);
+
+  line = strdup("  - foo");
+  tab_expand(&line, 3, 1);
+  TEST_ASSERT_EQUAL_STRING("  - foo", line);
+  free(line);
+
+  line = strdup("  -\tfoo");
+  tab_expand(&line, 3, 1);
+  TEST_ASSERT_EQUAL_STRING("  - foo", line);
   free(line);
 }
 

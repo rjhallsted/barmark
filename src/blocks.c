@@ -57,43 +57,6 @@ void add_line_to_node(ASTNode *node, const char *line) {
   str_append(node->contents, line);
 }
 
-/* matching functions */
-/*
- * these return 0 if not matched. If matched, return the number
- * of bytes used in match.
- */
-
-int matches_opening_tab(const char *line) {
-  size_t i = 0;
-  while (line[i] == ' ' && i < 4) {
-    i++;
-  }
-  if (i == 4) {
-    return i;
-  }
-  return 0;
-}
-
-int matches_list_opening(const char *line) {
-  size_t i = 0;
-  while (line[i] == ' ' && i < 3) {
-    i++;
-  }
-  if (line[i] == '-' && line[i + 1] == ' ') {
-    return i + 2;
-  }
-  return 0;
-}
-
-/* end matching functions */
-
-void close_descendent_blocks(ASTNode *node) {
-  node->open = 0;
-  if (node->children_count > 0) {
-    close_descendent_blocks(node->children[node->children_count - 1]);
-  }
-}
-
 int is_all_whitespace(const char *line) {
   size_t i = 0;
   while (line[i]) {
@@ -105,16 +68,75 @@ int is_all_whitespace(const char *line) {
   return 1;
 }
 
+/* matching functions */
+/*
+ * these return 0 if not matched. If matched, return the number
+ * of bytes used in match.
+ *
+ * copy line and tab expand with required lookahead. If match,
+ * replace original line with tab expanded one.
+ */
+
+size_t matches_opening_tab(char **line, size_t line_pos) {
+  size_t i = 0;
+  char *line_ref = strdup(*line);
+  tab_expand(&line_ref, line_pos, 4);
+
+  while (line_ref[line_pos + i] == ' ' && i < 4) {
+    i++;
+  }
+  if (i == 4) {
+    free(*line);
+    *line = line_ref;
+    return i;
+  }
+  return 0;
+}
+
+size_t matches_list_opening(char **line, size_t line_pos) {
+  size_t i = 0;
+  char *line_ref = strdup(*line);
+  tab_expand(&line_ref, line_pos, 3);
+
+  while (line_ref[line_pos + i] == ' ' && i < 3) {
+    i++;
+  }
+  if (line_ref[line_pos + i] == '-') {
+    i++;
+    tab_expand(&line_ref, line_pos + i, 1);
+    if (line_ref[line_pos + i] == ' ') {
+      free(*line);
+      *line = line_ref;
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+size_t matches_paragraph_opening(char **line, size_t line_pos) {
+  return (!is_all_whitespace((*line) + line_pos));
+}
+
+/* end matching functions */
+
+void close_descendent_blocks(ASTNode *node) {
+  node->open = 0;
+  if (node->children_count > 0) {
+    close_descendent_blocks(node->children[node->children_count - 1]);
+  }
+}
+
 /***
  * Returns 0 if no block start is found.
  */
-int block_start_type(const char *line, unsigned int current_node_type,
-                     size_t *match_len) {
-  if ((*match_len = matches_opening_tab(line))) {
+int block_start_type(char **line, size_t line_pos,
+                     unsigned int current_node_type, size_t *match_len) {
+  if ((*match_len = matches_opening_tab(line, line_pos))) {
     return ASTN_CODE_BLOCK;
-  } else if ((*match_len = matches_list_opening(line))) {
+  } else if ((*match_len = matches_list_opening(line, line_pos))) {
     return ASTN_UNORDERED_LIST_ITEM;
-  } else if (current_node_type != ASTN_PARAGRAPH && !is_all_whitespace(line)) {
+  } else if (current_node_type != ASTN_PARAGRAPH &&
+             matches_paragraph_opening(line, line_pos)) {
     *match_len = 0;
     return ASTN_PARAGRAPH;
   }
@@ -198,11 +220,11 @@ void print_trailing_end_of_tree(ASTNode *node) {
  * @param line_pos
  * @return size_t
  */
-void tab_expand(char **line, size_t line_pos) {
+void tab_expand(char **line, size_t line_pos, size_t lookahead) {
   char *line_ref = *line;
   unsigned int i = 0;
 
-  while (line_ref[line_pos + i] == ' ' && i < 3) {
+  while (line_ref[line_pos + i] == ' ' && i < (lookahead - 1)) {
     i++;
   }
   if (line_ref[line_pos + i] != '\t') {
@@ -227,10 +249,7 @@ void tab_expand(char **line, size_t line_pos) {
 // if found, close remaining unmatched blocks
 // begin new block as child of last matched block
 // incorporate remainder of line in last open block
-
-// TODO: Add structural tab expansion (tab can be replaced with x spaces where x
-// is however many spaces are necessary to get to the next multiple of 4
-void add_line_to_ast(ASTNode *root, char *line) {
+void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
@@ -240,21 +259,20 @@ void add_line_to_ast(ASTNode *root, char *line) {
   // printf("line: '%s'\n", line);
 
   // traverse to last matching node
-  while (line[line_pos] && node->children_count > 0 &&
+  while ((*line)[line_pos] && node->children_count > 0 &&
          node->children[node->children_count - 1]->open) {
-    tab_expand(&line, line_pos);
+    tab_expand(line, line_pos, 4);
     // printf("expanded: '%s'\n", line);
     if (!matches_continuation_markers(node->children[node->children_count - 1],
-                                      line + line_pos, &match_len)) {
+                                      (*line) + line_pos, &match_len)) {
       break;
     }
     node = node->children[node->children_count - 1];
     // printf("   matches %u\n", node->type);
     line_pos += match_len;
   }
-  tab_expand(&line, line_pos);
   // printf("expanded: '%s'\n", line);
-  if ((node_type = block_start_type(line + line_pos, node->type, &match_len))) {
+  if ((node_type = block_start_type(line, line_pos, node->type, &match_len))) {
     // printf("   block start %u\n", node_type);
     // printf("   match_len: %lu\n", match_len);
     close_descendent_blocks(node);
@@ -263,13 +281,13 @@ void add_line_to_ast(ASTNode *root, char *line) {
     node = add_child_block(node, node_type, match_len);
     // print_trailing_end_of_tree(root);
     // printf("   adding line: '%s'\n", line + line_pos);
-    add_line_to_node(node, line + line_pos);
-  } else if ((node_to_close = is_block_end(node, line + line_pos))) {
+    add_line_to_node(node, (*line) + line_pos);
+  } else if ((node_to_close = is_block_end(node, (*line) + line_pos))) {
     // printf("   block end %u\n", node_to_close->type);
     node_to_close->open = 0;
   } else if (node->type != ASTN_DOCUMENT) {
     // printf("   add to %u\n", node->type);
-    add_line_to_node(node, line + line_pos);
+    add_line_to_node(node, (*line) + line_pos);
   }
 }
 
@@ -284,7 +302,7 @@ ASTNode *build_block_structure(FILE *fd) {
     }
 
     getline(&line, &buff_len, fd);
-    add_line_to_ast(document, line);
+    add_line_to_ast(document, &line);
   }
   return document;
 }
