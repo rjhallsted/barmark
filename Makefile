@@ -39,6 +39,9 @@ $(NAME)_test: $(OBJS) $(TEST_OBJS) $(TEST_MAIN).o vendor/unity/unity.o
 spec_test: clean $(NAME)
 	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -r=$(SPEC_TEST_RANGES)
 
+spec_test_all: clean $(NAME)
+	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) 
+
 test: clean $(NAME)_test
 	@./$(NAME)_test
 
