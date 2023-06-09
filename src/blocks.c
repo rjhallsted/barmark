@@ -188,6 +188,8 @@ void print_trailing_end_of_tree(ASTNode *node) {
   printf("%s\n", output);
 }
 
+// TODO: Work on getting correct tab expansion to handle spec test 7
+
 /**
  * @brief Expands the next tab if present in the next 4 chars,
  * starting at line_pos. returns new line_pos
@@ -196,7 +198,6 @@ void print_trailing_end_of_tree(ASTNode *node) {
  * @param line_pos
  * @return size_t
  */
-// TODO: test
 void tab_expand(char **line, size_t line_pos) {
   char *line_ref = *line;
   unsigned int i = 0;
