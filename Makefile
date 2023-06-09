@@ -12,7 +12,7 @@ TEST_OBJS = $(patsubst %.c, %.o, $(filter-out $(TEST_MAIN).c, $(wildcard test/*.
 
 CC_CMD = $(CC) $(CFLAGS) -c -o $@ $<
 
-SPEC_TEST_RANGES = 1-5,7
+SPEC_TEST_RANGES = 1-5,7-9
 
 all: $(NAME)
 
