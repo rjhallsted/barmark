@@ -87,9 +87,14 @@ void test_tab_expand(void) {
   TEST_ASSERT_EQUAL_STRING("    x", line);
   free(line);
 
-  line = strdup("    \t x");
+  line = strdup("    \tx");
   tab_expand(&line, 2);
-  TEST_ASSERT_EQUAL_STRING("       x", line);
+  TEST_ASSERT_EQUAL_STRING("        x", line);
+  free(line);
+
+  line = strdup("     \tx");
+  tab_expand(&line, 2);
+  TEST_ASSERT_EQUAL_STRING("        x", line);
   free(line);
 }
 
