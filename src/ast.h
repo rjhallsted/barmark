@@ -10,11 +10,12 @@ enum AST_NODE_TYPES {
   ASTN_UNORDERED_LIST,
   ASTN_UNORDERED_LIST_ITEM,
   ASTN_PARAGRAPH,
-  ASTN_H1
+  ASTN_H1,
+  ASTN_THEMATIC_BREAK,
 };
 
-static const char *NODE_TYPE_NAMES[] = {"DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL",
-                                        "LI",  "P",          "H1"};
+static const char *NODE_TYPE_NAMES[] = {
+    "DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL", "LI", "P", "H1", "THM_BREAK"};
 
 /* TODO: Figure out how to add "options"
 Things like:

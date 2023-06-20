@@ -57,11 +57,13 @@ void add_line_to_node(ASTNode *node, const char *line) {
     ast_add_child(node, child);
     node = child;
   }
-  if (node->contents == NULL) {
-    node->contents = strdup("");
+  if (node->type != ASTN_THEMATIC_BREAK) {
+    if (node->contents == NULL) {
+      node->contents = strdup("");
+    }
+    node->contents = str_append(node->contents, line);
   }
-  node->contents = str_append(node->contents, line);
-  if (node->type == ASTN_H1) {
+  if (node->type == ASTN_H1 || node->type == ASTN_THEMATIC_BREAK) {
     node->open = 0;
   }
 }
@@ -156,6 +158,47 @@ size_t matches_h1_opening(char **line, size_t line_pos) {
   return match_str_then_space("#", line, line_pos);
 }
 
+size_t matches_thematic_break(char **line, size_t line_pos) {
+  size_t i = 0;
+  char *line_ref = *line;
+  char c;
+
+  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+    i++;
+  }
+  if (line_ref[line_pos + i] == '*' || line_ref[line_pos + i] == '-' ||
+      line_ref[line_pos + i] == '_') {
+    c = line_ref[line_pos + i];
+    i += 1;
+  } else {
+    return 0;
+  }
+  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+    i++;
+  }
+  if (line_ref[line_pos + i] == c) {
+    i++;
+  } else {
+    return 0;
+  }
+  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+    i++;
+  }
+  if (line_ref[line_pos + i] == c) {
+    i++;
+  } else {
+    return 0;
+  }
+  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+    i++;
+  }
+  if (line_ref[line_pos + i] == '\n') {
+    return i;
+  } else {
+    return 0;
+  }
+}
+
 /* end matching functions */
 
 void close_descendent_blocks(ASTNode *node) {
@@ -178,6 +221,8 @@ int block_start_type(char **line, size_t line_pos,
     return ASTN_BLOCK_QUOTE;
   } else if ((*match_len = matches_h1_opening(line, line_pos))) {
     return ASTN_H1;
+  } else if ((*match_len = matches_thematic_break(line, line_pos))) {
+    return ASTN_THEMATIC_BREAK;
   } else if (current_node_type != ASTN_PARAGRAPH &&
              matches_paragraph_opening(line, line_pos)) {
     return 0;
@@ -241,6 +286,10 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     return child;
   } else if (node_type == ASTN_H1) {
     child = ast_create_node(ASTN_H1);
+    ast_add_child(node, child);
+    return child;
+  } else if (node_type == ASTN_THEMATIC_BREAK) {
+    child = ast_create_node(ASTN_THEMATIC_BREAK);
     ast_add_child(node, child);
     return child;
   } else if (node_type == ASTN_PARAGRAPH) {
