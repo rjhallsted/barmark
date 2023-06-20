@@ -42,6 +42,7 @@ typedef struct ASTNode {
   char *cont_markers;
   struct ASTNode **children;
   size_t children_count;
+  struct ASTNode *parent;
 } ASTNode;
 
 ASTNode *ast_create_node(unsigned int type);

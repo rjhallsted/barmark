@@ -392,6 +392,12 @@ void add_line_to_ast(ASTNode *root, char **line) {
         !LATE_CONTINUATION_POSSBILE)) {
     // close_descendent_blocks(node);
     line_pos += match_len;
+
+    // enforce cases of required child types
+    if (node->type == ASTN_UNORDERED_LIST &&
+        node_type != ASTN_UNORDERED_LIST_ITEM) {
+      node = node->parent;
+    }
     node = add_child_block(node, node_type, match_len);
     if (!array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
       while ((node_type =

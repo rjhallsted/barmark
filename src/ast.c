@@ -15,6 +15,7 @@ ASTNode *ast_create_node(unsigned int type) {
   node->cont_markers = strdup("");
   node->children = NULL;
   node->children_count = 0;
+  node->parent = NULL;
 
   return node;
 }
@@ -41,6 +42,7 @@ void ast_add_child(ASTNode *parent, ASTNode *child) {
       realloc(parent->children, sizeof(ASTNode) * (parent->children_count + 1));
   parent->children[parent->children_count] = child;
   parent->children_count += 1;
+  child->parent = parent;
 }
 
 /**

@@ -23,6 +23,7 @@ void assert_ast_nodes_equal(ASTNode *expected, ASTNode *actual) {
   for (size_t i = 0; i < expected->children_count; ++i) {
     assert_ast_nodes_equal(expected->children[i], actual->children[i]);
   }
+  TEST_ASSERT_EQUAL_PTR(expected->parent, actual->parent);
 }
 
 void astTests(void) { printf("--ast tests\n"); }
