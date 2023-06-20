@@ -12,6 +12,9 @@ enum AST_NODE_TYPES {
   ASTN_PARAGRAPH,
 };
 
+static const char *NODE_TYPE_NAMES[] = {"DOC", "CODE_BLOCK", "BLOCKQUOTE",
+                                        "UL",  "LI",         "P"};
+
 static const unsigned int NODE_ALLOWS_CONTENTS[] = {
     0,  // DOCUMENT
     1,  // CODE_BLOCK
@@ -25,6 +28,9 @@ static const unsigned int NODE_ALLOWS_CONTENTS[] = {
 Things like:
 - list type
 - beginning val for ordered lists
+- list tight or not
+- list indentation level
+
 */
 
 typedef struct ASTNode {
