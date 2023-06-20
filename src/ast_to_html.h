@@ -25,6 +25,7 @@ static const HTML_TAG HTML_TAGS[] = {
     {.open = "<ul>", .close = "</ul>", .wrap_internals = 1},  // UNORDERED_LIST
     {.open = "<li>", .close = "</li>", .wrap_internals = 1},  // LIST_ITEM
     {.open = "<p>", .close = "</p>", .wrap_internals = 1},    // PARAGRAPH
+    {.open = "<h1>", .close = "</h1>", .wrap_internals = 1},  // H1
 };
 
 #endif  // AST_TO_HTML_H

@@ -18,6 +18,17 @@ char *str_append(char *dst, const char *s2) {
   return output;
 }
 
+char str_starts_with(const char *str, const char *sub) {
+  size_t i = 0;
+  while (str[i] && sub[i] && str[i] == sub[i]) {
+    i++;
+  }
+  if (sub[i] != '\0') {
+    return 0;
+  }
+  return 1;
+}
+
 char *repeat_x(char x, size_t times) {
   char *out = malloc(times + 1);
   for (size_t i = 0; i < times; i++) {

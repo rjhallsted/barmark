@@ -61,6 +61,9 @@ void add_line_to_node(ASTNode *node, const char *line) {
     node->contents = strdup("");
   }
   node->contents = str_append(node->contents, line);
+  if (node->type == ASTN_H1) {
+    node->open = 0;
+  }
 }
 
 int is_all_whitespace(const char *line) {
@@ -99,8 +102,7 @@ size_t matches_opening_tab(char **line, size_t line_pos) {
   return 0;
 }
 
-// TODO: Rework to make knowledgeable of indent level?
-size_t matches_list_opening(char **line, size_t line_pos) {
+size_t match_str_then_space(char *str, char **line, size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
   tab_expand(&line_ref, line_pos, 3);
@@ -108,8 +110,8 @@ size_t matches_list_opening(char **line, size_t line_pos) {
   while (line_ref[line_pos + i] == ' ' && i < 3) {
     i++;
   }
-  if (line_ref[line_pos + i] == '-') {
-    i++;
+  if (str_starts_with(line_ref + line_pos + i, str)) {
+    i += strlen(str);
     tab_expand(&line_ref, line_pos + i, 1);
     if (line_ref[line_pos + i] == ' ') {
       free(*line);
@@ -118,6 +120,11 @@ size_t matches_list_opening(char **line, size_t line_pos) {
     }
   }
   return 0;
+}
+
+// TODO: Rework to make knowledgeable of indent level?
+size_t matches_list_opening(char **line, size_t line_pos) {
+  return match_str_then_space("-", line, line_pos);
 }
 
 size_t matches_paragraph_opening(char **line, size_t line_pos) {
@@ -145,6 +152,10 @@ size_t matches_blockquote_opening(char **line, size_t line_pos) {
   return 0;
 }
 
+size_t matches_h1_opening(char **line, size_t line_pos) {
+  return match_str_then_space("#", line, line_pos);
+}
+
 /* end matching functions */
 
 void close_descendent_blocks(ASTNode *node) {
@@ -165,6 +176,8 @@ int block_start_type(char **line, size_t line_pos,
     return ASTN_UNORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;
+  } else if ((*match_len = matches_h1_opening(line, line_pos))) {
+    return ASTN_H1;
   } else if (current_node_type != ASTN_PARAGRAPH &&
              matches_paragraph_opening(line, line_pos)) {
     return 0;
@@ -209,11 +222,6 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     child->cont_markers = repeat_x(' ', 4);
     ast_add_child(node, child);
     return child;
-  } else if (node_type == ASTN_BLOCK_QUOTE) {
-    child = ast_create_node(ASTN_BLOCK_QUOTE);
-    child->cont_markers = strdup(">");
-    ast_add_child(node, child);
-    return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST);
@@ -224,6 +232,15 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
              node->type == ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
     child->cont_markers = repeat_x(' ', opener_match_len);
+    ast_add_child(node, child);
+    return child;
+  } else if (node_type == ASTN_BLOCK_QUOTE) {
+    child = ast_create_node(ASTN_BLOCK_QUOTE);
+    child->cont_markers = strdup(">");
+    ast_add_child(node, child);
+    return child;
+  } else if (node_type == ASTN_H1) {
+    child = ast_create_node(ASTN_H1);
     ast_add_child(node, child);
     return child;
   } else if (node_type == ASTN_PARAGRAPH) {
