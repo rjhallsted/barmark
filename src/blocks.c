@@ -7,6 +7,10 @@
 #include "ast.h"
 #include "util.h"
 
+/* Controls whether a late continuation is possible. Gets set to 1
+when an empty line is encountered, and set to 0 otherwise. */
+unsigned int LATE_CONTINUATION_POSSBILE = 0;
+
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
  * and sets that to the number of bytes matched against. 0 is a valid value
@@ -36,8 +40,24 @@ int matches_continuation_markers(ASTNode *node, const char *line,
   return 0;
 }
 
+void move_contents_to_child_paragraph(ASTNode *node) {
+  ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
+  ast_add_child(node, child);
+  child->contents = node->contents;
+  node->contents = NULL;
+}
+
 void add_line_to_node(ASTNode *node, const char *line) {
   // printf("adding to node %u\n", node->type);
+  // this is here to handle cases of late continuation where a new
+  // block has not been created
+  if (LATE_CONTINUATION_POSSBILE && node->type != ASTN_PARAGRAPH) {
+    move_contents_to_child_paragraph(node);
+    // set up another child paragraph for this line
+    ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
+    ast_add_child(node, child);
+    node = child;
+  }
   if (node->contents == NULL) {
     node->contents = strdup("");
   }
@@ -126,16 +146,17 @@ int block_start_type(char **line, size_t line_pos,
     return ASTN_UNORDERED_LIST_ITEM;
   } else if (current_node_type != ASTN_PARAGRAPH &&
              matches_paragraph_opening(line, line_pos)) {
-    *match_len = 0;
-    return ASTN_PARAGRAPH;
+    return 0;
+    //   *match_len = 0;
+    //   return ASTN_PARAGRAPH;
   }
   return 0;
 }
 
 /**
- * @brief Recursively checks if this node or any of its open children are closed
- * by this line. Returns NULL if false, and a pointer to the node-to-be-closed
- * if true.
+ * @brief Recursively checks if this node or any of its open children are
+ * closed by this line. Returns NULL if false, and a pointer to the
+ * node-to-be-closed if true.
  *
  * @param node_type
  * @param line
@@ -157,6 +178,11 @@ ASTNode *is_block_end(ASTNode *node, const char *line) {
 ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
                          size_t opener_match_len) {
   ASTNode *child;
+
+  if (LATE_CONTINUATION_POSSBILE && node->contents) {
+    move_contents_to_child_paragraph(node);
+  }
+
   if (node_type == ASTN_CODE_BLOCK) {
     child = ast_create_node(ASTN_CODE_BLOCK);
     child->cont_markers = repeat_x(' ', 4);
@@ -244,6 +270,11 @@ void add_line_to_ast(ASTNode *root, char **line) {
 
   // printf("line: '%s'\n", line);
 
+  if (is_all_whitespace(*line)) {
+    LATE_CONTINUATION_POSSBILE = 1;
+    return;
+  }
+
   // traverse to last matching node
   while ((*line)[line_pos] && node->children_count > 0 &&
          node->children[node->children_count - 1]->open) {
@@ -253,8 +284,9 @@ void add_line_to_ast(ASTNode *root, char **line) {
         !matches_continuation_markers(node->children[node->children_count - 1],
                                       (*line) + line_pos, &match_len)) {
       // printf("failed to match %s against '%s'\n",
-      //        NODE_TYPE_NAMES[node->children[node->children_count - 1]->type],
-      //        node->children[node->children_count - 1]->cont_markers);
+      //        NODE_TYPE_NAMES[node->children[node->children_count -
+      //        1]->type], node->children[node->children_count -
+      //        1]->cont_markers);
       break;
     }
     node = node->children[node->children_count - 1];
@@ -268,7 +300,8 @@ void add_line_to_ast(ASTNode *root, char **line) {
   //   printf("quit for children count\n");
   // } else if (node->children[node->children_count - 1]->open == 0) {
   //   printf("quit because %s closed\n",
-  //          NODE_TYPE_NAMES[node->children[node->children_count - 1]->type]);
+  //          NODE_TYPE_NAMES[node->children[node->children_count -
+  //          1]->type]);
   // }
   // printf("expanded: '%s'\n", *line);
 
@@ -287,9 +320,9 @@ void add_line_to_ast(ASTNode *root, char **line) {
       // printf("   line_pos: %lu\n", line_pos);
       node = add_child_block(node, node_type, match_len);
     }
-    if (node->type != ASTN_PARAGRAPH) {
-      node = add_child_block(node, ASTN_PARAGRAPH, 0);
-    }
+    // if (node->type != ASTN_PARAGRAPH) {
+    //   node = add_child_block(node, ASTN_PARAGRAPH, 0);
+    // }
     add_line_to_node(node, (*line) + line_pos);
     // printf("---------------\n");
     // print_tree(root, 0);
@@ -303,6 +336,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   } else if (node->type != ASTN_DOCUMENT) {
     add_line_to_node(node, (*line) + line_pos);
   }
+  LATE_CONTINUATION_POSSBILE = 0;
 }
 
 ASTNode *build_block_structure(FILE *fd) {
