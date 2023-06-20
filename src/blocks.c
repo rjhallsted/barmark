@@ -48,7 +48,6 @@ void move_contents_to_child_paragraph(ASTNode *node) {
 }
 
 void add_line_to_node(ASTNode *node, const char *line) {
-  // printf("adding to node %u\n", node->type);
   // this is here to handle cases of late continuation where a new
   // block has not been created
   if (LATE_CONTINUATION_POSSBILE && node->type != ASTN_PARAGRAPH) {
@@ -61,7 +60,7 @@ void add_line_to_node(ASTNode *node, const char *line) {
   if (node->contents == NULL) {
     node->contents = strdup("");
   }
-  str_append(node->contents, line);
+  node->contents = str_append(node->contents, line);
 }
 
 int is_all_whitespace(const char *line) {
@@ -128,7 +127,6 @@ size_t matches_paragraph_opening(char **line, size_t line_pos) {
 /* end matching functions */
 
 void close_descendent_blocks(ASTNode *node) {
-  // printf("closing %s\n", NODE_TYPE_NAMES[node->type]);
   node->open = 0;
   if (node->children_count > 0) {
     close_descendent_blocks(node->children[node->children_count - 1]);
@@ -164,7 +162,6 @@ int block_start_type(char **line, size_t line_pos,
  */
 
 ASTNode *is_block_end(ASTNode *node, const char *line) {
-  // printf("   is_block_end on type %u\n", node->type);
   if (node->type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
     return node;
   }
@@ -181,6 +178,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
 
   if (LATE_CONTINUATION_POSSBILE && node->contents) {
     move_contents_to_child_paragraph(node);
+    LATE_CONTINUATION_POSSBILE = 0;
   }
 
   if (node_type == ASTN_CODE_BLOCK) {
@@ -268,8 +266,6 @@ void add_line_to_ast(ASTNode *root, char **line) {
   ASTNode *node_to_close = NULL;
   unsigned int node_type;
 
-  // printf("line: '%s'\n", line);
-
   if (is_all_whitespace(*line)) {
     LATE_CONTINUATION_POSSBILE = 1;
     return;
@@ -279,63 +275,42 @@ void add_line_to_ast(ASTNode *root, char **line) {
   while ((*line)[line_pos] && node->children_count > 0 &&
          node->children[node->children_count - 1]->open) {
     tab_expand(line, line_pos, 4);
-    // printf("expanded: '%s'\n", line);
     if (node->children[node->children_count - 1]->type == ASTN_PARAGRAPH ||
         !matches_continuation_markers(node->children[node->children_count - 1],
                                       (*line) + line_pos, &match_len)) {
-      // printf("failed to match %s against '%s'\n",
-      //        NODE_TYPE_NAMES[node->children[node->children_count -
-      //        1]->type], node->children[node->children_count -
-      //        1]->cont_markers);
       break;
     }
     node = node->children[node->children_count - 1];
-    // printf("matching %s\n", NODE_TYPE_NAMES[node->type]);
-    // printf("   matches %u\n", node->type);
     line_pos += match_len;
   }
-  // if (!(*line)[line_pos]) {
-  //   printf("quit for line_pos\n");
-  // } else if (node->children_count == 0) {
-  //   printf("quit for children count\n");
-  // } else if (node->children[node->children_count - 1]->open == 0) {
-  //   printf("quit because %s closed\n",
-  //          NODE_TYPE_NAMES[node->children[node->children_count -
-  //          1]->type]);
-  // }
-  // printf("expanded: '%s'\n", *line);
-
   // If a block start exists, create it, then keep checking for more.
   // add the line to the last one
   if ((node_type = block_start_type(line, line_pos, node->type, &match_len))) {
-    // printf("   block start %u\n", node_type);
-    // printf("   match_len: %lu\n", match_len);
     // close_descendent_blocks(node);
     line_pos += match_len;
-    // printf("   line_pos: %lu\n", line_pos);
     node = add_child_block(node, node_type, match_len);
     while ((node_type =
                 block_start_type(line, line_pos, node->type, &match_len))) {
       line_pos += match_len;
-      // printf("   line_pos: %lu\n", line_pos);
       node = add_child_block(node, node_type, match_len);
     }
-    // if (node->type != ASTN_PARAGRAPH) {
-    //   node = add_child_block(node, ASTN_PARAGRAPH, 0);
-    // }
     add_line_to_node(node, (*line) + line_pos);
-    // printf("---------------\n");
-    // print_tree(root, 0);
-  } else if ((node_to_close = is_block_end(node, (*line) + line_pos))) {
-    // printf("closing %s\n", NODE_TYPE_NAMES[node_to_close->type]);
-    node_to_close->open = 0;
   } else if (node->children_count > 0 &&
              node->children[node->children_count - 1]->type == ASTN_PARAGRAPH) {
     node = node->children[node->children_count - 1];
     add_line_to_node(node, (*line) + line_pos);
+  } else if (node_type == ASTN_DOCUMENT) {
+    // if we have content, but not block starts and we havent descended at all,
+    // this is just a paragraph
+    node = add_child_block(node, ASTN_PARAGRAPH, 0);
+    add_line_to_node(node, (*line) + line_pos);
+  } else if ((node_to_close = is_block_end(node, (*line) + line_pos))) {
+    node_to_close->open = 0;
   } else if (node->type != ASTN_DOCUMENT) {
     add_line_to_node(node, (*line) + line_pos);
   }
+  // printf("---------------\n");
+  // print_tree(root, 0);
   LATE_CONTINUATION_POSSBILE = 0;
 }
 

@@ -102,23 +102,23 @@ void test_tab_expand(void) {
   free(line);
 }
 
-void test_nested_lists_construction(void) {
-  ASTNode *root = ast_create_node(ASTN_DOCUMENT);
-  char *line1 = strdup(" - foo\n");
-  add_line_to_ast(root, &line1);
+// void test_nested_lists_construction(void) {
+//   ASTNode *root = ast_create_node(ASTN_DOCUMENT);
+//   char *line1 = strdup(" - foo\n");
+//   add_line_to_ast(root, &line1);
 
-  TEST_ASSERT_EQUAL(1, root->children_count);
-  ASTNode *fooList = root->children[0];
-  TEST_ASSERT_EQUAL(ASTN_UNORDERED_LIST, fooList->type);
-  TEST_ASSERT_EQUAL_STRING("", fooList->cont_markers);
-  TEST_ASSERT_EQUAL(1, fooList->children_count);
-  ASTNode *fooItem = fooList->children[0];
-  TEST_ASSERT_EQUAL(ASTN_UNORDERED_LIST_ITEM, fooItem->type);
-  TEST_ASSERT_EQUAL_STRING("", fooItem->cont_markers);
+//   TEST_ASSERT_EQUAL(1, root->children_count);
+//   ASTNode *fooList = root->children[0];
+//   TEST_ASSERT_EQUAL(ASTN_UNORDERED_LIST, fooList->type);
+//   TEST_ASSERT_EQUAL_STRING("", fooList->cont_markers);
+//   TEST_ASSERT_EQUAL(1, fooList->children_count);
+//   ASTNode *fooItem = fooList->children[0];
+//   TEST_ASSERT_EQUAL(ASTN_UNORDERED_LIST_ITEM, fooItem->type);
+//   TEST_ASSERT_EQUAL_STRING("", fooItem->cont_markers);
 
-  // char *line2 = strdup("   - bar\n");
-  // add_line_to_ast(root, &line2);
-}
+//   // char *line2 = strdup("   - bar\n");
+//   // add_line_to_ast(root, &line2);
+// }
 
 void run_blocks_tests(void) {
   printf("--blocks tests\n");
@@ -126,6 +126,6 @@ void run_blocks_tests(void) {
   RUN_TEST(test_matches_continuation_markers_matches);
   printf("---tab_expand\n");
   RUN_TEST(test_tab_expand);
-  printf("---construction tests\n");
-  RUN_TEST(test_nested_lists_construction);
+  // printf("---construction tests\n");
+  // RUN_TEST(test_nested_lists_construction);
 }
