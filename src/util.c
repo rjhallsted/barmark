@@ -37,3 +37,13 @@ char *repeat_x(char x, size_t times) {
   out[times] = '\0';
   return out;
 }
+
+int array_contains(const unsigned int *arr, unsigned int arr_size,
+                   unsigned int value) {
+  for (unsigned int i = 0; i < arr_size; i++) {
+    if (arr[i] == value) {
+      return 1;
+    }
+  }
+  return 0;
+}

@@ -160,10 +160,11 @@ size_t matches_h1_opening(char **line, size_t line_pos) {
 
 size_t matches_thematic_break(char **line, size_t line_pos) {
   size_t i = 0;
-  char *line_ref = *line;
+  char *line_ref = strdup(*line);
   char c;
 
-  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+  tab_expand(&line_ref, line_pos, 3);
+  while (i < 3 && line_ref[line_pos + i] == ' ') {
     i++;
   }
   if (line_ref[line_pos + i] == '*' || line_ref[line_pos + i] == '-' ||
@@ -189,10 +190,13 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
   } else {
     return 0;
   }
-  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t' ||
+         line_ref[line_pos + i] == c) {
     i++;
   }
   if (line_ref[line_pos + i] == '\n') {
+    free(*line);
+    *line = line_ref;
     return i;
   } else {
     return 0;
@@ -215,14 +219,14 @@ int block_start_type(char **line, size_t line_pos,
                      unsigned int current_node_type, size_t *match_len) {
   if ((*match_len = matches_opening_tab(line, line_pos))) {
     return ASTN_CODE_BLOCK;
+  } else if ((*match_len = matches_thematic_break(line, line_pos))) {
+    return ASTN_THEMATIC_BREAK;
   } else if ((*match_len = matches_list_opening(line, line_pos))) {
     return ASTN_UNORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;
   } else if ((*match_len = matches_h1_opening(line, line_pos))) {
     return ASTN_H1;
-  } else if ((*match_len = matches_thematic_break(line, line_pos))) {
-    return ASTN_THEMATIC_BREAK;
   } else if (current_node_type != ASTN_PARAGRAPH &&
              matches_paragraph_opening(line, line_pos)) {
     return 0;
@@ -379,19 +383,32 @@ void add_line_to_ast(ASTNode *root, char **line) {
   }
   // If a block start exists, create it, then keep checking for more.
   // add the line to the last one
-  if ((node_type = block_start_type(line, line_pos, node->type, &match_len))) {
+  if ((node_type = block_start_type(line, line_pos, node->type, &match_len)) &&
+      // certain blocks require a newline after paragraphs.
+      !(array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
+                       REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, node_type) &&
+        node->children_count > 0 &&
+        node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
+        !LATE_CONTINUATION_POSSBILE)) {
     // close_descendent_blocks(node);
     line_pos += match_len;
     node = add_child_block(node, node_type, match_len);
-    while ((node_type =
-                block_start_type(line, line_pos, node->type, &match_len))) {
-      line_pos += match_len;
-      node = add_child_block(node, node_type, match_len);
+    if (!array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
+      while ((node_type =
+                  block_start_type(line, line_pos, node->type, &match_len))) {
+        line_pos += match_len;
+        node = add_child_block(node, node_type, match_len);
+      }
     }
     add_line_to_node(node, (*line) + line_pos);
   } else if (node->children_count > 0 &&
              node->children[node->children_count - 1]->type == ASTN_PARAGRAPH) {
-    node = node->children[node->children_count - 1];
+    if (LATE_CONTINUATION_POSSBILE) {
+      node->children[node->children_count - 1]->open = 0;
+      node = add_child_block(node, ASTN_PARAGRAPH, 0);
+    } else {
+      node = node->children[node->children_count - 1];
+    }
     add_line_to_node(node, (*line) + line_pos);
   } else if (node_type == ASTN_DOCUMENT) {
     // if we have content, but not block starts and we havent descended at all,

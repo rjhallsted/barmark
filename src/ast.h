@@ -17,6 +17,15 @@ enum AST_NODE_TYPES {
 static const char *NODE_TYPE_NAMES[] = {
     "DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL", "LI", "P", "H1", "THM_BREAK"};
 
+static const unsigned int LEAF_ONLY_NODES_SIZE = 4;
+static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
+    ASTN_CODE_BLOCK, ASTN_H1, ASTN_THEMATIC_BREAK, ASTN_PARAGRAPH};
+
+static const unsigned int REQ_NL_AFTER_PARAGRAPH_NODES_SIZE = 1;
+static const unsigned int
+    REQ_NL_AFTER_PARAGRAPH_NODES[REQ_NL_AFTER_PARAGRAPH_NODES_SIZE] = {
+        ASTN_CODE_BLOCK};
+
 /* TODO: Figure out how to add "options"
 Things like:
 - list type
