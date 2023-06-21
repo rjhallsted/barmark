@@ -26,14 +26,9 @@ static const unsigned int
     REQ_NL_AFTER_PARAGRAPH_NODES[REQ_NL_AFTER_PARAGRAPH_NODES_SIZE] = {
         ASTN_CODE_BLOCK};
 
-/* TODO: Figure out how to add "options"
-Things like:
-- list type
-- beginning val for ordered lists
-- list tight or not
-- list indentation level
-
-*/
+typedef struct {
+  char marker;
+} ASTListOptions;
 
 typedef struct ASTNode {
   unsigned int type;
@@ -43,6 +38,9 @@ typedef struct ASTNode {
   struct ASTNode **children;
   size_t children_count;
   struct ASTNode *parent;
+  // TODO: Replace with union of different options types once there's more than
+  // one
+  ASTListOptions *options;
 } ASTNode;
 
 ASTNode *ast_create_node(unsigned int type);

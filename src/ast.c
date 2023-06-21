@@ -16,6 +16,7 @@ ASTNode *ast_create_node(unsigned int type) {
   node->children = NULL;
   node->children_count = 0;
   node->parent = NULL;
+  node->options = NULL;
 
   return node;
 }
@@ -26,6 +27,9 @@ void ast_free_node_only(ASTNode *node) {
   }
   if (node->cont_markers) {
     free(node->cont_markers);
+  }
+  if (node->options) {
+    free(node->options);
   }
   free(node);
 }

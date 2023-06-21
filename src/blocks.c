@@ -101,6 +101,7 @@ size_t matches_opening_tab(char **line, size_t line_pos) {
     *line = line_ref;
     return i;
   }
+  free(line_ref);
   return 0;
 }
 
@@ -121,12 +122,18 @@ size_t match_str_then_space(char *str, char **line, size_t line_pos) {
       return i + 1;
     }
   }
+  free(line_ref);
   return 0;
 }
 
 // TODO: Rework to make knowledgeable of indent level?
 size_t matches_list_opening(char **line, size_t line_pos) {
-  return match_str_then_space("-", line, line_pos);
+  size_t res1 = match_str_then_space("-", line, line_pos);
+  if (res1) {
+    return res1;
+  } else {
+    return match_str_then_space("*", line, line_pos);
+  }
 }
 
 size_t matches_paragraph_opening(char **line, size_t line_pos) {
@@ -151,6 +158,7 @@ size_t matches_blockquote_opening(char **line, size_t line_pos) {
     *line = line_ref;
     return i;
   }
+  free(line_ref);
   return 0;
 }
 
@@ -172,6 +180,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
     c = line_ref[line_pos + i];
     i += 1;
   } else {
+    free(line_ref);
     return 0;
   }
   while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
@@ -180,6 +189,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
   if (line_ref[line_pos + i] == c) {
     i++;
   } else {
+    free(line_ref);
     return 0;
   }
   while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
@@ -188,6 +198,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
   if (line_ref[line_pos + i] == c) {
     i++;
   } else {
+    free(line_ref);
     return 0;
   }
   while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t' ||
@@ -199,6 +210,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
     *line = line_ref;
     return i;
   } else {
+    free(line_ref);
     return 0;
   }
 }
@@ -258,7 +270,7 @@ ASTNode *is_block_end(ASTNode *node, const char *line) {
 
 /* Returns a pointer to the deepest added child */
 ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
-                         size_t opener_match_len) {
+                         size_t opener_match_len, char list_char) {
   ASTNode *child;
 
   if (LATE_CONTINUATION_POSSBILE && node->contents) {
@@ -274,9 +286,12 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST);
+    child->options = malloc(sizeof(ASTListOptions));
+    child->options->marker = list_char;
     child->cont_markers = strdup("");
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len);
+    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
+                           0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
@@ -351,6 +366,17 @@ void tab_expand(char **line, size_t line_pos, size_t lookahead) {
   *line = out;
 }
 
+char find_list_char(char *line) {
+  size_t i = 0;
+  while (line[i] && line[i] != '-' && line[i] != '*') {
+    i++;
+  }
+  if (line[i]) {
+    return line[i];
+  }
+  return 0;
+}
+
 // traverse to deepest/lastest open block, building up continuation markers
 // along the way consume continuation as you go, stop when no longer matching
 // look for new block starts
@@ -390,20 +416,27 @@ void add_line_to_ast(ASTNode *root, char **line) {
         node->children_count > 0 &&
         node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
         !LATE_CONTINUATION_POSSBILE)) {
+    char list_char = 0;
+    if (node_type == ASTN_UNORDERED_LIST_ITEM) {
+      list_char = find_list_char((*line) + line_pos);
+    }
     // close_descendent_blocks(node);
     line_pos += match_len;
 
     // enforce cases of required child types
-    if (node->type == ASTN_UNORDERED_LIST &&
-        node_type != ASTN_UNORDERED_LIST_ITEM) {
+    if ((node->type == ASTN_UNORDERED_LIST &&
+         node_type != ASTN_UNORDERED_LIST_ITEM) ||
+        (node->type == ASTN_UNORDERED_LIST &&
+         node_type == ASTN_UNORDERED_LIST_ITEM && node->options &&
+         node->options->marker != list_char)) {
       node = node->parent;
     }
-    node = add_child_block(node, node_type, match_len);
+    node = add_child_block(node, node_type, match_len, list_char);
     if (!array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
       while ((node_type =
                   block_start_type(line, line_pos, node->type, &match_len))) {
         line_pos += match_len;
-        node = add_child_block(node, node_type, match_len);
+        node = add_child_block(node, node_type, match_len, list_char);
       }
     }
     add_line_to_node(node, (*line) + line_pos);
@@ -411,7 +444,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
              node->children[node->children_count - 1]->type == ASTN_PARAGRAPH) {
     if (LATE_CONTINUATION_POSSBILE) {
       node->children[node->children_count - 1]->open = 0;
-      node = add_child_block(node, ASTN_PARAGRAPH, 0);
+      node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     } else {
       node = node->children[node->children_count - 1];
     }
@@ -419,7 +452,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   } else if (node_type == ASTN_DOCUMENT) {
     // if we have content, but not block starts and we havent descended at all,
     // this is just a paragraph
-    node = add_child_block(node, ASTN_PARAGRAPH, 0);
+    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     add_line_to_node(node, (*line) + line_pos);
   } else if ((node_to_close = is_block_end(node, (*line) + line_pos))) {
     node_to_close->open = 0;
