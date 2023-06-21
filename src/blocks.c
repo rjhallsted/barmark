@@ -14,6 +14,22 @@
 when an empty line is encountered, and set to 0 otherwise. */
 unsigned int LATE_CONTINUATION_LINES = 0;
 
+/*
+ * GENERAL DESIRED LOGIC GROUPING
+ * - All "initial" block creation happens in add_child_block
+ * - add_line_to_node should just do only that
+ * - add_line_to_ast should:
+ *   - match against existing blocks
+ *   - check for new block starts and make them
+ *   - then evaluate current node and context to determine whether to make any
+ * new blocks, doing so if necessary, then call add_line_to_node on the
+ * destination node.
+ *
+ * SUCCESSFUL REFACTOR GOAL:
+ * - failing 6 and 93 (of the ones we've specified)
+ * - passing 190 total
+ */
+
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
  * and sets that to the number of bytes matched against. 0 is a valid value
@@ -423,7 +439,9 @@ ASTNode *add_child_block_with_cont_markers(ASTNode *node,
   return child;
 }
 
-/* Returns a pointer to the deepest added child */
+/* Returns a pointer to the deepest added child.
+Contains all logic for block creation.
+*/
 ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
                          size_t opener_match_len, char list_char) {
   ASTNode *child;
@@ -450,8 +468,9 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     return add_child_block_with_cont_markers(node, ASTN_UNORDERED_LIST_ITEM,
                                              repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_BLOCK_QUOTE) {
-    return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
-                                             strdup(">"));
+    child =
+        add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE, strdup(">"));
+    return add_child_block(child, ASTN_PARAGRAPH, 0, 0);
   } else if ((node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) &&
              (child = get_last_child(node))) {
     // Instead of adding a child, for setext headings we just change the type
@@ -610,6 +629,11 @@ void add_line_to_ast(ASTNode *root, char **line) {
              node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
              !LATE_CONTINUATION_LINES) {
     // case where we can continue a paragraph
+    node = node->children[node->children_count - 1];
+    add_line_to_node(node, (*line) + line_pos);
+  } else if (!LATE_CONTINUATION_LINES && node->children_count > 0 &&
+             node->children[node->children_count - 1]->type ==
+                 ASTN_BLOCK_QUOTE) {
     node = node->children[node->children_count - 1];
     add_line_to_node(node, (*line) + line_pos);
   } else if (node->type == ASTN_CODE_BLOCK) {
