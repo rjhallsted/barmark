@@ -436,6 +436,16 @@ unsigned int meets_req_nl_after_paragraph_rule(ASTNode *node,
           !LATE_CONTINUATION_POSSBILE);
 }
 
+unsigned int should_add_to_parent_instead(ASTNode *node,
+                                          unsigned int new_node_type,
+                                          char list_char) {
+  return ((node->type == ASTN_UNORDERED_LIST &&
+           new_node_type != ASTN_UNORDERED_LIST_ITEM) ||
+          (node->type == ASTN_UNORDERED_LIST &&
+           new_node_type == ASTN_UNORDERED_LIST_ITEM && node->options &&
+           node->options->marker != list_char));
+}
+
 // traverse to deepest/lastest open block, building up continuation markers
 // along the way consume continuation as you go, stop when no longer matching
 // look for new block starts
@@ -446,8 +456,8 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
-  ASTNode *node_to_close = NULL;
   unsigned int node_type;
+  char list_char = 0;
 
   if (is_all_whitespace(*line)) {
     LATE_CONTINUATION_POSSBILE = 1;
@@ -470,19 +480,13 @@ void add_line_to_ast(ASTNode *root, char **line) {
   // add the line to the last one
   if ((node_type = block_start_type(line, line_pos, node->type, &match_len)) &&
       !meets_req_nl_after_paragraph_rule(node, node_type)) {
-    char list_char = 0;
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       list_char = find_list_char((*line) + line_pos);
     }
-    // close_descendent_blocks(node);
     line_pos += match_len;
 
     // enforce cases of required child types
-    if ((node->type == ASTN_UNORDERED_LIST &&
-         node_type != ASTN_UNORDERED_LIST_ITEM) ||
-        (node->type == ASTN_UNORDERED_LIST &&
-         node_type == ASTN_UNORDERED_LIST_ITEM && node->options &&
-         node->options->marker != list_char)) {
+    if (should_add_to_parent_instead(node, node_type, list_char)) {
       node = node->parent;
     }
     node = add_child_block(node, node_type, match_len, list_char);
@@ -503,14 +507,10 @@ void add_line_to_ast(ASTNode *root, char **line) {
       node = node->children[node->children_count - 1];
     }
     add_line_to_node(node, (*line) + line_pos);
-  } else if (node_type == ASTN_DOCUMENT) {
-    // if we have content, but not block starts and we havent descended at all,
-    // this is just a paragraph
+  } else {
+    // if we have content, but not block starts and we havent descended at all
+    // (implied) this is just a paragraph
     node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    add_line_to_node(node, (*line) + line_pos);
-  } else if ((node_to_close = is_block_end(node, (*line) + line_pos))) {
-    node_to_close->open = 0;
-  } else if (node->type != ASTN_DOCUMENT) {
     add_line_to_node(node, (*line) + line_pos);
   }
   // printf("---------------\n");
