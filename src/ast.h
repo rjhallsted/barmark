@@ -34,6 +34,10 @@ static const unsigned int SINGLE_LINE_NODES[SINGLE_LINE_NODES_SIZE] = {
     ASTN_H1, ASTN_H2, ASTN_H3, ASTN_H4, ASTN_H5, ASTN_H6, ASTN_THEMATIC_BREAK,
 };
 
+static const unsigned int ATX_HEADINGS_SIZE = 6;
+static const unsigned int ATX_HEADINGS[ATX_HEADINGS_SIZE] = {
+    ASTN_H1, ASTN_H2, ASTN_H3, ASTN_H4, ASTN_H5, ASTN_H6};
+
 static const unsigned int REQ_NL_AFTER_PARAGRAPH_NODES_SIZE = 1;
 static const unsigned int
     REQ_NL_AFTER_PARAGRAPH_NODES[REQ_NL_AFTER_PARAGRAPH_NODES_SIZE] = {

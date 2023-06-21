@@ -47,7 +47,7 @@ void move_contents_to_child_paragraph(ASTNode *node) {
   node->contents = NULL;
 }
 
-void add_line_to_node(ASTNode *node, const char *line) {
+void add_line_to_node(ASTNode *node, char *line) {
   // this is here to handle cases of late continuation where a new
   // block has not been created
   if (LATE_CONTINUATION_POSSBILE && node->type != ASTN_PARAGRAPH) {
@@ -162,28 +162,49 @@ size_t matches_blockquote_opening(char **line, size_t line_pos) {
   return 0;
 }
 
+size_t matches_atx_header(char **line, size_t line_pos,
+                          unsigned int heading_level) {
+  char *header_str = repeat_x('#', heading_level);
+  size_t res1 = match_str_then_space(header_str, line, line_pos);
+  if (res1) {
+    free(header_str);
+    return res1;
+  }
+  if (strcmp((*line) + line_pos, header_str) == 0) {
+    free(header_str);
+    return heading_level;
+  }
+  header_str = str_append(header_str, "\n");
+  if (strcmp((*line) + line_pos, header_str) == 0) {
+    free(header_str);
+    return heading_level;
+  }
+  free(header_str);
+  return 0;
+}
+
 size_t matches_h1_opening(char **line, size_t line_pos) {
-  return match_str_then_space("#", line, line_pos);
+  return matches_atx_header(line, line_pos, 1);
 }
 
 size_t matches_h2_opening(char **line, size_t line_pos) {
-  return match_str_then_space("##", line, line_pos);
+  return matches_atx_header(line, line_pos, 2);
 }
 
 size_t matches_h3_opening(char **line, size_t line_pos) {
-  return match_str_then_space("###", line, line_pos);
+  return matches_atx_header(line, line_pos, 3);
 }
 
 size_t matches_h4_opening(char **line, size_t line_pos) {
-  return match_str_then_space("####", line, line_pos);
+  return matches_atx_header(line, line_pos, 4);
 }
 
 size_t matches_h5_opening(char **line, size_t line_pos) {
-  return match_str_then_space("#####", line, line_pos);
+  return matches_atx_header(line, line_pos, 5);
 }
 
 size_t matches_h6_opening(char **line, size_t line_pos) {
-  return match_str_then_space("######", line, line_pos);
+  return matches_atx_header(line, line_pos, 6);
 }
 
 size_t matches_thematic_break(char **line, size_t line_pos) {
