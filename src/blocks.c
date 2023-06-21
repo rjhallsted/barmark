@@ -7,9 +7,12 @@
 #include "ast.h"
 #include "util.h"
 
+// TODO: Probably rework setext heading handling so that we don't
+// require different AST node types to handle them
+
 /* Controls whether a late continuation is possible. Gets set to 1
 when an empty line is encountered, and set to 0 otherwise. */
-unsigned int LATE_CONTINUATION_POSSBILE = 0;
+unsigned int LATE_CONTINUATION_LINES = 0;
 
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
@@ -50,20 +53,37 @@ void move_contents_to_child_paragraph(ASTNode *node) {
 void add_line_to_node(ASTNode *node, char *line) {
   // this is here to handle cases of late continuation where a new
   // block has not been created
-  if (LATE_CONTINUATION_POSSBILE && node->type != ASTN_PARAGRAPH) {
+  if (f_debug()) {
+    printf("adding line to %s\n", NODE_TYPE_NAMES[node->type]);
+  }
+  if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
+      node->type != ASTN_CODE_BLOCK) {
     move_contents_to_child_paragraph(node);
     // set up another child paragraph for this line
     ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
     ast_add_child(node, child);
     node = child;
+    LATE_CONTINUATION_LINES = 0;
+  }
+  if (node->type == ASTN_BLOCK_QUOTE) {
+    if (node->children_count == 0 ||
+        node->children[node->children_count - 1]->type != ASTN_PARAGRAPH) {
+      ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
+      ast_add_child(node, child);
+      node = child;
+    }
   }
   if (node->type != ASTN_THEMATIC_BREAK) {
     if (node->contents == NULL) {
       node->contents = strdup("");
     }
+    // should only apply to code blocks
+    for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
+      node->contents = str_append(node->contents, "\n");
+    }
     node->contents = str_append(node->contents, line);
   }
-  if (array_contains(SINGLE_LINE_NODES, SINGLE_LINE_NODES_SIZE, node->type)) {
+  if (array_contains(UNAPPENDABLE_NODES, UNNAPENDABLE_NODES_SIZE, node->type)) {
     node->open = 0;
   }
 }
@@ -257,6 +277,58 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
   }
 }
 
+size_t matches_setext_h2(char **line, size_t line_pos) {
+  size_t i = 0;
+  char *line_ref = strdup(*line);
+
+  tab_expand(&line_ref, line_pos, 3);
+  while (i < 3 && line_ref[line_pos + i] == ' ') {
+    i++;
+  }
+  if (line_ref[line_pos + i] != '-') {
+    free(line_ref);
+    return 0;
+  }
+  while (line_ref[line_pos + i] == '-') {
+    i++;
+  }
+  while (is_whitespace(line_ref[line_pos + i])) {
+    i++;
+  }
+  if (line_ref[line_pos + i] != '\0') {
+    free(line_ref);
+    return 0;
+  }
+  *line = line_ref;
+  return i;
+}
+
+size_t matches_setext_h1(char **line, size_t line_pos) {
+  size_t i = 0;
+  char *line_ref = strdup(*line);
+
+  tab_expand(&line_ref, line_pos, 3);
+  while (i < 3 && line_ref[line_pos + i] == ' ') {
+    i++;
+  }
+  if (line_ref[line_pos + i] != '=') {
+    free(line_ref);
+    return 0;
+  }
+  while (line_ref[line_pos + i] == '=') {
+    i++;
+  }
+  while (is_whitespace(line_ref[line_pos + i])) {
+    i++;
+  }
+  if (line_ref[line_pos + i] != '\0') {
+    free(line_ref);
+    return 0;
+  }
+  *line = line_ref;
+  return i;
+}
+
 /* end matching functions */
 
 void close_descendent_blocks(ASTNode *node) {
@@ -266,13 +338,35 @@ void close_descendent_blocks(ASTNode *node) {
   }
 }
 
+ASTNode *get_last_child(ASTNode *node) {
+  if (node->children_count == 0) {
+    return NULL;
+  }
+  return node->children[node->children_count - 1];
+}
+
 /***
  * Returns 0 if no block start is found.
  */
-int block_start_type(char **line, size_t line_pos,
-                     unsigned int current_node_type, size_t *match_len) {
+int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
+                     size_t *match_len) {
+  ASTNode *child = get_last_child(current_node);
+  if (f_debug()) {
+    printf("line: '%s'\n", (*line) + line_pos);
+    printf("current_node_type: %u\n", current_node->type);
+    if (child) {
+      printf("child node type: %u\n", child->type);
+    }
+  }
+
   if ((*match_len = matches_opening_tab(line, line_pos))) {
     return ASTN_CODE_BLOCK;
+  } else if (child && child->type == ASTN_PARAGRAPH &&
+             (*match_len = matches_setext_h2(line, line_pos))) {
+    return ASTN_SETEXT_H2;
+  } else if (child && child->type == ASTN_PARAGRAPH &&
+             (*match_len = matches_setext_h1(line, line_pos))) {
+    return ASTN_SETEXT_H1;
   } else if ((*match_len = matches_thematic_break(line, line_pos))) {
     return ASTN_THEMATIC_BREAK;
   } else if ((*match_len = matches_list_opening(line, line_pos))) {
@@ -291,11 +385,11 @@ int block_start_type(char **line, size_t line_pos,
     return ASTN_H2;
   } else if ((*match_len = matches_h1_opening(line, line_pos))) {
     return ASTN_H1;
-  } else if (current_node_type != ASTN_PARAGRAPH &&
-             matches_paragraph_opening(line, line_pos)) {
-    return 0;
-    //   *match_len = 0;
-    //   return ASTN_PARAGRAPH;
+    // } else if (current_node->type != ASTN_PARAGRAPH &&
+    //            matches_paragraph_opening(line, line_pos)) {
+    //   return 0;
+    //   //   *match_len = 0;
+    //   //   return ASTN_PARAGRAPH;
   }
   return 0;
 }
@@ -309,7 +403,6 @@ int block_start_type(char **line, size_t line_pos,
  * @param line
  * @return int
  */
-
 ASTNode *is_block_end(ASTNode *node, const char *line) {
   if (node->type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
     return node;
@@ -335,9 +428,10 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
                          size_t opener_match_len, char list_char) {
   ASTNode *child;
 
-  if (LATE_CONTINUATION_POSSBILE && node->contents) {
+  if (LATE_CONTINUATION_LINES && node->contents &&
+      node->type != ASTN_CODE_BLOCK) {
     move_contents_to_child_paragraph(node);
-    LATE_CONTINUATION_POSSBILE = 0;
+    LATE_CONTINUATION_LINES = 0;
   }
 
   if (node_type == ASTN_CODE_BLOCK) {
@@ -358,6 +452,12 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   } else if (node_type == ASTN_BLOCK_QUOTE) {
     return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
                                              strdup(">"));
+  } else if ((node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) &&
+             (child = get_last_child(node))) {
+    // Instead of adding a child, for setext headings we just change the type
+    // of the parent
+    child->type = node_type;
+    return child;
   } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
              node_type == ASTN_H3 || node_type == ASTN_H4 ||
              node_type == ASTN_H5 || node_type == ASTN_H6 ||
@@ -374,12 +474,11 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
 void print_tree(ASTNode *node, size_t level) {
   char *indent = repeat_x(' ', level * 2);
   printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
-  if (node->children_count > 0) {
-    for (size_t i = 0; i < node->children_count; i++) {
-      print_tree(node->children[i], level + 1);
-    }
-  } else {
+  if (node->contents) {
     printf("%s->%s\n", indent, node->contents);
+  }
+  for (size_t i = 0; i < node->children_count; i++) {
+    print_tree(node->children[i], level + 1);
   }
   free(indent);
 }
@@ -433,7 +532,7 @@ unsigned int meets_req_nl_after_paragraph_rule(ASTNode *node,
                          REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, new_node_type) &&
           node->children_count > 0 &&
           node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
-          !LATE_CONTINUATION_POSSBILE);
+          !LATE_CONTINUATION_LINES);
 }
 
 unsigned int should_add_to_parent_instead(ASTNode *node,
@@ -460,14 +559,22 @@ void add_line_to_ast(ASTNode *root, char **line) {
   char list_char = 0;
 
   if (is_all_whitespace(*line)) {
-    LATE_CONTINUATION_POSSBILE = 1;
+    LATE_CONTINUATION_LINES += 1;
     return;
   }
 
+  if (f_debug()) {
+    printf("------------\n");
+    printf("line: '%s'\n", *line);
+  }
   // traverse to last matching node
   while ((*line)[line_pos] && node->children_count > 0 &&
          node->children[node->children_count - 1]->open) {
     tab_expand(line, line_pos, 4);
+    if (f_debug()) {
+      printf("matching against %s\n",
+             NODE_TYPE_NAMES[node->children[node->children_count - 1]->type]);
+    }
     if (node->children[node->children_count - 1]->type == ASTN_PARAGRAPH ||
         !matches_continuation_markers(node->children[node->children_count - 1],
                                       (*line) + line_pos, &match_len)) {
@@ -476,10 +583,12 @@ void add_line_to_ast(ASTNode *root, char **line) {
     node = node->children[node->children_count - 1];
     line_pos += match_len;
   }
+  if (f_debug()) printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
   // If a block start exists, create it, then keep checking for more.
   // add the line to the last one
-  if ((node_type = block_start_type(line, line_pos, node->type, &match_len)) &&
-      !meets_req_nl_after_paragraph_rule(node, node_type)) {
+  if ((node_type = block_start_type(line, line_pos, node, &match_len)) &&
+      !meets_req_nl_after_paragraph_rule(node, node_type) &&
+      !array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       list_char = find_list_char((*line) + line_pos);
     }
@@ -491,8 +600,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
     }
     node = add_child_block(node, node_type, match_len, list_char);
     if (!array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
-      while ((node_type =
-                  block_start_type(line, line_pos, node->type, &match_len))) {
+      while ((node_type = block_start_type(line, line_pos, node, &match_len))) {
         line_pos += match_len;
         node = add_child_block(node, node_type, match_len, list_char);
       }
@@ -500,19 +608,24 @@ void add_line_to_ast(ASTNode *root, char **line) {
     add_line_to_node(node, (*line) + line_pos);
   } else if (node->children_count > 0 &&
              node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_POSSBILE) {
+             !LATE_CONTINUATION_LINES) {
     // case where we can continue a paragraph
     node = node->children[node->children_count - 1];
+    add_line_to_node(node, (*line) + line_pos);
+  } else if (node->type == ASTN_CODE_BLOCK) {
     add_line_to_node(node, (*line) + line_pos);
   } else {
     // if we have content, but not block starts and we havent descended at all
     // (implied) this is just a paragraph
+    if (f_debug()) printf("adding default paragraph\n");
     node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     add_line_to_node(node, (*line) + line_pos);
   }
-  // printf("---------------\n");
-  // print_tree(root, 0);
-  LATE_CONTINUATION_POSSBILE = 0;
+  if (f_debug()) {
+    printf("---------------\n");
+    print_tree(root, 0);
+  }
+  LATE_CONTINUATION_LINES = 0;
 }
 
 ASTNode *build_block_structure(FILE *fd) {

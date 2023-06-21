@@ -47,3 +47,11 @@ int array_contains(const unsigned int *arr, unsigned int arr_size,
   }
   return 0;
 }
+
+int f_debug(void) {
+  char *res = getenv("DEBUG");
+  if (res) {
+    return 1;
+  }
+  return 0;
+}
