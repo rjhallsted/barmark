@@ -575,14 +575,6 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
 
 ASTNode *determine_writable_node_from_context(ASTNode *node) {
   /* logic to determine where to add line based on current node and context */
-  /*
-  Context vars:
-  - node has open child
-  - node child type
-  - LATE_CONTINUATION_LINES
-  - node type
-  */
-  // ASTNode *child = get_last_child(child);
 
   /* actual cases:
   - has continuable paragraph && no late continuation lines
@@ -619,12 +611,6 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
   return node;
 }
 
-// traverse to deepest/lastest open block, building up continuation markers
-// along the way consume continuation as you go, stop when no longer matching
-// look for new block starts
-// if found, close remaining unmatched blocks
-// begin new block as child of last matched block
-// incorporate remainder of line in last open block
 void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
@@ -639,12 +625,11 @@ void add_line_to_ast(ASTNode *root, char **line) {
     printf("------------\n");
     printf("line: '%s'\n", *line);
   }
-  // traverse to last matching node
+
   node = traverse_to_last_match(node, line, &line_pos, &match_len);
   if (f_debug()) printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
 
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
-
   node = determine_writable_node_from_context(node);
 
   if (node->type != ASTN_THEMATIC_BREAK)
