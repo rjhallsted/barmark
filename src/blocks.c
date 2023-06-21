@@ -17,7 +17,7 @@ unsigned int LATE_CONTINUATION_LINES = 0;
 /*
  * GENERAL DESIRED LOGIC GROUPING
  * - All "initial" block creation happens in add_child_block
- * - add_line_to_node should just do only that
+ * - add_line_to_node should just do only that (DONE)
  * - add_line_to_ast should:
  *   - match against existing blocks
  *   - check for new block starts and make them
@@ -72,36 +72,15 @@ void add_line_to_node(ASTNode *node, char *line) {
   if (f_debug()) {
     printf("adding line to %s\n", NODE_TYPE_NAMES[node->type]);
   }
-  if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
-      node->type != ASTN_CODE_BLOCK) {
-    move_contents_to_child_paragraph(node);
-    // set up another child paragraph for this line
-    ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
-    ast_add_child(node, child);
-    node = child;
-    LATE_CONTINUATION_LINES = 0;
+
+  if (node->contents == NULL) {
+    node->contents = strdup("");
   }
-  if (node->type == ASTN_BLOCK_QUOTE) {
-    if (node->children_count == 0 ||
-        node->children[node->children_count - 1]->type != ASTN_PARAGRAPH) {
-      ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
-      ast_add_child(node, child);
-      node = child;
-    }
+  // should only apply to code blocks
+  for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
+    node->contents = str_append(node->contents, "\n");
   }
-  if (node->type != ASTN_THEMATIC_BREAK) {
-    if (node->contents == NULL) {
-      node->contents = strdup("");
-    }
-    // should only apply to code blocks
-    for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
-      node->contents = str_append(node->contents, "\n");
-    }
-    node->contents = str_append(node->contents, line);
-  }
-  if (array_contains(UNAPPENDABLE_NODES, UNNAPENDABLE_NODES_SIZE, node->type)) {
-    node->open = 0;
-  }
+  node->contents = str_append(node->contents, line);
 }
 
 int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
@@ -641,7 +620,26 @@ void add_line_to_ast(ASTNode *root, char **line) {
     if (f_debug()) printf("adding default paragraph\n");
     node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
   }
-  add_line_to_node(node, (*line) + line_pos);
+
+  if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
+      node->type != ASTN_CODE_BLOCK) {
+    move_contents_to_child_paragraph(node);
+    // set up another child paragraph for this line
+    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+  }
+  if (node->type == ASTN_BLOCK_QUOTE &&
+      (node->children_count == 0 ||
+       get_last_child(node)->type != ASTN_PARAGRAPH)) {
+    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+  }
+  if (node->type != ASTN_THEMATIC_BREAK)
+    add_line_to_node(node, (*line) + line_pos);
+
+  // cleanup
+  if (array_contains(UNAPPENDABLE_NODES, UNNAPENDABLE_NODES_SIZE, node->type)) {
+    node->open = 0;
+  }
+
   LATE_CONTINUATION_LINES = 0;
 
   if (f_debug()) {
