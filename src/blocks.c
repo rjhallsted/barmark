@@ -548,6 +548,50 @@ unsigned int has_open_child(ASTNode *node) {
           node->children[node->children_count - 1]->open);
 }
 
+ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
+                                size_t *match_len) {
+  // traverse to last matching node
+  while ((*line)[*line_pos] && has_open_child(node)) {
+    tab_expand(line, *line_pos, 4);
+    if (f_debug()) {
+      printf("matching against %s\n",
+             NODE_TYPE_NAMES[get_last_child(node)->type]);
+    }
+    if (get_last_child(node)->type == ASTN_PARAGRAPH ||
+        !matches_continuation_markers(get_last_child(node),
+                                      (*line) + (*line_pos), match_len)) {
+      break;
+    }
+    node = get_last_child(node);
+    *line_pos += *match_len;
+  }
+  return node;
+}
+
+ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
+                                 size_t *match_len) {
+  char list_char = 0;
+  unsigned int node_type;
+
+  // If a block start exists, create it, then keep checking for more.
+  // Intelligently rework blocks if new block needs to be moved to parent
+  while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
+         !meets_req_nl_after_paragraph_rule(node, node_type) &&
+         !array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
+    if (node_type == ASTN_UNORDERED_LIST_ITEM) {
+      list_char = find_list_char((*line) + (*line_pos));
+    }
+    *line_pos += *match_len;
+
+    // enforce cases of required child types
+    if (should_add_to_parent_instead(node, node_type, list_char)) {
+      node = node->parent;
+    }
+    node = add_child_block(node, node_type, *match_len, list_char);
+  }
+  return node;
+}
+
 // traverse to deepest/lastest open block, building up continuation markers
 // along the way consume continuation as you go, stop when no longer matching
 // look for new block starts
@@ -558,9 +602,6 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
-  unsigned int node_type;
-  // unsigned int added_new_blocks = 0;
-  char list_char = 0;
 
   if (is_all_whitespace(*line)) {
     LATE_CONTINUATION_LINES += 1;
@@ -572,39 +613,10 @@ void add_line_to_ast(ASTNode *root, char **line) {
     printf("line: '%s'\n", *line);
   }
   // traverse to last matching node
-  while ((*line)[line_pos] && has_open_child(node)) {
-    tab_expand(line, line_pos, 4);
-    if (f_debug()) {
-      printf("matching against %s\n",
-             NODE_TYPE_NAMES[get_last_child(node)->type]);
-    }
-    if (get_last_child(node)->type == ASTN_PARAGRAPH ||
-        !matches_continuation_markers(get_last_child(node), (*line) + line_pos,
-                                      &match_len)) {
-      break;
-    }
-    node = get_last_child(node);
-    line_pos += match_len;
-  }
+  node = traverse_to_last_match(node, line, &line_pos, &match_len);
   if (f_debug()) printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
 
-  // If a block start exists, create it, then keep checking for more.
-  // Intelligently rework blocks if new block needs to be moved to parent
-  while ((node_type = block_start_type(line, line_pos, node, &match_len)) &&
-         !meets_req_nl_after_paragraph_rule(node, node_type) &&
-         !array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
-    if (node_type == ASTN_UNORDERED_LIST_ITEM) {
-      list_char = find_list_char((*line) + line_pos);
-    }
-    line_pos += match_len;
-
-    // enforce cases of required child types
-    if (should_add_to_parent_instead(node, node_type, list_char)) {
-      node = node->parent;
-    }
-    node = add_child_block(node, node_type, match_len, list_char);
-    // added_new_blocks = 1;
-  }
+  node = handle_new_block_starts(node, line, &line_pos, &match_len);
 
   /* logic to determine where to add line based on current node and context */
   if (has_open_child(node) && get_last_child(node)->type == ASTN_PARAGRAPH &&
