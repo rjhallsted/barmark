@@ -14,22 +14,6 @@
 when an empty line is encountered, and set to 0 otherwise. */
 unsigned int LATE_CONTINUATION_LINES = 0;
 
-/*
- * GENERAL DESIRED LOGIC GROUPING
- * - All "initial" block creation happens in add_child_block
- * - add_line_to_node should just do only that (DONE)
- * - add_line_to_ast should:
- *   - match against existing blocks
- *   - check for new block starts and make them
- *   - then evaluate current node and context to determine whether to make any
- * new blocks, doing so if necessary, then call add_line_to_node on the
- * destination node.
- *
- * SUCCESSFUL REFACTOR GOAL:
- * - failing 6 and 93 (of the ones we've specified)
- * - passing 190 total
- */
-
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
  * and sets that to the number of bytes matched against. 0 is a valid value
@@ -67,8 +51,6 @@ void move_contents_to_child_paragraph(ASTNode *node) {
 }
 
 void add_line_to_node(ASTNode *node, char *line) {
-  // this is here to handle cases of late continuation where a new
-  // block has not been created
   if (f_debug()) {
     printf("adding line to %s\n", NODE_TYPE_NAMES[node->type]);
   }
@@ -87,13 +69,10 @@ int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
 
 int is_all_whitespace(const char *line) {
   size_t i = 0;
-  while (line[i]) {
-    if (!is_whitespace(line[i])) {
-      return 0;
-    }
+  while (is_whitespace(line[i])) {
     i++;
   }
-  return 1;
+  return (line[i] == '\0') ? 1 : 0;
 }
 
 /* matching functions */
@@ -333,6 +312,12 @@ void close_descendent_blocks(ASTNode *node) {
   }
 }
 
+/**
+ * @brief Get the last child node. Returns NULL if no children exist.
+ *
+ * @param node
+ * @return ASTNode*
+ */
 ASTNode *get_last_child(ASTNode *node) {
   if (node->children_count == 0) {
     return NULL;
@@ -380,11 +365,6 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
     return ASTN_H2;
   } else if ((*match_len = matches_h1_opening(line, line_pos))) {
     return ASTN_H1;
-    // } else if (current_node->type != ASTN_PARAGRAPH &&
-    //            matches_paragraph_opening(line, line_pos)) {
-    //   return 0;
-    //   //   *match_len = 0;
-    //   //   return ASTN_PARAGRAPH;
   }
   return 0;
 }
@@ -425,6 +405,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
                          size_t opener_match_len, char list_char) {
   ASTNode *child;
 
+  // TODO: figure out how to handle elsewhere
   if (LATE_CONTINUATION_LINES && node->contents &&
       node->type != ASTN_CODE_BLOCK) {
     move_contents_to_child_paragraph(node);
@@ -452,8 +433,8 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     return add_child_block(child, ASTN_PARAGRAPH, 0, 0);
   } else if ((node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) &&
              (child = get_last_child(node))) {
-    // Instead of adding a child, for setext headings we just change the type
-    // of the parent
+    // Instead of adding a new child, for setext headings we just change the
+    // type of its "sibling"
     child->type = node_type;
     return child;
   } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
@@ -594,36 +575,46 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
 
 ASTNode *determine_writable_node_from_context(ASTNode *node) {
   /* logic to determine where to add line based on current node and context */
-  if (has_open_child(node) && get_last_child(node)->type == ASTN_PARAGRAPH &&
+  /*
+  Context vars:
+  - node has open child
+  - node child type
+  - LATE_CONTINUATION_LINES
+  - node type
+  */
+  // ASTNode *child = get_last_child(child);
+
+  /* actual cases:
+  - has continuable paragraph && no late continuation lines
+  - has continuable blockquote
+  - with late continuation lines and is continuable block
+  - node type is document and the above are not true
+  - otherwise this node is correct
+  */
+
+  //////////
+
+  ASTNode *child = get_last_child(node);
+
+  if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
       !LATE_CONTINUATION_LINES) {
     // case where we can continue a paragraph
-    node = get_last_child(node);
-  } else if (has_open_child(node) &&
-             get_last_child(node)->type == ASTN_BLOCK_QUOTE) {
-    // continuable blockquote
-    node = get_last_child(node);
-    if (LATE_CONTINUATION_LINES && !has_open_child(node)) {
-      // has no children, so put contents in new paragraph
-      move_contents_to_child_paragraph(node);
-      node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    } else {
-      if (f_debug()) printf("using blockquote child paragraph\n");
-      // should have children, so use that block
-      node = get_last_child(node);
-    }
+    return determine_writable_node_from_context(child);
+  } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE) {
+    return determine_writable_node_from_context(child);
+  } else if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
+             node->type != ASTN_CODE_BLOCK && node->type != ASTN_DOCUMENT) {
+    // continuable blocks whose content we can convert to paragraphs, and add
+    // another paragraph for this line
+    move_contents_to_child_paragraph(node);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
-    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-  }
-
-  if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
-      node->type != ASTN_CODE_BLOCK) {
-    // continuable blocks whose content we can convert to paragraphs, and add
-    // another paragraph for this line
-    move_contents_to_child_paragraph(node);
-    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    return determine_writable_node_from_context(child);
   }
   return node;
 }
