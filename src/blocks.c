@@ -499,13 +499,10 @@ void add_line_to_ast(ASTNode *root, char **line) {
     }
     add_line_to_node(node, (*line) + line_pos);
   } else if (node->children_count > 0 &&
-             node->children[node->children_count - 1]->type == ASTN_PARAGRAPH) {
-    if (LATE_CONTINUATION_POSSBILE) {
-      node->children[node->children_count - 1]->open = 0;
-      node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    } else {
-      node = node->children[node->children_count - 1];
-    }
+             node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_POSSBILE) {
+    // case where we can continue a paragraph
+    node = node->children[node->children_count - 1];
     add_line_to_node(node, (*line) + line_pos);
   } else {
     // if we have content, but not block starts and we havent descended at all
