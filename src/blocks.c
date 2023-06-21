@@ -592,6 +592,42 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
   return node;
 }
 
+ASTNode *determine_writable_node_from_context(ASTNode *node) {
+  /* logic to determine where to add line based on current node and context */
+  if (has_open_child(node) && get_last_child(node)->type == ASTN_PARAGRAPH &&
+      !LATE_CONTINUATION_LINES) {
+    // case where we can continue a paragraph
+    node = get_last_child(node);
+  } else if (has_open_child(node) &&
+             get_last_child(node)->type == ASTN_BLOCK_QUOTE) {
+    // continuable blockquote
+    node = get_last_child(node);
+    if (LATE_CONTINUATION_LINES && !has_open_child(node)) {
+      // has no children, so put contents in new paragraph
+      move_contents_to_child_paragraph(node);
+      node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    } else {
+      if (f_debug()) printf("using blockquote child paragraph\n");
+      // should have children, so use that block
+      node = get_last_child(node);
+    }
+  } else if (node->type == ASTN_DOCUMENT) {
+    // if we have content, but are still at the document node
+    // this is just a paragraph
+    if (f_debug()) printf("adding default paragraph\n");
+    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+  }
+
+  if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
+      node->type != ASTN_CODE_BLOCK) {
+    // continuable blocks whose content we can convert to paragraphs, and add
+    // another paragraph for this line
+    move_contents_to_child_paragraph(node);
+    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+  }
+  return node;
+}
+
 // traverse to deepest/lastest open block, building up continuation markers
 // along the way consume continuation as you go, stop when no longer matching
 // look for new block starts
@@ -618,32 +654,8 @@ void add_line_to_ast(ASTNode *root, char **line) {
 
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
 
-  /* logic to determine where to add line based on current node and context */
-  if (has_open_child(node) && get_last_child(node)->type == ASTN_PARAGRAPH &&
-      !LATE_CONTINUATION_LINES) {
-    // case where we can continue a paragraph
-    node = node->children[node->children_count - 1];
-  } else if (!LATE_CONTINUATION_LINES && has_open_child(node) &&
-             get_last_child(node)->type == ASTN_BLOCK_QUOTE) {
-    node = get_last_child(node);
-  } else if (node->type == ASTN_DOCUMENT) {
-    // if we have content, but are still at the document node
-    // this is just a paragraph
-    if (f_debug()) printf("adding default paragraph\n");
-    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-  }
+  node = determine_writable_node_from_context(node);
 
-  if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
-      node->type != ASTN_CODE_BLOCK) {
-    move_contents_to_child_paragraph(node);
-    // set up another child paragraph for this line
-    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-  }
-  if (node->type == ASTN_BLOCK_QUOTE &&
-      (node->children_count == 0 ||
-       get_last_child(node)->type != ASTN_PARAGRAPH)) {
-    node = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-  }
   if (node->type != ASTN_THEMATIC_BREAK)
     add_line_to_node(node, (*line) + line_pos);
 
