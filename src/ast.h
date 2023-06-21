@@ -11,15 +11,28 @@ enum AST_NODE_TYPES {
   ASTN_UNORDERED_LIST_ITEM,
   ASTN_PARAGRAPH,
   ASTN_H1,
+  ASTN_H2,
+  ASTN_H3,
+  ASTN_H4,
+  ASTN_H5,
+  ASTN_H6,
   ASTN_THEMATIC_BREAK,
 };
 
 static const char *NODE_TYPE_NAMES[] = {
-    "DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL", "LI", "P", "H1", "THM_BREAK"};
+    "DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL", "LI", "P",        "H1",
+    "H2",  "H3",         "H4",         "H5", "H6", "THM_BREAK"};
 
-static const unsigned int LEAF_ONLY_NODES_SIZE = 4;
+static const unsigned int LEAF_ONLY_NODES_SIZE = 9;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
-    ASTN_CODE_BLOCK, ASTN_H1, ASTN_THEMATIC_BREAK, ASTN_PARAGRAPH};
+    ASTN_CODE_BLOCK, ASTN_H1, ASTN_H2, ASTN_H3,
+    ASTN_H4,         ASTN_H5, ASTN_H6, ASTN_THEMATIC_BREAK,
+    ASTN_PARAGRAPH};
+
+static const unsigned int SINGLE_LINE_NODES_SIZE = 7;
+static const unsigned int SINGLE_LINE_NODES[SINGLE_LINE_NODES_SIZE] = {
+    ASTN_H1, ASTN_H2, ASTN_H3, ASTN_H4, ASTN_H5, ASTN_H6, ASTN_THEMATIC_BREAK,
+};
 
 static const unsigned int REQ_NL_AFTER_PARAGRAPH_NODES_SIZE = 1;
 static const unsigned int

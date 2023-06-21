@@ -26,6 +26,11 @@ static const HTML_TAG HTML_TAGS[] = {
     {.open = "<li>", .close = "</li>", .wrap_internals = 1},  // LIST_ITEM
     {.open = "<p>", .close = "</p>", .wrap_internals = 1},    // PARAGRAPH
     {.open = "<h1>", .close = "</h1>", .wrap_internals = 1},  // H1,
+    {.open = "<h2>", .close = "</h2>", .wrap_internals = 1},  // H2,
+    {.open = "<h3>", .close = "</h3>", .wrap_internals = 1},  // H3,
+    {.open = "<h4>", .close = "</h4>", .wrap_internals = 1},  // H4,
+    {.open = "<h5>", .close = "</h5>", .wrap_internals = 1},  // H5,
+    {.open = "<h6>", .close = "</h6>", .wrap_internals = 1},  // H6,
     {.open = "<hr>", .close = "", .wrap_internals = 0},       // THEMATIC_BREAK
 };
 

@@ -63,7 +63,7 @@ void add_line_to_node(ASTNode *node, const char *line) {
     }
     node->contents = str_append(node->contents, line);
   }
-  if (node->type == ASTN_H1 || node->type == ASTN_THEMATIC_BREAK) {
+  if (array_contains(SINGLE_LINE_NODES, SINGLE_LINE_NODES_SIZE, node->type)) {
     node->open = 0;
   }
 }
@@ -166,6 +166,26 @@ size_t matches_h1_opening(char **line, size_t line_pos) {
   return match_str_then_space("#", line, line_pos);
 }
 
+size_t matches_h2_opening(char **line, size_t line_pos) {
+  return match_str_then_space("##", line, line_pos);
+}
+
+size_t matches_h3_opening(char **line, size_t line_pos) {
+  return match_str_then_space("###", line, line_pos);
+}
+
+size_t matches_h4_opening(char **line, size_t line_pos) {
+  return match_str_then_space("####", line, line_pos);
+}
+
+size_t matches_h5_opening(char **line, size_t line_pos) {
+  return match_str_then_space("#####", line, line_pos);
+}
+
+size_t matches_h6_opening(char **line, size_t line_pos) {
+  return match_str_then_space("######", line, line_pos);
+}
+
 size_t matches_thematic_break(char **line, size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
@@ -237,6 +257,16 @@ int block_start_type(char **line, size_t line_pos,
     return ASTN_UNORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;
+  } else if ((*match_len = matches_h6_opening(line, line_pos))) {
+    return ASTN_H6;
+  } else if ((*match_len = matches_h5_opening(line, line_pos))) {
+    return ASTN_H5;
+  } else if ((*match_len = matches_h4_opening(line, line_pos))) {
+    return ASTN_H4;
+  } else if ((*match_len = matches_h3_opening(line, line_pos))) {
+    return ASTN_H3;
+  } else if ((*match_len = matches_h2_opening(line, line_pos))) {
+    return ASTN_H2;
   } else if ((*match_len = matches_h1_opening(line, line_pos))) {
     return ASTN_H1;
   } else if (current_node_type != ASTN_PARAGRAPH &&
@@ -314,6 +344,12 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   } else if (node_type == ASTN_PARAGRAPH) {
     child = ast_create_node(ASTN_PARAGRAPH);
     child->cont_markers = strdup("");
+    ast_add_child(node, child);
+    return child;
+  } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
+             node_type == ASTN_H3 || node_type == ASTN_H4 ||
+             node_type == ASTN_H5 || node_type == ASTN_H6) {
+    child = ast_create_node(node_type);
     ast_add_child(node, child);
     return child;
   } else {
