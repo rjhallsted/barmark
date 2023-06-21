@@ -320,6 +320,16 @@ ASTNode *is_block_end(ASTNode *node, const char *line) {
   return is_block_end(node->children[node->children_count - 1], line);
 }
 
+/* returns a pointer to the child */
+ASTNode *add_child_block_with_cont_markers(ASTNode *node,
+                                           unsigned int node_type,
+                                           char *cont_markers) {
+  ASTNode *child = ast_create_node(node_type);
+  child->cont_markers = cont_markers;
+  ast_add_child(node, child);
+  return child;
+}
+
 /* Returns a pointer to the deepest added child */
 ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
                          size_t opener_match_len, char list_char) {
@@ -331,46 +341,27 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   }
 
   if (node_type == ASTN_CODE_BLOCK) {
-    child = ast_create_node(ASTN_CODE_BLOCK);
-    child->cont_markers = repeat_x(' ', 4);
-    ast_add_child(node, child);
-    return child;
+    return add_child_block_with_cont_markers(node, ASTN_CODE_BLOCK,
+                                             repeat_x(' ', 4));
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
-    child->cont_markers = strdup("");
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
                            0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
-    child = ast_create_node(ASTN_UNORDERED_LIST_ITEM);
-    child->cont_markers = repeat_x(' ', opener_match_len);
-    ast_add_child(node, child);
-    return child;
+    return add_child_block_with_cont_markers(node, ASTN_UNORDERED_LIST_ITEM,
+                                             repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_BLOCK_QUOTE) {
-    child = ast_create_node(ASTN_BLOCK_QUOTE);
-    child->cont_markers = strdup(">");
-    ast_add_child(node, child);
-    return child;
-  } else if (node_type == ASTN_H1) {
-    child = ast_create_node(ASTN_H1);
-    ast_add_child(node, child);
-    return child;
-  } else if (node_type == ASTN_THEMATIC_BREAK) {
-    child = ast_create_node(ASTN_THEMATIC_BREAK);
-    ast_add_child(node, child);
-    return child;
-  } else if (node_type == ASTN_PARAGRAPH) {
-    child = ast_create_node(ASTN_PARAGRAPH);
-    child->cont_markers = strdup("");
-    ast_add_child(node, child);
-    return child;
+    return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
+                                             strdup(">"));
   } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
              node_type == ASTN_H3 || node_type == ASTN_H4 ||
-             node_type == ASTN_H5 || node_type == ASTN_H6) {
+             node_type == ASTN_H5 || node_type == ASTN_H6 ||
+             node_type == ASTN_PARAGRAPH || node_type == ASTN_THEMATIC_BREAK) {
     child = ast_create_node(node_type);
     ast_add_child(node, child);
     return child;
@@ -435,6 +426,16 @@ char find_list_char(char *line) {
   return 0;
 }
 
+unsigned int meets_req_nl_after_paragraph_rule(ASTNode *node,
+                                               unsigned int new_node_type) {
+  // certain blocks require a newline after paragraphs.
+  return (array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
+                         REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, new_node_type) &&
+          node->children_count > 0 &&
+          node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
+          !LATE_CONTINUATION_POSSBILE);
+}
+
 // traverse to deepest/lastest open block, building up continuation markers
 // along the way consume continuation as you go, stop when no longer matching
 // look for new block starts
@@ -468,12 +469,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   // If a block start exists, create it, then keep checking for more.
   // add the line to the last one
   if ((node_type = block_start_type(line, line_pos, node->type, &match_len)) &&
-      // certain blocks require a newline after paragraphs.
-      !(array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
-                       REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, node_type) &&
-        node->children_count > 0 &&
-        node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
-        !LATE_CONTINUATION_POSSBILE)) {
+      !meets_req_nl_after_paragraph_rule(node, node_type)) {
     char list_char = 0;
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       list_char = find_list_char((*line) + line_pos);
