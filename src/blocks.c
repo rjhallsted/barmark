@@ -68,10 +68,12 @@ void add_line_to_node(ASTNode *node, char *line) {
   }
 }
 
+int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
+
 int is_all_whitespace(const char *line) {
   size_t i = 0;
   while (line[i]) {
-    if (line[i] != ' ' && line[i] != '\t' && line[i] != '\n') {
+    if (!is_whitespace(line[i])) {
       return 0;
     }
     i++;
@@ -224,7 +226,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
     free(line_ref);
     return 0;
   }
-  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+  while (is_whitespace(line_ref[line_pos + i])) {
     i++;
   }
   if (line_ref[line_pos + i] == c) {
@@ -233,7 +235,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
     free(line_ref);
     return 0;
   }
-  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t') {
+  while (is_whitespace(line_ref[line_pos + i])) {
     i++;
   }
   if (line_ref[line_pos + i] == c) {
@@ -242,11 +244,10 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
     free(line_ref);
     return 0;
   }
-  while (line_ref[line_pos + i] == ' ' || line_ref[line_pos + i] == '\t' ||
-         line_ref[line_pos + i] == c) {
+  while (is_whitespace(line_ref[line_pos + i]) || line_ref[line_pos + i] == c) {
     i++;
   }
-  if (line_ref[line_pos + i] == '\n') {
+  if (line_ref[line_pos + i] == '\0') {
     free(*line);
     *line = line_ref;
     return i;
