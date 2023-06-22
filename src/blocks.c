@@ -333,9 +333,9 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
   ASTNode *child = get_last_child(current_node);
   if (f_debug()) {
     printf("line: '%s'\n", (*line) + line_pos);
-    printf("current_node_type: %u\n", current_node->type);
+    printf("current_node_type: %s\n", NODE_TYPE_NAMES[current_node->type]);
     if (child) {
-      printf("child node type: %u\n", child->type);
+      printf("child node type: %s\n", NODE_TYPE_NAMES[child->type]);
     }
   }
 
@@ -446,7 +446,11 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
 
 void print_tree(ASTNode *node, size_t level) {
   char *indent = repeat_x(' ', level * 2);
-  printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
+  if (node->options)
+    printf("%s%s-%s\n", indent, NODE_TYPE_NAMES[node->type],
+           node->options->tight ? "tight" : "wide");
+  else
+    printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
   if (node->contents) {
     printf("%s->%s\n", indent, node->contents);
   }
@@ -563,8 +567,23 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
       node = node->parent;
     }
     node = add_child_block(node, node_type, *match_len, list_char);
+    if (f_debug()) printf("new block start: %s\n", NODE_TYPE_NAMES[node->type]);
   }
   return node;
+}
+
+void widen_list(ASTNode *node) {
+  node->options->tight = 0;
+  // fix existing list items
+  for (size_t i = 0; i < node->children_count; i++) {
+    move_contents_to_child_paragraph(node->children[i]);
+  }
+}
+
+void swap_nodes(ASTNode *a, ASTNode *b) {
+  ASTNode tmp = *a;
+  *a = *b;
+  *b = tmp;
 }
 
 ASTNode *determine_writable_node_from_context(ASTNode *node) {
@@ -588,21 +607,18 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
 
   ASTNode *child = get_last_child(node);
 
-  if (!has_open_child(node) && node->type == ASTN_UNORDERED_LIST_ITEM &&
+  // if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
+  if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
       LATE_CONTINUATION_LINES && node->parent->options->tight &&
       node != node->parent->children[0]) {
     // detect that we should convert to a wide list
-    node->parent->options->tight = 0;
-    // fix children
-    for (size_t i = 0; i < node->parent->children_count; i++) {
-      move_contents_to_child_paragraph(node->parent->children[i]);
-    }
+    widen_list(node->parent);
     if (f_debug())
       printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
     LATE_CONTINUATION_LINES = 0;
     // have the next case handle the new item now that the list state is fixed
     return determine_writable_node_from_context(node);
-  } else if (!has_open_child(node) && node->type == ASTN_UNORDERED_LIST_ITEM &&
+  } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
              !node->parent->options->tight) {
     // fix up new wide list items;
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
@@ -611,6 +627,19 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
       printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
     LATE_CONTINUATION_LINES = 0;
     return determine_writable_node_from_context(child);
+  } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
+             node->parent->parent->options->tight && node->parent->contents) {
+    // new item list item that is not yet wide
+    if (f_debug()) printf("widening list as child of list item\n");
+    // widen list (which adds another item to the parent, then swap the
+    // children)
+    widen_list(node->parent->parent);
+    swap_nodes(node, node->parent->children[1]);
+    node = node->parent->children[1];
+    // this is the first line in this block (otherwise we'd be in wide mode
+    // already) so can ignore late continuation lines
+    LATE_CONTINUATION_LINES = 0;
+    return determine_writable_node_from_context(node);
   } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
              !LATE_CONTINUATION_LINES) {
     // case where we can continue a paragraph
