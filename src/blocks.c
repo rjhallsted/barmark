@@ -405,13 +405,6 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
                          size_t opener_match_len, char list_char) {
   ASTNode *child;
 
-  // TODO: figure out how to handle elsewhere
-  if (LATE_CONTINUATION_LINES && node->contents &&
-      node->type != ASTN_CODE_BLOCK) {
-    move_contents_to_child_paragraph(node);
-    LATE_CONTINUATION_LINES = 0;
-  }
-
   if (node_type == ASTN_CODE_BLOCK) {
     return add_child_block_with_cont_markers(node, ASTN_CODE_BLOCK,
                                              repeat_x(' ', 4));
@@ -420,13 +413,14 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     child = ast_create_node(ASTN_UNORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
+    child->options->tight = 1;
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
                            0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
-    return add_child_block_with_cont_markers(node, ASTN_UNORDERED_LIST_ITEM,
-                                             repeat_x(' ', opener_match_len));
+    return child = add_child_block_with_cont_markers(
+               node, ASTN_UNORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_BLOCK_QUOTE) {
     child =
         add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE, strdup(">"));
@@ -577,6 +571,8 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
   /* logic to determine where to add line based on current node and context */
 
   /* actual cases:
+  - have continuation lines, and node or previous node is unordered list. (makes
+  list not tight, and fix previous items)
   - has continuable paragraph && no late continuation lines
   - has continuable blockquote
   - with late continuation lines and is continuable block
@@ -585,19 +581,48 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
   */
 
   //////////
+  if (f_debug()) {
+    printf("determining node from context on %s\n",
+           NODE_TYPE_NAMES[node->type]);
+  }
 
   ASTNode *child = get_last_child(node);
 
-  if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-      !LATE_CONTINUATION_LINES) {
+  if (!has_open_child(node) && node->type == ASTN_UNORDERED_LIST_ITEM &&
+      LATE_CONTINUATION_LINES && node->parent->options->tight &&
+      node != node->parent->children[0]) {
+    // detect that we should convert to a wide list
+    node->parent->options->tight = 0;
+    // fix children
+    for (size_t i = 0; i < node->parent->children_count; i++) {
+      move_contents_to_child_paragraph(node->parent->children[i]);
+    }
+    if (f_debug())
+      printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
+    LATE_CONTINUATION_LINES = 0;
+    // have the next case handle the new item now that the list state is fixed
+    return determine_writable_node_from_context(node);
+  } else if (!has_open_child(node) && node->type == ASTN_UNORDERED_LIST_ITEM &&
+             !node->parent->options->tight) {
+    // fix up new wide list items;
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    // Late continuation lines can be ignored in wide lists
+    if (f_debug())
+      printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
+    LATE_CONTINUATION_LINES = 0;
+    return determine_writable_node_from_context(child);
+  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_LINES) {
     // case where we can continue a paragraph
     return determine_writable_node_from_context(child);
   } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE) {
     return determine_writable_node_from_context(child);
-  } else if (LATE_CONTINUATION_LINES && node->type != ASTN_PARAGRAPH &&
-             node->type != ASTN_CODE_BLOCK && node->type != ASTN_DOCUMENT) {
+  } else if (LATE_CONTINUATION_LINES &&
+             (node->type == ASTN_BLOCK_QUOTE ||
+              node->type == ASTN_UNORDERED_LIST_ITEM)) {
     // continuable blocks whose content we can convert to paragraphs, and add
     // another paragraph for this line
+    if (f_debug()) printf("converting contents to paragraphs\n");
     move_contents_to_child_paragraph(node);
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child);
