@@ -32,6 +32,7 @@ static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_H4,         ASTN_H5,        ASTN_H6,       ASTN_THEMATIC_BREAK,
     ASTN_PARAGRAPH,  ASTN_SETEXT_H1, ASTN_SETEXT_H2};
 
+// NOTE: These are unappendable "to"
 static const unsigned int UNNAPENDABLE_NODES_SIZE = 9;
 static const unsigned int UNAPPENDABLE_NODES[UNNAPENDABLE_NODES_SIZE] = {
     ASTN_H1,

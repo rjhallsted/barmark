@@ -599,6 +599,8 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
   - otherwise this node is correct
   */
 
+  // TODO: Refactor "wide" list detection. Current version is too messy
+
   //////////
   if (f_debug()) {
     printf("determining node from context on %s\n",
