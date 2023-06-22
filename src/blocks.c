@@ -413,7 +413,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     child = ast_create_node(ASTN_UNORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
-    child->options->tight = 1;
+    child->options->wide = 0;
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
                            0);
@@ -448,7 +448,7 @@ void print_tree(ASTNode *node, size_t level) {
   char *indent = repeat_x(' ', level * 2);
   if (node->options)
     printf("%s%s-%s\n", indent, NODE_TYPE_NAMES[node->type],
-           node->options->tight ? "tight" : "wide");
+           node->options->wide ? "wide" : "tight");
   else
     printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
   if (node->contents) {
@@ -573,7 +573,7 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
 }
 
 void widen_list(ASTNode *node) {
-  node->options->tight = 0;
+  node->options->wide = 1;
   // fix existing list items
   for (size_t i = 0; i < node->children_count; i++) {
     move_contents_to_child_paragraph(node->children[i]);
@@ -609,7 +609,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
 
   // if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
   if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
-      LATE_CONTINUATION_LINES && node->parent->options->tight &&
+      LATE_CONTINUATION_LINES && !node->parent->options->wide &&
       node != node->parent->children[0]) {
     // detect that we should convert to a wide list
     widen_list(node->parent);
@@ -619,7 +619,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     // have the next case handle the new item now that the list state is fixed
     return determine_writable_node_from_context(node);
   } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
-             !node->parent->options->tight) {
+             node->parent->options->wide) {
     // fix up new wide list items;
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     // Late continuation lines can be ignored in wide lists
@@ -628,7 +628,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     LATE_CONTINUATION_LINES = 0;
     return determine_writable_node_from_context(child);
   } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
-             node->parent->parent->options->tight && node->parent->contents) {
+             !node->parent->parent->options->wide && node->parent->contents) {
     // new item list item that is not yet wide
     if (f_debug()) printf("widening list as child of list item\n");
     // widen list (which adds another item to the parent, then swap the

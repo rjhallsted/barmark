@@ -55,7 +55,7 @@ static const unsigned int
 
 typedef struct {
   char marker;
-  unsigned int tight;
+  unsigned int wide;
 } ASTListOptions;
 
 typedef struct ASTNode {
