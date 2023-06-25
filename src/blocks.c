@@ -342,9 +342,11 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
   if ((*match_len = matches_code_block(line, line_pos))) {
     return ASTN_CODE_BLOCK;
   } else if (child && child->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_LINES &&
              (*match_len = matches_setext_h2(line, line_pos))) {
     return ASTN_SETEXT_H2;
   } else if (child && child->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_LINES &&
              (*match_len = matches_setext_h1(line, line_pos))) {
     return ASTN_SETEXT_H1;
   } else if ((*match_len = matches_thematic_break(line, line_pos))) {
