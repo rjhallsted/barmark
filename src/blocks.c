@@ -84,7 +84,7 @@ int is_all_whitespace(const char *line) {
  * replace original line with tab expanded one.
  */
 
-size_t matches_opening_tab(char **line, size_t line_pos) {
+size_t matches_code_block(char **line, size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
   tab_expand(&line_ref, line_pos, 4);
@@ -339,7 +339,7 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
     }
   }
 
-  if ((*match_len = matches_opening_tab(line, line_pos))) {
+  if ((*match_len = matches_code_block(line, line_pos))) {
     return ASTN_CODE_BLOCK;
   } else if (child && child->type == ASTN_PARAGRAPH &&
              (*match_len = matches_setext_h2(line, line_pos))) {
@@ -422,9 +422,8 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     return child = add_child_block_with_cont_markers(
                node, ASTN_UNORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_BLOCK_QUOTE) {
-    child =
-        add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE, strdup(">"));
-    return add_child_block(child, ASTN_PARAGRAPH, 0, 0);
+    return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
+                                             strdup(">"));
   } else if ((node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) &&
              (child = get_last_child(node))) {
     // Instead of adding a new child, for setext headings we just change the
@@ -562,6 +561,9 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
     }
     *line_pos += *match_len;
 
+    if (f_debug())
+      printf("block start node_type: %s\n", NODE_TYPE_NAMES[node_type]);
+
     // enforce cases of required child types
     if (should_add_to_parent_instead(node, node_type, list_char)) {
       node = node->parent;
@@ -655,6 +657,10 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     // another paragraph for this line
     if (f_debug()) printf("converting contents to paragraphs\n");
     move_contents_to_child_paragraph(node);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    return determine_writable_node_from_context(child);
+  } else if (node->type == ASTN_BLOCK_QUOTE && !has_open_child(node)) {
+    if (f_debug()) printf("adding default paragraph to blockquote\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
