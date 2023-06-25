@@ -13,6 +13,13 @@
 /* Controls whether a late continuation is possible. Gets set to 1
 when an empty line is encountered, and set to 0 otherwise. */
 unsigned int LATE_CONTINUATION_LINES = 0;
+char *LATE_CONTINUATION_CONTENTS = NULL;
+
+void reset_late_continuation(void) {
+  LATE_CONTINUATION_LINES = 0;
+  free(LATE_CONTINUATION_CONTENTS);
+  LATE_CONTINUATION_CONTENTS = strdup("");
+}
 
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
@@ -61,8 +68,12 @@ void add_line_to_node(ASTNode *node, char *line) {
   // should only apply to code blocks with existing content
   if (strlen(node->contents) > 0) {
     if (f_debug()) printf("adding late continuation lines to contents\n");
-    for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
-      node->contents = str_append(node->contents, "\n");
+    if (node->type == ASTN_CODE_BLOCK) {
+      node->contents = str_append(node->contents, LATE_CONTINUATION_CONTENTS);
+    } else {
+      for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
+        node->contents = str_append(node->contents, "\n");
+      }
     }
   }
   node->contents = str_append(node->contents, line);
@@ -624,7 +635,8 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     widen_list(node->parent);
     if (f_debug())
       printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
-    LATE_CONTINUATION_LINES = 0;
+    reset_late_continuation();
+
     // have the next case handle the new item now that the list state is fixed
     return determine_writable_node_from_context(node);
   } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
@@ -634,7 +646,8 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     // Late continuation lines can be ignored in wide lists
     if (f_debug())
       printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
-    LATE_CONTINUATION_LINES = 0;
+    reset_late_continuation();
+
     return determine_writable_node_from_context(child);
   } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
              !node->parent->parent->options->wide && node->parent->contents) {
@@ -647,7 +660,8 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     node = node->parent->children[1];
     // this is the first line in this block (otherwise we'd be in wide mode
     // already) so can ignore late continuation lines
-    LATE_CONTINUATION_LINES = 0;
+    reset_late_continuation();
+
     return determine_writable_node_from_context(node);
   } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
              !LATE_CONTINUATION_LINES) {
@@ -683,11 +697,6 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t match_len = 0;
   ASTNode *node = root;
 
-  if (is_all_whitespace(*line)) {
-    LATE_CONTINUATION_LINES += 1;
-    return;
-  }
-
   if (f_debug()) {
     printf("------------\n");
     printf("line: '%s'\n", *line);
@@ -695,6 +704,17 @@ void add_line_to_ast(ASTNode *root, char **line) {
 
   node = traverse_to_last_match(node, line, &line_pos, &match_len);
   if (f_debug()) printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
+
+  if (is_all_whitespace(*line)) {
+    LATE_CONTINUATION_LINES += 1;
+    if (line_pos >= 4) {
+      LATE_CONTINUATION_CONTENTS =
+          str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
+    } else {
+      LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
+    }
+    return;
+  }
 
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
   node = determine_writable_node_from_context(node);
@@ -707,7 +727,9 @@ void add_line_to_ast(ASTNode *root, char **line) {
     node->open = 0;
   }
 
-  LATE_CONTINUATION_LINES = 0;
+  reset_late_continuation();
+  free(LATE_CONTINUATION_CONTENTS);
+  LATE_CONTINUATION_CONTENTS = strdup("");
 
   if (f_debug()) {
     printf("---------------\n");
@@ -719,6 +741,7 @@ ASTNode *build_block_structure(FILE *fd) {
   ASTNode *document = ast_create_node(ASTN_DOCUMENT);
   char *line = NULL;
   size_t buff_len = 0;
+  LATE_CONTINUATION_CONTENTS = strdup("");
   while (!feof(fd)) {
     if (ferror(fd)) {
       printf("File reading error. Errno: %d\n", errno);
@@ -728,5 +751,6 @@ ASTNode *build_block_structure(FILE *fd) {
     getline(&line, &buff_len, fd);
     add_line_to_ast(document, &line);
   }
+  free(LATE_CONTINUATION_CONTENTS);
   return document;
 }
