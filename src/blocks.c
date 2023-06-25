@@ -58,9 +58,12 @@ void add_line_to_node(ASTNode *node, char *line) {
   if (node->contents == NULL) {
     node->contents = strdup("");
   }
-  // should only apply to code blocks
-  for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
-    node->contents = str_append(node->contents, "\n");
+  // should only apply to code blocks with existing content
+  if (strlen(node->contents) > 0) {
+    if (f_debug()) printf("adding late continuation lines to contents\n");
+    for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
+      node->contents = str_append(node->contents, "\n");
+    }
   }
   node->contents = str_append(node->contents, line);
 }
