@@ -21,6 +21,21 @@ void reset_late_continuation(void) {
   LATE_CONTINUATION_CONTENTS = strdup("");
 }
 
+int matches_continuation_markers_with_leading_spaces(ASTNode *node,
+                                                     const char *line,
+                                                     size_t *match_len) {
+  int res;
+  size_t i = 0;
+  while (line[i] == ' ' && i < 3) {
+    i++;
+  }
+  res = matches_continuation_markers(node, line + i, match_len);
+  if (res) {
+    *match_len += i;
+  }
+  return res;
+}
+
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
  * and sets that to the number of bytes matched against. 0 is a valid value
@@ -36,6 +51,7 @@ int matches_continuation_markers(ASTNode *node, const char *line,
   if (!(node->cont_markers)) {
     return 1;
   }
+  if (f_debug()) printf("matching cont markers: '%s'\n", node->cont_markers);
   size_t ni = 0, li = 0;
   while (line[li] && node->cont_markers[ni] &&
          line[li] == node->cont_markers[ni]) {
@@ -552,8 +568,10 @@ ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
              NODE_TYPE_NAMES[get_last_child(node)->type]);
     }
     if (get_last_child(node)->type == ASTN_PARAGRAPH ||
-        !matches_continuation_markers(get_last_child(node),
-                                      (*line) + (*line_pos), match_len)) {
+        (!matches_continuation_markers(get_last_child(node),
+                                       (*line) + (*line_pos), match_len) &&
+         !matches_continuation_markers_with_leading_spaces(
+             get_last_child(node), (*line) + (*line_pos), match_len))) {
       break;
     }
     node = get_last_child(node);
@@ -668,6 +686,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     // case where we can continue a paragraph
     return determine_writable_node_from_context(child);
   } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE) {
+    if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child);
   } else if (LATE_CONTINUATION_LINES &&
              (node->type == ASTN_BLOCK_QUOTE ||
