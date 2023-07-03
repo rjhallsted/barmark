@@ -152,7 +152,6 @@ size_t match_str_then_space(char *str, char **line, size_t line_pos) {
   return 0;
 }
 
-// TODO: Rework to make knowledgeable of indent level?
 size_t matches_list_opening(char **line, size_t line_pos) {
   size_t res1 = match_str_then_space("-", line, line_pos);
   if (res1) {
@@ -342,6 +341,11 @@ void close_descendent_blocks(ASTNode *node) {
   }
 }
 
+unsigned int has_open_child(ASTNode *node) {
+  return (node->children_count > 0 &&
+          node->children[node->children_count - 1]->open);
+}
+
 /**
  * @brief Get the last child node. Returns NULL if no children exist.
  *
@@ -353,6 +357,13 @@ ASTNode *get_last_child(ASTNode *node) {
     return NULL;
   }
   return node->children[node->children_count - 1];
+}
+
+ASTNode *get_deepest_child(ASTNode *node) {
+  while (has_open_child(node)) {
+    node = get_last_child(node);
+  }
+  return node;
 }
 
 /***
@@ -533,14 +544,23 @@ char find_list_char(char *line) {
   return 0;
 }
 
-unsigned int meets_req_nl_after_paragraph_rule(ASTNode *node,
+unsigned int meets_req_nl_after_paragraph_rule(ASTNode *deepest_node,
                                                unsigned int new_node_type) {
+  // TODO: make this check the deepest node instead of the current node matched
   // certain blocks require a newline after paragraphs.
-  return (array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
-                         REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, new_node_type) &&
-          node->children_count > 0 &&
-          node->children[node->children_count - 1]->type == ASTN_PARAGRAPH &&
-          !LATE_CONTINUATION_LINES);
+  unsigned int res =
+      (deepest_node->type == ASTN_PARAGRAPH && !LATE_CONTINUATION_LINES &&
+       array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
+                      REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, new_node_type));
+  if (f_debug()) {
+    if (res)
+      printf("new node type %s meets req_nl_after_paragraph rule\n",
+             NODE_TYPE_NAMES[new_node_type]);
+    else
+      printf("new node type %s does not meet req_nl_after_paragraph rule\n",
+             NODE_TYPE_NAMES[new_node_type]);
+  }
+  return res;
 }
 
 unsigned int should_add_to_parent_instead(ASTNode *node,
@@ -551,11 +571,6 @@ unsigned int should_add_to_parent_instead(ASTNode *node,
           (node->type == ASTN_UNORDERED_LIST &&
            new_node_type == ASTN_UNORDERED_LIST_ITEM && node->options &&
            node->options->marker != list_char));
-}
-
-unsigned int has_open_child(ASTNode *node) {
-  return (node->children_count > 0 &&
-          node->children[node->children_count - 1]->open);
 }
 
 ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
@@ -580,7 +595,12 @@ ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
   return node;
 }
 
-ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
+unsigned int is_leaf_only_node(unsigned int type) {
+  return array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, type);
+}
+
+ASTNode *handle_new_block_starts(ASTNode *node, ASTNode *deepest_node,
+                                 char **line, size_t *line_pos,
                                  size_t *match_len) {
   char list_char = 0;
   unsigned int node_type;
@@ -588,8 +608,10 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
   // If a block start exists, create it, then keep checking for more.
   // Intelligently rework blocks if new block needs to be moved to parent
   while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
-         !meets_req_nl_after_paragraph_rule(node, node_type) &&
-         !array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, node->type)) {
+         !meets_req_nl_after_paragraph_rule(deepest_node, node_type) &&
+         !is_leaf_only_node(node->type)  // &&
+         //  !is_disallowed_child(node->type, node_type)
+  ) {
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       list_char = find_list_char((*line) + (*line_pos));
     }
@@ -645,7 +667,20 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
 
   ASTNode *child = get_last_child(node);
 
-  // if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
+  // if (node->type == ASTN_CODE_BLOCK && node->parent->children_count > 1 &&
+  //     node->parent->children[node->parent->children_count - 2]->type ==
+  //         ASTN_BLOCK_QUOTE &&
+  //     !LATE_CONTINUATION_LINES) {
+  //   if (f_debug())
+  //     printf(
+  //         "Found a code block in a late continuation line of a blockquote, so
+  //         " "removing this node and changing to blockquote\n");
+
+  //   node = node->parent;
+  //   ast_remove_child_at_index(node, node->children_count - 1);
+  //   node = get_last_child(node);
+  //   return determine_writable_node_from_context(node);
+  // } else
   if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
       LATE_CONTINUATION_LINES && !node->parent->options->wide &&
       node != node->parent->children[0]) {
@@ -715,6 +750,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
+  ASTNode *deepest_node = get_deepest_child(root);
 
   if (f_debug()) {
     printf("------------\n");
@@ -735,7 +771,8 @@ void add_line_to_ast(ASTNode *root, char **line) {
     return;
   }
 
-  node = handle_new_block_starts(node, line, &line_pos, &match_len);
+  node =
+      handle_new_block_starts(node, deepest_node, line, &line_pos, &match_len);
   node = determine_writable_node_from_context(node);
 
   if (node->type != ASTN_THEMATIC_BREAK)

@@ -21,6 +21,8 @@ enum AST_NODE_TYPES {
   ASTN_SETEXT_H2
 };
 
+static const unsigned int NODE_TYPE_COUNT = 15;
+
 static const char *NODE_TYPE_NAMES[] = {
     "DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL",        "LI",
     "P",   "H1",         "H2",         "H3",        "H4",
