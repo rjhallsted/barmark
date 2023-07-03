@@ -82,7 +82,7 @@ void add_line_to_node(ASTNode *node, char *line) {
     node->contents = strdup("");
   }
   // should only apply to code blocks with existing content
-  if (strlen(node->contents) > 0) {
+  if (strlen(node->contents) > 0 && LATE_CONTINUATION_LINES) {
     if (f_debug()) printf("adding late continuation lines to contents\n");
     if (node->type == ASTN_CODE_BLOCK) {
       node->contents = str_append(node->contents, LATE_CONTINUATION_CONTENTS);
@@ -703,10 +703,16 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
 
     return determine_writable_node_from_context(node, line);
   } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES) {
+             !LATE_CONTINUATION_LINES && !is_all_whitespace(line)) {
     // case where we can continue a paragraph
     return determine_writable_node_from_context(child, line);
-  } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE) {
+  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_LINES && is_all_whitespace(line)) {
+    if (f_debug()) printf("closing child paragraph due to empty line\n");
+    child->open = 0;
+    return determine_writable_node_from_context(node, line);
+  } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
+             !is_all_whitespace(line)) {
     if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
@@ -718,7 +724,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES) {
-    if (f_debug()) printf("splitting a blockquote to to empty lines\n");
+    if (f_debug()) printf("splitting a blockquote due to empty lines\n");
     node = node->parent;
     reset_late_continuation();
     child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
