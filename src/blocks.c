@@ -114,6 +114,24 @@ int is_all_whitespace(const char *line) {
  * replace original line with tab expanded one.
  */
 
+size_t match_up_to_3_spaces(char **line, size_t line_pos) {
+  size_t i = 0;
+  char *line_ref = strdup(*line);
+  tab_expand(&line_ref, line_pos, 3);
+
+  while (line_ref[line_pos + i] == ' ' && i < 3) {
+    i++;
+  }
+  if (i > 0) {
+    free(*line);
+    *line = line_ref;
+    return i;
+  } else {
+    free(line_ref);
+    return 0;
+  }
+}
+
 size_t matches_code_block(char **line, size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
@@ -132,13 +150,9 @@ size_t matches_code_block(char **line, size_t line_pos) {
 }
 
 size_t match_str_then_space(char *str, char **line, size_t line_pos) {
-  size_t i = 0;
   char *line_ref = strdup(*line);
-  tab_expand(&line_ref, line_pos, 3);
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
 
-  while (line_ref[line_pos + i] == ' ' && i < 3) {
-    i++;
-  }
   if (str_starts_with(line_ref + line_pos + i, str)) {
     i += strlen(str);
     tab_expand(&line_ref, line_pos + i, 1);
@@ -153,12 +167,10 @@ size_t match_str_then_space(char *str, char **line, size_t line_pos) {
 }
 
 size_t matches_list_opening(char **line, size_t line_pos) {
-  size_t res1 = match_str_then_space("-", line, line_pos);
-  if (res1) {
-    return res1;
-  } else {
-    return match_str_then_space("*", line, line_pos);
-  }
+  size_t res = match_str_then_space("-", line, line_pos);
+  if (!res) res = match_str_then_space("*", line, line_pos);
+  if (!res) res = match_str_then_space("+", line, line_pos);
+  return res;
 }
 
 size_t matches_paragraph_opening(char **line, size_t line_pos) {
@@ -166,13 +178,8 @@ size_t matches_paragraph_opening(char **line, size_t line_pos) {
 }
 
 size_t matches_blockquote_opening(char **line, size_t line_pos) {
-  size_t i = 0;
   char *line_ref = strdup(*line);
-  tab_expand(&line_ref, line_pos, 3);
-
-  while (line_ref[line_pos + i] == ' ' && i < 3) {
-    i++;
-  }
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] == '>') {
     i++;
     tab_expand(&line_ref, line_pos + i, 1);
@@ -233,14 +240,9 @@ size_t matches_h6_opening(char **line, size_t line_pos) {
 }
 
 size_t matches_thematic_break(char **line, size_t line_pos) {
-  size_t i = 0;
   char *line_ref = strdup(*line);
   char c;
-
-  tab_expand(&line_ref, line_pos, 3);
-  while (i < 3 && line_ref[line_pos + i] == ' ') {
-    i++;
-  }
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] == '*' || line_ref[line_pos + i] == '-' ||
       line_ref[line_pos + i] == '_') {
     c = line_ref[line_pos + i];
@@ -281,13 +283,8 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
 }
 
 size_t matches_setext_h2(char **line, size_t line_pos) {
-  size_t i = 0;
   char *line_ref = strdup(*line);
-
-  tab_expand(&line_ref, line_pos, 3);
-  while (i < 3 && line_ref[line_pos + i] == ' ') {
-    i++;
-  }
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] != '-') {
     free(line_ref);
     return 0;
@@ -307,13 +304,8 @@ size_t matches_setext_h2(char **line, size_t line_pos) {
 }
 
 size_t matches_setext_h1(char **line, size_t line_pos) {
-  size_t i = 0;
   char *line_ref = strdup(*line);
-
-  tab_expand(&line_ref, line_pos, 3);
-  while (i < 3 && line_ref[line_pos + i] == ' ') {
-    i++;
-  }
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] != '=') {
     free(line_ref);
     return 0;
@@ -514,7 +506,7 @@ void print_tree(ASTNode *node, size_t level) {
 }
 
 /**
- * @brief Expands the next tab if present in the next 4 chars,
+ * @brief Expands the next tab if present in the next <lookahead> chars,
  * starting at line_pos. returns new line_pos
  *
  * @param line
@@ -638,6 +630,15 @@ ASTNode *handle_new_block_starts(ASTNode *node, ASTNode *deepest_node,
     node = add_child_block(node, node_type, *match_len, list_char);
     if (f_debug()) printf("new block start: %s\n", NODE_TYPE_NAMES[node->type]);
   }
+  // cleanup list items so that continuation markers use all leading spaces.
+  if (node->type == ASTN_UNORDERED_LIST_ITEM) {
+    size_t diff = match_up_to_3_spaces(line, *line_pos);
+    char *tmp = repeat_x(' ', diff);
+    node->cont_markers = str_append(node->cont_markers, tmp);
+    free(tmp);
+    *line_pos += diff;
+  }
+
   return node;
 }
 
