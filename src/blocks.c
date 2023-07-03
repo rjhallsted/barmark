@@ -644,7 +644,7 @@ void swap_nodes(ASTNode *a, ASTNode *b) {
   *b = tmp;
 }
 
-ASTNode *determine_writable_node_from_context(ASTNode *node) {
+ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
   /* logic to determine where to add line based on current node and context */
 
   /* actual cases:
@@ -661,26 +661,12 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
 
   //////////
   if (f_debug()) {
-    printf("determining node from context on %s\n",
-           NODE_TYPE_NAMES[node->type]);
+    printf("determining node from context on %s, line: '%s'\n",
+           NODE_TYPE_NAMES[node->type], line);
   }
 
   ASTNode *child = get_last_child(node);
 
-  // if (node->type == ASTN_CODE_BLOCK && node->parent->children_count > 1 &&
-  //     node->parent->children[node->parent->children_count - 2]->type ==
-  //         ASTN_BLOCK_QUOTE &&
-  //     !LATE_CONTINUATION_LINES) {
-  //   if (f_debug())
-  //     printf(
-  //         "Found a code block in a late continuation line of a blockquote, so
-  //         " "removing this node and changing to blockquote\n");
-
-  //   node = node->parent;
-  //   ast_remove_child_at_index(node, node->children_count - 1);
-  //   node = get_last_child(node);
-  //   return determine_writable_node_from_context(node);
-  // } else
   if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
       LATE_CONTINUATION_LINES && !node->parent->options->wide &&
       node != node->parent->children[0]) {
@@ -691,7 +677,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     reset_late_continuation();
 
     // have the next case handle the new item now that the list state is fixed
-    return determine_writable_node_from_context(node);
+    return determine_writable_node_from_context(node, line);
   } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
              node->parent->options->wide) {
     // fix up new wide list items;
@@ -701,7 +687,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
       printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
     reset_late_continuation();
 
-    return determine_writable_node_from_context(child);
+    return determine_writable_node_from_context(child, line);
   } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
              !node->parent->parent->options->wide && node->parent->contents) {
     // new item list item that is not yet wide
@@ -715,14 +701,14 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     // already) so can ignore late continuation lines
     reset_late_continuation();
 
-    return determine_writable_node_from_context(node);
+    return determine_writable_node_from_context(node, line);
   } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
              !LATE_CONTINUATION_LINES) {
     // case where we can continue a paragraph
-    return determine_writable_node_from_context(child);
+    return determine_writable_node_from_context(child, line);
   } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE) {
     if (f_debug()) printf("determining context from blockquote child\n");
-    return determine_writable_node_from_context(child);
+    return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
              (node->type == ASTN_BLOCK_QUOTE ||
               node->type == ASTN_UNORDERED_LIST_ITEM)) {
@@ -731,17 +717,18 @@ ASTNode *determine_writable_node_from_context(ASTNode *node) {
     if (f_debug()) printf("converting contents to paragraphs\n");
     move_contents_to_child_paragraph(node);
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    return determine_writable_node_from_context(child);
-  } else if (node->type == ASTN_BLOCK_QUOTE && !has_open_child(node)) {
+    return determine_writable_node_from_context(child, line);
+  } else if (node->type == ASTN_BLOCK_QUOTE && !has_open_child(node) &&
+             !is_all_whitespace(line)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    return determine_writable_node_from_context(child);
+    return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    return determine_writable_node_from_context(child);
+    return determine_writable_node_from_context(child, line);
   }
   return node;
 }
@@ -773,7 +760,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
 
   node =
       handle_new_block_starts(node, deepest_node, line, &line_pos, &match_len);
-  node = determine_writable_node_from_context(node);
+  node = determine_writable_node_from_context(node, (*line) + line_pos);
 
   if (node->type != ASTN_THEMATIC_BREAK)
     add_line_to_node(node, (*line) + line_pos);
