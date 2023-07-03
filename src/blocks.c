@@ -734,6 +734,11 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     move_contents_to_child_paragraph(node);
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
+  } else if (node->type == ASTN_UNORDERED_LIST) {
+    // matched the list, but not as a list item, so shouldn't actually be in the
+    // list
+    node = node->parent;
+    return determine_writable_node_from_context(node, line);
   } else if (node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES &&
              has_open_child(node)) {
     if (f_debug()) printf("splitting a blockquote due to empty lines\n");
