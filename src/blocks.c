@@ -366,6 +366,17 @@ ASTNode *get_deepest_child(ASTNode *node) {
   return node;
 }
 
+ASTNode *find_in_edge_of_tree(ASTNode *node, unsigned int type) {
+  if (node->type == type) {
+    return node;
+  }
+  if (has_open_child(node)) {
+    node = get_last_child(node);
+    return find_in_edge_of_tree(node, type);
+  }
+  return NULL;
+}
+
 /***
  * Returns 0 if no block start is found.
  */
@@ -749,6 +760,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t match_len = 0;
   ASTNode *node = root;
   ASTNode *deepest_node = get_deepest_child(root);
+  ASTNode *tmp;
 
   if (f_debug()) {
     printf("------------\n");
@@ -759,12 +771,19 @@ void add_line_to_ast(ASTNode *root, char **line) {
   if (f_debug()) printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
 
   if (is_all_whitespace(*line)) {
-    LATE_CONTINUATION_LINES += 1;
-    if (line_pos >= 4) {
-      LATE_CONTINUATION_CONTENTS =
-          str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
+    if ((tmp = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE))) {
+      if (f_debug())
+        printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
+      tmp->open = 0;
     } else {
-      LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
+      LATE_CONTINUATION_LINES += 1;
+      if (line_pos >= 4) {
+        LATE_CONTINUATION_CONTENTS =
+            str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
+      } else {
+        LATE_CONTINUATION_CONTENTS =
+            str_append(LATE_CONTINUATION_CONTENTS, "\n");
+      }
     }
     return;
   }
