@@ -710,13 +710,18 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
-             (node->type == ASTN_BLOCK_QUOTE ||
-              node->type == ASTN_UNORDERED_LIST_ITEM)) {
+             node->type == ASTN_UNORDERED_LIST_ITEM) {
     // continuable blocks whose content we can convert to paragraphs, and add
     // another paragraph for this line
     if (f_debug()) printf("converting contents to paragraphs\n");
     move_contents_to_child_paragraph(node);
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    return determine_writable_node_from_context(child, line);
+  } else if (node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES) {
+    if (f_debug()) printf("splitting a blockquote to to empty lines\n");
+    node = node->parent;
+    reset_late_continuation();
+    child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
     return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_BLOCK_QUOTE && !has_open_child(node) &&
              !is_all_whitespace(line)) {
