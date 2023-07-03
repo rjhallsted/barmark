@@ -723,8 +723,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     child->open = 0;
     return determine_writable_node_from_context(node, line);
   } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
-             !is_all_whitespace(line) && has_open_child(child) &&
-             get_last_child(child)->open) {
+             !is_all_whitespace(line) && has_open_child(child)) {
     if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
