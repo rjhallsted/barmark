@@ -747,8 +747,9 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     reset_late_continuation();
     child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
     return determine_writable_node_from_context(child, line);
-  } else if (node->type == ASTN_BLOCK_QUOTE && !has_open_child(node) &&
-             !is_all_whitespace(line)) {
+  } else if (node->type == ASTN_BLOCK_QUOTE && !is_all_whitespace(line) &&
+             (!has_open_child(node) ||
+              (has_open_child(node) && child->type != ASTN_PARAGRAPH))) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
