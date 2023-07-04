@@ -391,6 +391,15 @@ ASTNode *find_in_edge_of_tree(ASTNode *node, unsigned int type) {
   return NULL;
 }
 
+unsigned int meets_setext_conditions(ASTNode *node) {
+  ASTNode *child = get_last_child(node);
+  unsigned int has_paragraph_child = (child && child->type == ASTN_PARAGRAPH);
+  unsigned int is_list_item_with_contents =
+      (!child && node->type == ASTN_UNORDERED_LIST_ITEM && node->contents);
+  return (has_paragraph_child || is_list_item_with_contents) &&
+         !LATE_CONTINUATION_LINES;
+}
+
 /***
  * Returns 0 if no block start is found.
  */
@@ -407,12 +416,10 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
 
   if ((*match_len = matches_code_block(line, line_pos))) {
     return ASTN_CODE_BLOCK;
-  } else if (child && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES &&
+  } else if (meets_setext_conditions(current_node) &&
              (*match_len = matches_setext_h2(line, line_pos))) {
     return ASTN_SETEXT_H2;
-  } else if (child && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES &&
+  } else if (meets_setext_conditions(current_node) &&
              (*match_len = matches_setext_h1(line, line_pos))) {
     return ASTN_SETEXT_H1;
   } else if ((*match_len = matches_thematic_break(line, line_pos))) {
@@ -492,10 +499,18 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   } else if (node_type == ASTN_BLOCK_QUOTE) {
     return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
                                              strdup(">"));
-  } else if ((node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) &&
-             (child = get_last_child(node))) {
+  } else if (node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) {
     // Instead of adding a new child, for setext headings we just change the
-    // type of its "sibling"
+    // type of its "sibling" paragraph. Or in the case there is no paragraph, we
+    // take the parent node's contents and convert it to a paragraph first
+    child = get_last_child(node);
+    if (!child) {
+      if (f_debug())
+        printf(
+            "converting block contents to paragraph for setext conversion\n");
+      move_contents_to_child_paragraph(node);
+      child = get_last_child(node);
+    }
     child->type = node_type;
     return child;
   } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
@@ -506,7 +521,8 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     ast_add_child(node, child);
     return child;
   } else {
-    printf("BAD CHILD BLOCK TYPE %u. CANT ADD IT\n", node_type);
+    printf("BAD CHILD BLOCK TYPE %s. CANT ADD IT\n",
+           NODE_TYPE_NAMES[node_type]);
     exit(EXIT_FAILURE);
   }
 }
