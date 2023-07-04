@@ -24,12 +24,11 @@ void reset_late_continuation(void) {
 int matches_continuation_markers_with_leading_spaces(ASTNode *node,
                                                      const char *line,
                                                      size_t *match_len) {
-  int res;
   size_t i = 0;
   while (line[i] == ' ' && i < 3) {
     i++;
   }
-  res = matches_continuation_markers(node, line + i, match_len);
+  int res = matches_continuation_markers(node, line + i, match_len);
   if (res) {
     *match_len += i;
   }
@@ -437,12 +436,17 @@ unsigned int meets_setext_conditions(ASTNode *node) {
           !LATE_CONTINUATION_LINES);
 }
 
-// unsigned int meets_code_block_conditions(ASTNode *node) {
-//   if (node->type == ASTN_UNORDERED_LIST_ITEM && !LATE_CONTINUATION_LINES) {
-//     return 0;
-//   }
-//   return 1;
-// }
+unsigned int meets_code_block_conditions(ASTNode *node) {
+  ASTNode *deepest = get_deepest_non_text_child(node);
+  if (!LATE_CONTINUATION_LINES &&
+      (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK,
+                      NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE, node->type) ||
+       array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK,
+                      NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE, deepest->type))) {
+    return 0;
+  }
+  return 1;
+}
 
 /***
  * Returns 0 if no block start is found.
@@ -458,7 +462,8 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
     }
   }
 
-  if ((*match_len = matches_code_block(line, line_pos))) {
+  if (meets_code_block_conditions(current_node) &&
+      (*match_len = matches_code_block(line, line_pos))) {
     return ASTN_CODE_BLOCK;
   } else if (meets_setext_conditions(current_node) &&
              (*match_len = matches_setext_h2(line, line_pos))) {
@@ -637,23 +642,6 @@ char find_list_char(char *line) {
   return 0;
 }
 
-unsigned int meets_req_nl_after_paragraph_rule(ASTNode *deepest_node,
-                                               unsigned int new_node_type) {
-  unsigned int res =
-      (deepest_node->type == ASTN_PARAGRAPH && !LATE_CONTINUATION_LINES &&
-       array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
-                      REQ_NL_AFTER_PARAGRAPH_NODES_SIZE, new_node_type));
-  if (f_debug()) {
-    if (res)
-      printf("new node type %s meets req_nl_after_paragraph rule\n",
-             NODE_TYPE_NAMES[new_node_type]);
-    else
-      printf("new node type %s does not meet req_nl_after_paragraph rule\n",
-             NODE_TYPE_NAMES[new_node_type]);
-  }
-  return res;
-}
-
 unsigned int should_add_to_parent_instead(ASTNode *node,
                                           unsigned int new_node_type,
                                           char list_char) {
@@ -692,8 +680,7 @@ unsigned int is_leaf_only_node(unsigned int type) {
   return array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, type);
 }
 
-ASTNode *handle_new_block_starts(ASTNode *node, ASTNode *deepest_node,
-                                 char **line, size_t *line_pos,
+ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
                                  size_t *match_len) {
   char list_char = 0;
   unsigned int node_type;
@@ -701,7 +688,6 @@ ASTNode *handle_new_block_starts(ASTNode *node, ASTNode *deepest_node,
   // If a block start exists, create it, then keep checking for more.
   // Intelligently rework blocks if new block needs to be moved to parent
   while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
-         !meets_req_nl_after_paragraph_rule(deepest_node, node_type) &&
          !is_leaf_only_node(node->type)  // &&
          //  !is_disallowed_child(node->type, node_type)
   ) {
@@ -871,7 +857,6 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
-  ASTNode *deepest_node = get_deepest_non_text_child(root);
   ASTNode *tmp;
 
   if (f_debug()) {
@@ -900,8 +885,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
     return;
   }
 
-  node =
-      handle_new_block_starts(node, deepest_node, line, &line_pos, &match_len);
+  node = handle_new_block_starts(node, line, &line_pos, &match_len);
   node = determine_writable_node_from_context(node, (*line) + line_pos);
 
   if (node->type != ASTN_THEMATIC_BREAK)
@@ -913,8 +897,6 @@ void add_line_to_ast(ASTNode *root, char **line) {
   }
 
   reset_late_continuation();
-  free(LATE_CONTINUATION_CONTENTS);
-  LATE_CONTINUATION_CONTENTS = strdup("");
 
   if (f_debug()) {
     printf("---------------\n");

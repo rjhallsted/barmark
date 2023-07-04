@@ -52,10 +52,10 @@ static const unsigned int ATX_HEADINGS_SIZE = 6;
 static const unsigned int ATX_HEADINGS[ATX_HEADINGS_SIZE] = {
     ASTN_H1, ASTN_H2, ASTN_H3, ASTN_H4, ASTN_H5, ASTN_H6};
 
-static const unsigned int REQ_NL_AFTER_PARAGRAPH_NODES_SIZE = 1;
+static const unsigned int NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE = 2;
 static const unsigned int
-    REQ_NL_AFTER_PARAGRAPH_NODES[REQ_NL_AFTER_PARAGRAPH_NODES_SIZE] = {
-        ASTN_CODE_BLOCK};
+    NOT_INTERRUPTIBLE_BY_CODE_BLOCK[NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE] = {
+        ASTN_PARAGRAPH, ASTN_UNORDERED_LIST};
 
 typedef struct {
   char marker;
