@@ -5,6 +5,7 @@
 
 enum AST_NODE_TYPES {
   ASTN_DOCUMENT = 0,
+  ASTN_TEXT,
   ASTN_CODE_BLOCK,
   ASTN_BLOCK_QUOTE,
   ASTN_UNORDERED_LIST,
@@ -21,12 +22,12 @@ enum AST_NODE_TYPES {
   ASTN_SETEXT_H2
 };
 
-static const unsigned int NODE_TYPE_COUNT = 15;
+static const unsigned int NODE_TYPE_COUNT = 16;
 
 static const char *NODE_TYPE_NAMES[] = {
-    "DOC", "CODE_BLOCK", "BLOCKQUOTE", "UL",        "LI",
-    "P",   "H1",         "H2",         "H3",        "H4",
-    "H5",  "H6",         "THM_BREAK",  "SETEXT_H1", "SETEXT_H2"};
+    "DOC", "TEXT",      "CODE_BLOCK", "BLOCKQUOTE", "UL", "LI",
+    "P",   "H1",        "H2",         "H3",         "H4", "H5",
+    "H6",  "THM_BREAK", "SETEXT_H1",  "SETEXT_H2"};
 
 static const unsigned int LEAF_ONLY_NODES_SIZE = 11;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {

@@ -66,33 +66,76 @@ int matches_continuation_markers(ASTNode *node, const char *line,
   return 0;
 }
 
-void move_contents_to_child_paragraph(ASTNode *node) {
+/**
+ * @brief Get the last child node. Returns NULL if no children exist.
+ *
+ * @param node
+ * @return ASTNode*
+ */
+ASTNode *get_last_child(ASTNode *node) {
+  if (node->children_count == 0) {
+    return NULL;
+  }
+  return node->children[node->children_count - 1];
+}
+
+ASTNode *get_deepest_non_text_child(ASTNode *node) {
+  ASTNode *child;
+  while ((child = get_last_child(node)) && child->type != ASTN_TEXT) {
+    node = child;
+  }
+  return node;
+}
+
+void convert_last_text_child_to_paragraph(ASTNode *node) {
+  ASTNode *text = get_last_child(node);
+  if (!text || text->type != ASTN_TEXT) {
+    printf("BAD OPERATION. Can't convert non-text node to paragraph.\n");
+    exit(EXIT_FAILURE);
+  }
   ASTNode *child = ast_create_node(ASTN_PARAGRAPH);
-  ast_add_child(node, child);
-  child->contents = node->contents;
-  node->contents = NULL;
+  node->children[node->children_count - 1] = child;
+  ast_add_child(child, text);
+}
+
+// converts all text children to paragraphs
+void convert_texts_to_paragraphs(ASTNode *node) {
+  ASTNode *text, *child;
+  for (size_t i = 0; i < node->children_count; i++) {
+    if (node->children[i]->type == ASTN_TEXT) {
+      text = node->children[i];
+      child = ast_create_node(ASTN_PARAGRAPH);
+      node->children[i] = child;
+      ast_add_child(child, text);
+    }
+  }
 }
 
 void add_line_to_node(ASTNode *node, char *line) {
+  ASTNode *child = get_last_child(node);
+
   if (f_debug()) {
     printf("adding line to %s\n", NODE_TYPE_NAMES[node->type]);
   }
 
-  if (node->contents == NULL) {
-    node->contents = strdup("");
+  // force the thing we're adding content to be a text node
+  if (!child || child->type != ASTN_TEXT) {
+    child = ast_create_node(ASTN_TEXT);
+    ast_add_child(node, child);
+    child->contents = strdup("");
   }
   // should only apply to code blocks with existing content
-  if (strlen(node->contents) > 0 && LATE_CONTINUATION_LINES) {
+  if (strlen(child->contents) > 0 && LATE_CONTINUATION_LINES) {
     if (f_debug()) printf("adding late continuation lines to contents\n");
     if (node->type == ASTN_CODE_BLOCK) {
-      node->contents = str_append(node->contents, LATE_CONTINUATION_CONTENTS);
+      child->contents = str_append(child->contents, LATE_CONTINUATION_CONTENTS);
     } else {
       for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
-        node->contents = str_append(node->contents, "\n");
+        child->contents = str_append(child->contents, "\n");
       }
     }
   }
-  node->contents = str_append(node->contents, line);
+  child->contents = str_append(child->contents, line);
 }
 
 int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
@@ -357,27 +400,23 @@ void close_descendent_blocks(ASTNode *node) {
 
 unsigned int has_open_child(ASTNode *node) {
   return (node->children_count > 0 &&
-          node->children[node->children_count - 1]->open);
+          node->children[node->children_count - 1]->open &&
+          node->children[node->children_count - 1]->type != ASTN_TEXT);
 }
 
-/**
- * @brief Get the last child node. Returns NULL if no children exist.
- *
- * @param node
- * @return ASTNode*
- */
-ASTNode *get_last_child(ASTNode *node) {
-  if (node->children_count == 0) {
+unsigned int has_text(ASTNode *node) {
+  for (size_t i = 0; i < node->children_count; i++) {
+    if (node->children[i]->type == ASTN_TEXT) return 1;
+  }
+  return 0;
+}
+
+char *get_node_contents(ASTNode *node) {
+  ASTNode *child = get_last_child(node);
+  if (!child || child->type != ASTN_TEXT) {
     return NULL;
   }
-  return node->children[node->children_count - 1];
-}
-
-ASTNode *get_deepest_child(ASTNode *node) {
-  while (has_open_child(node)) {
-    node = get_last_child(node);
-  }
-  return node;
+  return child->contents;
 }
 
 ASTNode *find_in_edge_of_tree(ASTNode *node, unsigned int type) {
@@ -393,11 +432,9 @@ ASTNode *find_in_edge_of_tree(ASTNode *node, unsigned int type) {
 
 unsigned int meets_setext_conditions(ASTNode *node) {
   ASTNode *child = get_last_child(node);
-  unsigned int has_paragraph_child = (child && child->type == ASTN_PARAGRAPH);
-  unsigned int is_list_item_with_contents =
-      (!child && node->type == ASTN_UNORDERED_LIST_ITEM && node->contents);
-  return (has_paragraph_child || is_list_item_with_contents) &&
-         !LATE_CONTINUATION_LINES;
+  return (child &&
+          (child->type == ASTN_PARAGRAPH || child->type == ASTN_TEXT) &&
+          !LATE_CONTINUATION_LINES);
 }
 
 /***
@@ -505,10 +542,15 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     // take the parent node's contents and convert it to a paragraph first
     child = get_last_child(node);
     if (!child) {
+      printf(
+          "FAILURE. There should always be a child when you add a Setext "
+          "heading.\n");
+      exit(EXIT_FAILURE);
+    }
+    if (child->type == ASTN_TEXT) {
       if (f_debug())
-        printf(
-            "converting block contents to paragraph for setext conversion\n");
-      move_contents_to_child_paragraph(node);
+        printf("converting block text to paragraph for setext conversion\n");
+      convert_last_text_child_to_paragraph(node);
       child = get_last_child(node);
     }
     child->type = node_type;
@@ -587,8 +629,6 @@ char find_list_char(char *line) {
 
 unsigned int meets_req_nl_after_paragraph_rule(ASTNode *deepest_node,
                                                unsigned int new_node_type) {
-  // TODO: make this check the deepest node instead of the current node matched
-  // certain blocks require a newline after paragraphs.
   unsigned int res =
       (deepest_node->type == ASTN_PARAGRAPH && !LATE_CONTINUATION_LINES &&
        array_contains(REQ_NL_AFTER_PARAGRAPH_NODES,
@@ -616,6 +656,7 @@ unsigned int should_add_to_parent_instead(ASTNode *node,
 
 ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
                                 size_t *match_len) {
+  ASTNode *child;
   // traverse to last matching node
   while ((*line)[*line_pos] && has_open_child(node)) {
     tab_expand(line, *line_pos, 4);
@@ -623,14 +664,15 @@ ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
       printf("matching against %s\n",
              NODE_TYPE_NAMES[get_last_child(node)->type]);
     }
-    if (get_last_child(node)->type == ASTN_PARAGRAPH ||
-        (!matches_continuation_markers(get_last_child(node),
-                                       (*line) + (*line_pos), match_len) &&
+    child = get_last_child(node);
+    if (child->type == ASTN_PARAGRAPH ||
+        (!matches_continuation_markers(child, (*line) + (*line_pos),
+                                       match_len) &&
          !matches_continuation_markers_with_leading_spaces(
-             get_last_child(node), (*line) + (*line_pos), match_len))) {
+             child, (*line) + (*line_pos), match_len))) {
       break;
     }
-    node = get_last_child(node);
+    node = child;
     *line_pos += *match_len;
   }
   return node;
@@ -685,7 +727,7 @@ void widen_list(ASTNode *node) {
   node->options->wide = 1;
   // fix existing list items
   for (size_t i = 0; i < node->children_count; i++) {
-    move_contents_to_child_paragraph(node->children[i]);
+    convert_texts_to_paragraphs(node->children[i]);
   }
 }
 
@@ -740,7 +782,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
 
     return determine_writable_node_from_context(child, line);
   } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
-             !node->parent->parent->options->wide && node->parent->contents) {
+             !node->parent->parent->options->wide && has_text(node->parent)) {
     // new item list item that is not yet wide
     if (f_debug()) printf("widening list as child of list item\n");
     // widen list (which adds another item to the parent, then swap the
@@ -767,8 +809,8 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
-             node->type == ASTN_UNORDERED_LIST_ITEM && node->contents &&
-             is_all_whitespace(node->contents)) {
+             node->type == ASTN_UNORDERED_LIST_ITEM && has_text(node) &&
+             is_all_whitespace(get_node_contents(node))) {
     // list items can only use empty continuation lines if the first or second
     // line actually has contents
     if (f_debug())
@@ -782,9 +824,9 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
              node->type == ASTN_UNORDERED_LIST_ITEM) {
     // continuable list item whose content we can convert to paragraphs, and add
     // another paragraph for this line
-    if (f_debug()) printf("converting list item contents to paragraphs\n");
-    move_contents_to_child_paragraph(node);
-    node->parent->options->wide = 1;
+    if (f_debug())
+      printf("widening list and adding a new paragraph to this node\n");
+    widen_list(node->parent);
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_UNORDERED_LIST) {
@@ -819,7 +861,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
-  ASTNode *deepest_node = get_deepest_child(root);
+  ASTNode *deepest_node = get_deepest_non_text_child(root);
   ASTNode *tmp;
 
   if (f_debug()) {
