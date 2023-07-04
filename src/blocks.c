@@ -149,7 +149,7 @@ size_t matches_code_block(char **line, size_t line_pos) {
   return 0;
 }
 
-size_t match_str_then_space(char *str, char **line, size_t line_pos) {
+size_t match_str_then_space(const char *str, char **line, size_t line_pos) {
   char *line_ref = strdup(*line);
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
 
@@ -166,10 +166,32 @@ size_t match_str_then_space(char *str, char **line, size_t line_pos) {
   return 0;
 }
 
+size_t matches_list_opener_with_symbol(const char *str, char **line,
+                                       size_t line_pos) {
+  size_t res = match_str_then_space(str, line, line_pos);
+  if (res) {
+    return res;
+  } else {
+    // try case where we match the symbol, but then line is all whitespace
+    char *line_ref = strdup(*line);
+    res = match_up_to_3_spaces(&line_ref, line_pos);
+    if (str_starts_with(line_ref + line_pos + res, str)) {
+      res += strlen(str);
+      if (is_all_whitespace(line_ref + line_pos + res)) {
+        free(*line);
+        *line = line_ref;
+        return res;
+      }
+    }
+    free(line_ref);
+    return 0;
+  }
+}
+
 size_t matches_list_opening(char **line, size_t line_pos) {
-  size_t res = match_str_then_space("-", line, line_pos);
-  if (!res) res = match_str_then_space("*", line, line_pos);
-  if (!res) res = match_str_then_space("+", line, line_pos);
+  size_t res = matches_list_opener_with_symbol("-", line, line_pos);
+  if (!res) res = matches_list_opener_with_symbol("*", line, line_pos);
+  if (!res) res = matches_list_opener_with_symbol("+", line, line_pos);
   return res;
 }
 
@@ -729,11 +751,24 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
+             node->type == ASTN_UNORDERED_LIST_ITEM && node->contents &&
+             is_all_whitespace(node->contents)) {
+    // list items can only use empty continuation lines if the first or second
+    // line actually has contents
+    if (f_debug())
+      printf(
+          "Closing this list due to continuation lines and adding a paragraph "
+          "instead\n");
+    node->parent->open = 0;
+    node = node->parent->parent;
+    return determine_writable_node_from_context(node, line);
+  } else if (LATE_CONTINUATION_LINES &&
              node->type == ASTN_UNORDERED_LIST_ITEM) {
-    // continuable blocks whose content we can convert to paragraphs, and add
+    // continuable list item whose content we can convert to paragraphs, and add
     // another paragraph for this line
-    if (f_debug()) printf("converting contents to paragraphs\n");
+    if (f_debug()) printf("converting list item contents to paragraphs\n");
     move_contents_to_child_paragraph(node);
+    node->parent->options->wide = 1;
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_UNORDERED_LIST) {
