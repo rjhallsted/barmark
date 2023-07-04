@@ -437,6 +437,13 @@ unsigned int meets_setext_conditions(ASTNode *node) {
           !LATE_CONTINUATION_LINES);
 }
 
+// unsigned int meets_code_block_conditions(ASTNode *node) {
+//   if (node->type == ASTN_UNORDERED_LIST_ITEM && !LATE_CONTINUATION_LINES) {
+//     return 0;
+//   }
+//   return 1;
+// }
+
 /***
  * Returns 0 if no block start is found.
  */
@@ -574,10 +581,13 @@ void print_tree(ASTNode *node, size_t level) {
   if (node->options)
     printf("%s%s-%s\n", indent, NODE_TYPE_NAMES[node->type],
            node->options->wide ? "wide" : "tight");
+  else if (node->cont_markers)
+    printf("%s%s->'%s'\n", indent, NODE_TYPE_NAMES[node->type],
+           node->cont_markers);
   else
     printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
   if (node->contents) {
-    printf("%s->%s\n", indent, node->contents);
+    printf("%s+>%s\n", indent, node->contents);
   }
   for (size_t i = 0; i < node->children_count; i++) {
     print_tree(node->children[i], level + 1);
