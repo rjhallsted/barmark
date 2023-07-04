@@ -778,6 +778,13 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     swap_nodes(node, node->parent->children[1]);
     node = node->parent->children[1];
     return determine_writable_node_from_context(node, line);
+  } else if (node->type == ASTN_UNORDERED_LIST && !LATE_CONTINUATION_LINES &&
+             has_open_child(node) && !is_all_whitespace(line)) {
+    if (f_debug())
+      printf("Adding trailing line to last item in unordered list.\n");
+    // TODO: Only do this if the last line in the last list item is not empty
+    node = child;
+    return determine_writable_node_from_context(node, line);
   } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
              !LATE_CONTINUATION_LINES && !is_all_whitespace(line)) {
     // case where we can continue a paragraph
