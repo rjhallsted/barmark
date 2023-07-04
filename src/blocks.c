@@ -761,21 +761,12 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
       node != node->parent->children[0]) {
     // detect that we should convert to a wide list
     widen_list(node->parent);
-    if (f_debug())
-      printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
-    reset_late_continuation();
-
     // have the next case handle the new item now that the list state is fixed
     return determine_writable_node_from_context(node, line);
   } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
              node->parent->options->wide) {
     // fix up new wide list items;
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    // Late continuation lines can be ignored in wide lists
-    if (f_debug())
-      printf("resetting LATE_CONTINUATION_LINES because of wide list\n");
-    reset_late_continuation();
-
     return determine_writable_node_from_context(child, line);
   } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
              !node->parent->parent->options->wide && has_text(node->parent)) {
@@ -786,10 +777,6 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     widen_list(node->parent->parent);
     swap_nodes(node, node->parent->children[1]);
     node = node->parent->children[1];
-    // this is the first line in this block (otherwise we'd be in wide mode
-    // already) so can ignore late continuation lines
-    reset_late_continuation();
-
     return determine_writable_node_from_context(node, line);
   } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
              !LATE_CONTINUATION_LINES && !is_all_whitespace(line)) {
@@ -834,7 +821,6 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
              has_open_child(node)) {
     if (f_debug()) printf("splitting a blockquote due to empty lines\n");
     node = node->parent;
-    reset_late_continuation();
     child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
     return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_BLOCK_QUOTE && !is_all_whitespace(line) &&
