@@ -97,11 +97,22 @@ void convert_last_text_child_to_paragraph(ASTNode *node) {
   ast_add_child(child, text);
 }
 
+int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
+
+int is_all_whitespace(const char *line) {
+  size_t i = 0;
+  while (is_whitespace(line[i])) {
+    i++;
+  }
+  return (line[i] == '\0') ? 1 : 0;
+}
+
 // converts all text children to paragraphs
 void convert_texts_to_paragraphs(ASTNode *node) {
   ASTNode *text, *child;
   for (size_t i = 0; i < node->children_count; i++) {
-    if (node->children[i]->type == ASTN_TEXT) {
+    if (node->children[i]->type == ASTN_TEXT &&
+        !is_all_whitespace(node->children[i]->contents)) {
       text = node->children[i];
       child = ast_create_node(ASTN_PARAGRAPH);
       node->children[i] = child;
@@ -135,16 +146,6 @@ void add_line_to_node(ASTNode *node, char *line) {
     }
   }
   child->contents = str_append(child->contents, line);
-}
-
-int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
-
-int is_all_whitespace(const char *line) {
-  size_t i = 0;
-  while (is_whitespace(line[i])) {
-    i++;
-  }
-  return (line[i] == '\0') ? 1 : 0;
 }
 
 /* matching functions */
