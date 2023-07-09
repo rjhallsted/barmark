@@ -737,12 +737,6 @@ void swap_nodes(ASTNode *a, ASTNode *b) {
 ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
   /* logic to determine where to add line based on current node and context */
 
-  // TODO: Refactor "wide" list detection. Current version is too messy
-  /*
-  - one empty line followed by top-level content in top-level list item
-
-  */
-
   //////////
   if (f_debug()) {
     printf("determining node from context on %s, line: '%s'\n",
