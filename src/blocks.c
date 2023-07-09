@@ -737,17 +737,11 @@ void swap_nodes(ASTNode *a, ASTNode *b) {
 ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
   /* logic to determine where to add line based on current node and context */
 
-  /* actual cases:
-  - have continuation lines, and node or previous node is unordered list. (makes
-  list not tight, and fix previous items)
-  - has continuable paragraph && no late continuation lines
-  - has continuable blockquote
-  - with late continuation lines and is continuable block
-  - node type is document and the above are not true
-  - otherwise this node is correct
-  */
-
   // TODO: Refactor "wide" list detection. Current version is too messy
+  /*
+  - one empty line followed by top-level content in top-level list item
+
+  */
 
   //////////
   if (f_debug()) {
@@ -757,21 +751,30 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
 
   ASTNode *child = get_last_child(node);
 
-  if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
-      LATE_CONTINUATION_LINES && !node->parent->options->wide &&
-      node != node->parent->children[0]) {
-    // detect that we should convert to a wide list
+  if (node->type == ASTN_UNORDERED_LIST_ITEM && !node->parent->options->wide &&
+      LATE_CONTINUATION_LINES == 1 && has_text(node) &&
+      !is_all_whitespace(get_node_contents(node))) {
+    // tight list that should become a wide list
+    if (f_debug()) printf("widening list\n");
     widen_list(node->parent);
     // have the next case handle the new item now that the list state is fixed
     return determine_writable_node_from_context(node, line);
   } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
              node->parent->options->wide) {
-    // fix up new wide list items;
+    // new item in a wide list
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
+  } else if (node->type == ASTN_UNORDERED_LIST && !LATE_CONTINUATION_LINES &&
+             has_open_child(node) && !is_all_whitespace(line)) {
+    // new line in an item in a narrow list
+    if (f_debug())
+      printf("Adding trailing line to last item in unordered list.\n");
+    node = child;
+    return determine_writable_node_from_context(node, line);
   } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
-             !node->parent->parent->options->wide && has_text(node->parent)) {
-    // new item list item that is not yet wide
+             !node->parent->parent->options->wide && has_text(node->parent) &&
+             LATE_CONTINUATION_LINES == 1) {
+    // new child of list item in narrow list that should widen list
     if (f_debug()) printf("widening list as child of list item\n");
     // widen list (which adds another item to the parent, then swap the
     // children)
@@ -779,26 +782,6 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     swap_nodes(node, node->parent->children[1]);
     node = node->parent->children[1];
     return determine_writable_node_from_context(node, line);
-  } else if (node->type == ASTN_UNORDERED_LIST && !LATE_CONTINUATION_LINES &&
-             has_open_child(node) && !is_all_whitespace(line)) {
-    if (f_debug())
-      printf("Adding trailing line to last item in unordered list.\n");
-    // TODO: Only do this if the last line in the last list item is not empty
-    node = child;
-    return determine_writable_node_from_context(node, line);
-  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES && !is_all_whitespace(line)) {
-    // case where we can continue a paragraph
-    return determine_writable_node_from_context(child, line);
-  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES && is_all_whitespace(line)) {
-    if (f_debug()) printf("closing child paragraph due to empty line\n");
-    child->open = 0;
-    return determine_writable_node_from_context(node, line);
-  } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
-             !is_all_whitespace(line) && has_open_child(child)) {
-    if (f_debug()) printf("determining context from blockquote child\n");
-    return determine_writable_node_from_context(child, line);
   } else if (LATE_CONTINUATION_LINES &&
              node->type == ASTN_UNORDERED_LIST_ITEM && has_text(node) &&
              is_all_whitespace(get_node_contents(node))) {
@@ -813,11 +796,15 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     return determine_writable_node_from_context(node, line);
   } else if (LATE_CONTINUATION_LINES &&
              node->type == ASTN_UNORDERED_LIST_ITEM) {
-    // continuable list item whose content we can convert to paragraphs, and add
-    // another paragraph for this line
-    if (f_debug())
-      printf("widening list and adding a new paragraph to this node\n");
-    widen_list(node->parent);
+    // continuable list item
+    if (!node->parent->options->wide) {
+      if (f_debug())
+        printf("widening list and adding a new paragraph to this node\n");
+      widen_list(node->parent);
+    } else {
+      if (f_debug()) printf("adding a new paragraph to this node\n");
+    }
+
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_UNORDERED_LIST) {
@@ -825,6 +812,19 @@ ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
     // list
     node = node->parent;
     return determine_writable_node_from_context(node, line);
+  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_LINES && !is_all_whitespace(line)) {
+    // case where we can continue a paragraph
+    return determine_writable_node_from_context(child, line);
+  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
+             !LATE_CONTINUATION_LINES && is_all_whitespace(line)) {
+    if (f_debug()) printf("closing child paragraph due to empty line\n");
+    child->open = 0;
+    return determine_writable_node_from_context(node, line);
+  } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
+             !is_all_whitespace(line) && has_open_child(child)) {
+    if (f_debug()) printf("determining context from blockquote child\n");
+    return determine_writable_node_from_context(child, line);
   } else if (node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES &&
              has_open_child(node)) {
     if (f_debug()) printf("splitting a blockquote due to empty lines\n");
