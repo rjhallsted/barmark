@@ -209,8 +209,8 @@ size_t match_str_then_space(const char *str, char **line, size_t line_pos) {
   return 0;
 }
 
-size_t matches_list_opener_with_symbol(const char *str, char **line,
-                                       size_t line_pos) {
+size_t matches_unoredered_list_opener_with_symbol(const char *str, char **line,
+                                                  size_t line_pos) {
   size_t res = match_str_then_space(str, line, line_pos);
   if (res) {
     return res;
@@ -231,10 +231,12 @@ size_t matches_list_opener_with_symbol(const char *str, char **line,
   }
 }
 
-size_t matches_list_opening(char **line, size_t line_pos) {
-  size_t res = matches_list_opener_with_symbol("-", line, line_pos);
-  if (!res) res = matches_list_opener_with_symbol("*", line, line_pos);
-  if (!res) res = matches_list_opener_with_symbol("+", line, line_pos);
+size_t matches_unordered_list_opening(char **line, size_t line_pos) {
+  size_t res = matches_unoredered_list_opener_with_symbol("-", line, line_pos);
+  if (!res)
+    res = matches_unoredered_list_opener_with_symbol("*", line, line_pos);
+  if (!res)
+    res = matches_unoredered_list_opener_with_symbol("+", line, line_pos);
   return res;
 }
 
@@ -474,7 +476,7 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
     return ASTN_SETEXT_H1;
   } else if ((*match_len = matches_thematic_break(line, line_pos))) {
     return ASTN_THEMATIC_BREAK;
-  } else if ((*match_len = matches_list_opening(line, line_pos))) {
+  } else if ((*match_len = matches_unordered_list_opening(line, line_pos))) {
     return ASTN_UNORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;

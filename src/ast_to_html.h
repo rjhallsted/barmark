@@ -24,8 +24,14 @@ static const HTML_TAG HTML_TAGS[] = {
      .close = "</blockquote>",
      .wrap_internals = 1},                                    // BLOCK_QUOTE
     {.open = "<ul>", .close = "</ul>", .wrap_internals = 1},  // UNORDERED_LIST
-    {.open = "<li>", .close = "</li>", .wrap_internals = 1},  // LIST_ITEM
-    {.open = "<p>", .close = "</p>", .wrap_internals = 1},    // PARAGRAPH
+    {.open = "<li>",
+     .close = "</li>",
+     .wrap_internals = 1},  // UNORDERED_LIST_ITEM
+    {.open = "<ol>", .close = "</ol>", .wrap_internals = 1},  // ORDERED_LIST
+    {.open = "<li>",
+     .close = "</li>",
+     .wrap_internals = 1},                                  // ORDERED_LIST_ITEM
+    {.open = "<p>", .close = "</p>", .wrap_internals = 1},  // PARAGRAPH
     {.open = "<h1>", .close = "</h1>", .wrap_internals = 1},  // H1,
     {.open = "<h2>", .close = "</h2>", .wrap_internals = 1},  // H2,
     {.open = "<h3>", .close = "</h3>", .wrap_internals = 1},  // H3,

@@ -10,6 +10,8 @@ enum AST_NODE_TYPES {
   ASTN_BLOCK_QUOTE,
   ASTN_UNORDERED_LIST,
   ASTN_UNORDERED_LIST_ITEM,
+  ASTN_ORDERED_LIST,
+  ASTN_ORDERED_LIST_ITEM,
   ASTN_PARAGRAPH,
   ASTN_H1,
   ASTN_H2,
@@ -22,12 +24,12 @@ enum AST_NODE_TYPES {
   ASTN_SETEXT_H2
 };
 
-static const unsigned int NODE_TYPE_COUNT = 16;
+static const unsigned int NODE_TYPE_COUNT = 18;
 
-static const char *NODE_TYPE_NAMES[] = {
-    "DOC", "TEXT",      "CODE_BLOCK", "BLOCKQUOTE", "UL", "LI",
-    "P",   "H1",        "H2",         "H3",         "H4", "H5",
-    "H6",  "THM_BREAK", "SETEXT_H1",  "SETEXT_H2"};
+static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
+    "DOC", "TEXT",  "CODE_BLOCK", "BLOCKQUOTE", "UL",        "UL-LI",
+    "OL",  "OL-LI", "P",          "H1",         "H2",        "H3",
+    "H4",  "H5",    "H6",         "THM_BREAK",  "SETEXT_H1", "SETEXT_H2"};
 
 static const unsigned int LEAF_ONLY_NODES_SIZE = 11;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
@@ -60,6 +62,7 @@ static const unsigned int
 typedef struct {
   char marker;
   unsigned int wide;
+  unsigned int starting_num;
 } ASTListOptions;
 
 typedef struct ASTNode {
