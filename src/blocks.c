@@ -240,6 +240,27 @@ size_t matches_unordered_list_opening(char **line, size_t line_pos) {
   return res;
 }
 
+size_t matches_ordered_list_opening(char **line, size_t line_pos) {
+  char *line_ref = strdup(*line);
+  line_pos += match_up_to_3_spaces(&line_ref, line_pos);
+  size_t i = 0;
+  while (line_ref[line_pos + i] >= '0' && line_ref[line_pos + i] <= '9') {
+    i++;
+  }
+  if (i == 0 || line_ref[line_pos + i] != '.') {
+    free(line_ref);
+    return 0;
+  }
+  i++;
+  tab_expand(&line_ref, line_pos + i, 1);
+  if (line_ref[line_pos + i] != ' ' && line_ref[line_pos + i] != '\n' &&
+      line_ref[line_pos + i] != '\0') {
+    free(line_ref);
+    return 0;
+  }
+  return i + 1;
+}
+
 size_t matches_paragraph_opening(char **line, size_t line_pos) {
   return (!is_all_whitespace((*line) + line_pos));
 }
@@ -478,6 +499,8 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
     return ASTN_THEMATIC_BREAK;
   } else if ((*match_len = matches_unordered_list_opening(line, line_pos))) {
     return ASTN_UNORDERED_LIST_ITEM;
+  } else if ((*match_len = matches_ordered_list_opening(line, line_pos))) {
+    return ASTN_ORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;
   } else if ((*match_len = matches_h6_opening(line, line_pos))) {
@@ -538,6 +561,15 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     child = ast_create_node(ASTN_UNORDERED_LIST);
+    child->options = malloc(sizeof(ASTListOptions));
+    child->options->marker = list_char;
+    child->options->wide = 0;
+    ast_add_child(node, child);
+    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
+                           0);
+  } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
+             node->type != ASTN_ORDERED_LIST) {
+    child = ast_create_node(ASTN_ORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
     child->options->wide = 0;
