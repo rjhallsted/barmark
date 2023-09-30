@@ -574,12 +574,15 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
     child->options->marker = list_char;
     child->options->wide = 0;
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
-                           0);
+    return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     return child = add_child_block_with_cont_markers(
                node, ASTN_UNORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
+  } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
+             node->type == ASTN_ORDERED_LIST) {
+    return child = add_child_block_with_cont_markers(
+               node, ASTN_ORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_BLOCK_QUOTE) {
     return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
                                              strdup(">"));
