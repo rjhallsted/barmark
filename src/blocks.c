@@ -329,6 +329,8 @@ size_t matches_h6_opening(char **line, size_t line_pos) {
   return matches_atx_header(line, line_pos, 6);
 }
 
+// TODO: Rework this to use early exit checks instead of sticking the returns in
+// else blocks
 size_t matches_thematic_break(char **line, size_t line_pos) {
   char *line_ref = strdup(*line);
   char c;
@@ -735,7 +737,7 @@ unsigned int is_leaf_only_node(unsigned int type) {
 ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
                                  size_t *match_len) {
   char list_char = 0;
-  unsigned int node_type;
+  int unsigned node_type;
 
   // If a block start exists, create it, then keep checking for more.
   // Intelligently rework blocks if new block needs to be moved to parent

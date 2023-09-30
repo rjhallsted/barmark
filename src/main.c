@@ -7,17 +7,15 @@
 #include "util.h"
 
 void showUsage(char const *const errorMessage) {
-  const char *usageText = "\t./barmark <filename>";
+  char const *const usageText = "\t./barmark <filename>";
   printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
 int main(int argc, char **argv) {
-  FILE *fd;
+  FILE *fd = stdin;
 
   if (argc > 1) {
     fd = openFile(argv[1]);
-  } else {
-    fd = stdin;
   }
 
   ASTNode *root = build_block_structure(fd);

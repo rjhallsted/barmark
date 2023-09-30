@@ -35,7 +35,7 @@ void ast_free_node_only(ASTNode *node) {
 }
 
 void ast_free_node(ASTNode *node) {
-  for (unsigned int i = 0; i < node->children_count; i++) {
+  for (int unsigned i = 0; i < node->children_count; i++) {
     ast_free_node(node->children[i]);
   }
   ast_free_node_only(node);
