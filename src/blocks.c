@@ -21,9 +21,9 @@ void reset_late_continuation(void) {
   LATE_CONTINUATION_CONTENTS = strdup("");
 }
 
-int matches_continuation_markers_with_leading_spaces(ASTNode *node,
-                                                     char const *const line,
-                                                     size_t *match_len) {
+int matches_continuation_markers_with_leading_spaces(
+    ASTNode node[static 1], char const line[static 1],
+    size_t match_len[static 1]) {
   size_t i = 0;
   while (line[i] == ' ' && i < 3) {
     i++;
@@ -45,8 +45,9 @@ int matches_continuation_markers_with_leading_spaces(ASTNode *node,
  * @param match_len
  * @return int
  */
-int matches_continuation_markers(ASTNode *node, const char *const line,
-                                 size_t *match_len) {
+int matches_continuation_markers(ASTNode node[static 1],
+                                 char const line[static 1],
+                                 size_t match_len[static 1]) {
   if (!(node->cont_markers)) {
     return 1;
   }
@@ -71,14 +72,14 @@ int matches_continuation_markers(ASTNode *node, const char *const line,
  * @param node
  * @return ASTNode*
  */
-ASTNode *get_last_child(ASTNode *node) {
+ASTNode *get_last_child(ASTNode node[static 1]) {
   if (node->children_count == 0) {
     return NULL;
   }
   return node->children[node->children_count - 1];
 }
 
-ASTNode *get_deepest_non_text_child(ASTNode *node) {
+ASTNode *get_deepest_non_text_child(ASTNode node[static 1]) {
   ASTNode *child;
   while ((child = get_last_child(node)) && child->type != ASTN_TEXT) {
     node = child;
@@ -86,7 +87,7 @@ ASTNode *get_deepest_non_text_child(ASTNode *node) {
   return node;
 }
 
-void convert_last_text_child_to_paragraph(ASTNode *node) {
+void convert_last_text_child_to_paragraph(ASTNode node[static 1]) {
   ASTNode *text = get_last_child(node);
   if (!text || text->type != ASTN_TEXT) {
     printf("BAD OPERATION. Can't convert non-text node to paragraph.\n");
@@ -99,7 +100,7 @@ void convert_last_text_child_to_paragraph(ASTNode *node) {
 
 int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
 
-int is_all_whitespace(char const *const line) {
+int is_all_whitespace(char const line[static 1]) {
   size_t i = 0;
   while (is_whitespace(line[i])) {
     i++;
@@ -108,7 +109,7 @@ int is_all_whitespace(char const *const line) {
 }
 
 // converts all text children to paragraphs
-void convert_texts_to_paragraphs(ASTNode *node) {
+void convert_texts_to_paragraphs(ASTNode node[static 1]) {
   ASTNode *text, *child;
   for (size_t i = 0; i < node->children_count; i++) {
     if (node->children[i]->type == ASTN_TEXT &&
@@ -121,7 +122,7 @@ void convert_texts_to_paragraphs(ASTNode *node) {
   }
 }
 
-void add_line_to_node(ASTNode *node, char *line) {
+void add_line_to_node(ASTNode node[static 1], char *line) {
   ASTNode *child = get_last_child(node);
 
   if (f_debug()) {
@@ -157,7 +158,7 @@ void add_line_to_node(ASTNode *node, char *line) {
  * replace original line with tab expanded one.
  */
 
-size_t match_up_to_3_spaces(char **line, size_t line_pos) {
+size_t match_up_to_3_spaces(char *line[static 1], size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
   tab_expand(&line_ref, line_pos, 3);
@@ -175,7 +176,7 @@ size_t match_up_to_3_spaces(char **line, size_t line_pos) {
   }
 }
 
-size_t matches_code_block(char **line, size_t line_pos) {
+size_t matches_code_block(char *line[static 1], size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
   tab_expand(&line_ref, line_pos, 4);
@@ -192,7 +193,7 @@ size_t matches_code_block(char **line, size_t line_pos) {
   return 0;
 }
 
-size_t match_str_then_space(char const *const str, char **line,
+size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
   char *line_ref = strdup(*line);
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
@@ -210,8 +211,8 @@ size_t match_str_then_space(char const *const str, char **line,
   return 0;
 }
 
-size_t matches_unoredered_list_opener_with_symbol(char const *const str,
-                                                  char **line,
+size_t matches_unoredered_list_opener_with_symbol(char const str[static 1],
+                                                  char *line[static 1],
                                                   size_t line_pos) {
   size_t res = match_str_then_space(str, line, line_pos);
   if (res) {
@@ -233,7 +234,7 @@ size_t matches_unoredered_list_opener_with_symbol(char const *const str,
   }
 }
 
-size_t matches_unordered_list_opening(char **line, size_t line_pos) {
+size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
   size_t res = matches_unoredered_list_opener_with_symbol("-", line, line_pos);
   if (!res)
     res = matches_unoredered_list_opener_with_symbol("*", line, line_pos);
@@ -242,7 +243,7 @@ size_t matches_unordered_list_opening(char **line, size_t line_pos) {
   return res;
 }
 
-size_t matches_ordered_list_opening(char **line, size_t line_pos) {
+size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
   line_pos += match_up_to_3_spaces(&line_ref, line_pos);
   size_t i = 0;
@@ -263,11 +264,11 @@ size_t matches_ordered_list_opening(char **line, size_t line_pos) {
   return i + 1;
 }
 
-size_t matches_paragraph_opening(char **line, size_t line_pos) {
+size_t matches_paragraph_opening(char *line[static 1], size_t line_pos) {
   return (!is_all_whitespace((*line) + line_pos));
 }
 
-size_t matches_blockquote_opening(char **line, size_t line_pos) {
+size_t matches_blockquote_opening(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] == '>') {
@@ -284,8 +285,8 @@ size_t matches_blockquote_opening(char **line, size_t line_pos) {
   return 0;
 }
 
-size_t matches_atx_header(char **line, size_t line_pos,
-                          unsigned int heading_level) {
+size_t matches_atx_header(char *line[static 1], size_t line_pos,
+                          int unsigned heading_level) {
   char *header_str = repeat_x('#', heading_level);
   size_t res1 = match_str_then_space(header_str, line, line_pos);
   if (res1) {
@@ -305,33 +306,33 @@ size_t matches_atx_header(char **line, size_t line_pos,
   return 0;
 }
 
-size_t matches_h1_opening(char **line, size_t line_pos) {
+size_t matches_h1_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 1);
 }
 
-size_t matches_h2_opening(char **line, size_t line_pos) {
+size_t matches_h2_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 2);
 }
 
-size_t matches_h3_opening(char **line, size_t line_pos) {
+size_t matches_h3_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 3);
 }
 
-size_t matches_h4_opening(char **line, size_t line_pos) {
+size_t matches_h4_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 4);
 }
 
-size_t matches_h5_opening(char **line, size_t line_pos) {
+size_t matches_h5_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 5);
 }
 
-size_t matches_h6_opening(char **line, size_t line_pos) {
+size_t matches_h6_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 6);
 }
 
 // TODO: Rework this to use early exit checks instead of sticking the returns in
 // else blocks
-size_t matches_thematic_break(char **line, size_t line_pos) {
+size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
   char c;
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
@@ -374,7 +375,7 @@ size_t matches_thematic_break(char **line, size_t line_pos) {
   }
 }
 
-size_t matches_setext_h2(char **line, size_t line_pos) {
+size_t matches_setext_h2(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] != '-') {
@@ -395,7 +396,7 @@ size_t matches_setext_h2(char **line, size_t line_pos) {
   return i;
 }
 
-size_t matches_setext_h1(char **line, size_t line_pos) {
+size_t matches_setext_h1(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   if (line_ref[line_pos + i] != '=') {
@@ -418,27 +419,27 @@ size_t matches_setext_h1(char **line, size_t line_pos) {
 
 /* end matching functions */
 
-void close_descendent_blocks(ASTNode *node) {
+void close_descendent_blocks(ASTNode node[static 1]) {
   node->open = 0;
   if (node->children_count > 0) {
     close_descendent_blocks(node->children[node->children_count - 1]);
   }
 }
 
-unsigned int has_open_child(ASTNode *node) {
+unsigned int has_open_child(ASTNode node[static 1]) {
   return (node->children_count > 0 &&
           node->children[node->children_count - 1]->open &&
           node->children[node->children_count - 1]->type != ASTN_TEXT);
 }
 
-unsigned int has_text(ASTNode *node) {
+unsigned int has_text(ASTNode node[static 1]) {
   for (size_t i = 0; i < node->children_count; i++) {
     if (node->children[i]->type == ASTN_TEXT) return 1;
   }
   return 0;
 }
 
-char *get_node_contents(ASTNode *node) {
+char *get_node_contents(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   if (!child || child->type != ASTN_TEXT) {
     return NULL;
@@ -446,7 +447,7 @@ char *get_node_contents(ASTNode *node) {
   return child->contents;
 }
 
-ASTNode *find_in_edge_of_tree(ASTNode *node, unsigned int type) {
+ASTNode *find_in_edge_of_tree(ASTNode node[static 1], unsigned int type) {
   if (node->type == type) {
     return node;
   }
@@ -457,27 +458,27 @@ ASTNode *find_in_edge_of_tree(ASTNode *node, unsigned int type) {
   return NULL;
 }
 
-unsigned int meets_setext_conditions(ASTNode *node) {
+unsigned int meets_setext_conditions(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   return (child &&
           (child->type == ASTN_PARAGRAPH || child->type == ASTN_TEXT) &&
           !LATE_CONTINUATION_LINES);
 }
 
-unsigned int meets_code_block_conditions(ASTNode *node) {
+unsigned int meets_code_block_conditions(ASTNode node[static 1]) {
   ASTNode *deepest = get_deepest_non_text_child(node);
   if (!LATE_CONTINUATION_LINES &&
-      (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK,
-                      NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE, node->type) ||
-       array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK,
-                      NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE, deepest->type))) {
+      (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
+                      NOT_INTERRUPTIBLE_BY_CODE_BLOCK, node->type) ||
+       array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
+                      NOT_INTERRUPTIBLE_BY_CODE_BLOCK, deepest->type))) {
     return 0;
   }
   return 1;
 }
 
-unsigned int is_empty_line_following_paragraph(char const *const line,
-                                               ASTNode *preceding_node) {
+unsigned int is_empty_line_following_paragraph(
+    char const line[static 1], ASTNode preceding_node[static 1]) {
   if (preceding_node) {
     return is_all_whitespace(line) && preceding_node->type == ASTN_PARAGRAPH;
   } else
@@ -487,8 +488,9 @@ unsigned int is_empty_line_following_paragraph(char const *const line,
 /***
  * Returns 0 if no block start is found.
  */
-int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
-                     size_t *match_len) {
+int block_start_type(char *line[static 1], size_t line_pos,
+                     ASTNode current_node[static 1],
+                     size_t match_len[static 1]) {
   ASTNode *child = get_last_child(current_node);
   if (f_debug()) {
     printf("line: '%s'\n", (*line) + line_pos);
@@ -544,7 +546,7 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
  * @param line
  * @return int
  */
-ASTNode *is_block_end(ASTNode *node, char const *const line) {
+ASTNode *is_block_end(ASTNode node[static 1], char const line[static 1]) {
   if (node->type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
     return node;
   }
@@ -555,9 +557,9 @@ ASTNode *is_block_end(ASTNode *node, char const *const line) {
 }
 
 /* returns a pointer to the child */
-ASTNode *add_child_block_with_cont_markers(ASTNode *node,
-                                           unsigned int node_type,
-                                           char *cont_markers) {
+ASTNode *add_child_block_with_cont_markers(ASTNode node[static 1],
+                                           int unsigned node_type,
+                                           char cont_markers[static 1]) {
   ASTNode *child = ast_create_node(node_type);
   child->cont_markers = cont_markers;
   ast_add_child(node, child);
@@ -567,7 +569,7 @@ ASTNode *add_child_block_with_cont_markers(ASTNode *node,
 /* Returns a pointer to the deepest added child.
 Contains all logic for block creation.
 */
-ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
+ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                          size_t opener_match_len, char list_char) {
   ASTNode *child;
 
@@ -635,7 +637,7 @@ ASTNode *add_child_block(ASTNode *node, unsigned int node_type,
   }
 }
 
-void print_tree(ASTNode *node, size_t level) {
+void print_tree(ASTNode node[static 1], size_t level) {
   char *indent = repeat_x(' ', level * 2);
   if (node->options)
     printf("%s%s-%s\n", indent, NODE_TYPE_NAMES[node->type],
@@ -662,7 +664,7 @@ void print_tree(ASTNode *node, size_t level) {
  * @param line_pos
  * @return size_t
  */
-void tab_expand(char **line, size_t line_pos, size_t lookahead) {
+void tab_expand(char *line[static 1], size_t line_pos, size_t lookahead) {
   char *line_ref = *line;
   unsigned int i = 0;
 
@@ -685,7 +687,7 @@ void tab_expand(char **line, size_t line_pos, size_t lookahead) {
   *line = out;
 }
 
-char find_list_char(char *line) {
+char find_list_char(char line[static 1]) {
   size_t i = 0;
   while (line[i] && line[i] != '-' && line[i] != '*') {
     i++;
@@ -696,8 +698,8 @@ char find_list_char(char *line) {
   return 0;
 }
 
-unsigned int should_add_to_parent_instead(ASTNode *node,
-                                          unsigned int new_node_type,
+unsigned int should_add_to_parent_instead(ASTNode node[static 1],
+                                          int unsigned new_node_type,
                                           char list_char) {
   return ((node->type == ASTN_UNORDERED_LIST &&
            new_node_type != ASTN_UNORDERED_LIST_ITEM) ||
@@ -706,8 +708,9 @@ unsigned int should_add_to_parent_instead(ASTNode *node,
            node->options->marker != list_char));
 }
 
-ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
-                                size_t *match_len) {
+ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
+                                size_t line_pos[static 1],
+                                size_t match_len[static 1]) {
   ASTNode *child;
   // traverse to last matching node
   while ((*line)[*line_pos] && has_open_child(node)) {
@@ -730,12 +733,13 @@ ASTNode *traverse_to_last_match(ASTNode *node, char **line, size_t *line_pos,
   return node;
 }
 
-unsigned int is_leaf_only_node(unsigned int type) {
-  return array_contains(LEAF_ONLY_NODES, LEAF_ONLY_NODES_SIZE, type);
+int unsigned is_leaf_only_node(int unsigned type) {
+  return array_contains(LEAF_ONLY_NODES_SIZE, LEAF_ONLY_NODES, type);
 }
 
-ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
-                                 size_t *match_len) {
+ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
+                                 size_t line_pos[static 1],
+                                 size_t match_len[static 1]) {
   char list_char = 0;
   int unsigned node_type;
 
@@ -773,7 +777,7 @@ ASTNode *handle_new_block_starts(ASTNode *node, char **line, size_t *line_pos,
   return node;
 }
 
-void widen_list(ASTNode *node) {
+void widen_list(ASTNode node[static 1]) {
   node->options->wide = 1;
   // fix existing list items
   for (size_t i = 0; i < node->children_count; i++) {
@@ -781,14 +785,14 @@ void widen_list(ASTNode *node) {
   }
 }
 
-void swap_nodes(ASTNode *a, ASTNode *b) {
+void swap_nodes(ASTNode a[static 1], ASTNode b[static 1]) {
   ASTNode tmp = *a;
   *a = *b;
   *b = tmp;
 }
 
-ASTNode *determine_writable_node_from_context(ASTNode *node,
-                                              char const *const line) {
+ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
+                                              char const line[static 1]) {
   /* logic to determine where to add line based on current node and context */
 
   //////////
@@ -895,7 +899,7 @@ ASTNode *determine_writable_node_from_context(ASTNode *node,
   return node;
 }
 
-void add_line_to_ast(ASTNode *root, char **line) {
+void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
@@ -934,7 +938,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
     add_line_to_node(node, (*line) + line_pos);
 
   // cleanup
-  if (array_contains(UNAPPENDABLE_NODES, UNNAPENDABLE_NODES_SIZE, node->type)) {
+  if (array_contains(UNNAPENDABLE_NODES_SIZE, UNAPPENDABLE_NODES, node->type)) {
     node->open = 0;
   }
 
@@ -946,7 +950,7 @@ void add_line_to_ast(ASTNode *root, char **line) {
   }
 }
 
-ASTNode *build_block_structure(FILE *fd) {
+ASTNode *build_block_structure(FILE fd[static 1]) {
   ASTNode *document = ast_create_node(ASTN_DOCUMENT);
   char *line = NULL;
   size_t buff_len = 0;

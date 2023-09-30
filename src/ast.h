@@ -79,11 +79,11 @@ typedef struct ASTNode {
 } ASTNode;
 
 ASTNode *ast_create_node(unsigned int type);
-void ast_free_node_only(ASTNode *node);
-void ast_free_node(ASTNode *node);
-void ast_add_child(ASTNode *parent, ASTNode *child);
-void ast_move_children_to_contents(ASTNode *node);
-void ast_remove_child_at_index(ASTNode *node, size_t index);
-void ast_flatten_children(ASTNode *node);
+void ast_free_node_only(ASTNode node[static 1]);
+void ast_free_node(ASTNode node[static 1]);
+void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]);
+void ast_move_children_to_contents(ASTNode node[static 1]);
+void ast_remove_child_at_index(ASTNode node[static 1], size_t index);
+void ast_flatten_children(ASTNode node[static 1]);
 
 #endif  // AST_H

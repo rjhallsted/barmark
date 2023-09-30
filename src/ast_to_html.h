@@ -5,7 +5,8 @@
 
 #include "ast.h"
 
-void ast_to_html(ASTNode *ast, FILE *output_fd, unsigned int print_tags);
+void ast_to_html(ASTNode ast[static 1], FILE output_fd[static 1],
+                 int unsigned print_tags);
 
 typedef struct {
   const char *open;

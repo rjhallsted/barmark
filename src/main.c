@@ -6,12 +6,12 @@
 #include "blocks.h"
 #include "util.h"
 
-void showUsage(char const *const errorMessage) {
+void showUsage(char const errorMessage[static 1]) {
   char const *const usageText = "\t./barmark <filename>";
   printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[argc + 1]) {
   FILE *fd = stdin;
 
   if (argc > 1) {

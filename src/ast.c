@@ -21,7 +21,7 @@ ASTNode *ast_create_node(unsigned int type) {
   return node;
 }
 
-void ast_free_node_only(ASTNode *node) {
+void ast_free_node_only(ASTNode node[static 1]) {
   if (node->contents) {
     free(node->contents);
   }
@@ -34,14 +34,14 @@ void ast_free_node_only(ASTNode *node) {
   free(node);
 }
 
-void ast_free_node(ASTNode *node) {
+void ast_free_node(ASTNode node[static 1]) {
   for (int unsigned i = 0; i < node->children_count; i++) {
     ast_free_node(node->children[i]);
   }
   ast_free_node_only(node);
 }
 
-void ast_add_child(ASTNode *parent, ASTNode *child) {
+void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]) {
   parent->children =
       realloc(parent->children, sizeof(ASTNode) * (parent->children_count + 1));
   parent->children[parent->children_count] = child;
@@ -56,7 +56,7 @@ void ast_add_child(ASTNode *parent, ASTNode *child) {
  * @param node
  */
 // TODO: Test
-void ast_move_children_to_contents(ASTNode *node) {
+void ast_move_children_to_contents(ASTNode node[static 1]) {
   if (node->children_count == 0) {
     return;
   }
@@ -83,7 +83,7 @@ void ast_move_children_to_contents(ASTNode *node) {
  * the provided node.
  */
 // TODO: test
-void ast_flatten_children(ASTNode *node) {
+void ast_flatten_children(ASTNode node[static 1]) {
   ASTNode **old_children = node->children;
   size_t old_children_size = node->children_count;
 
@@ -108,7 +108,7 @@ void ast_flatten_children(ASTNode *node) {
  * fails if the index is out of bounds
  */
 // TODO: Test
-void ast_remove_child_at_index(ASTNode *node, size_t index) {
+void ast_remove_child_at_index(ASTNode node[static 1], size_t index) {
   if (node->children_count <= index) {
     printf("Bad index provided to ast_remove_first_child.\n");
     exit(EXIT_FAILURE);

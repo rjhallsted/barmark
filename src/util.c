@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-FILE *openFile(char const *const path) {
+FILE *openFile(char const path[static 1]) {
   FILE *fd = fopen(path, "r");
   if (fd == NULL) {
     printf("Error opening file: '%s'\n", path);
@@ -11,14 +11,14 @@ FILE *openFile(char const *const path) {
   return fd;
 }
 
-char *str_append(char *dst, char const *const s2) {
+char *str_append(char dst[static 1], char const s2[static 1]) {
   size_t len = strlen(dst) + strlen(s2) + 1;
   char *output = realloc(dst, len);
   strlcat(output, s2, len);
   return output;
 }
 
-char str_starts_with(char const *const str, char const *const sub) {
+char str_starts_with(char const str[static 1], char const sub[static 1]) {
   size_t i = 0;
   while (str[i] && sub[i] && str[i] == sub[i]) {
     i++;
@@ -38,8 +38,8 @@ char *repeat_x(char x, size_t times) {
   return out;
 }
 
-int array_contains(int unsigned const *const arr, int unsigned const arr_size,
-                   int unsigned value) {
+int array_contains(int unsigned const arr_size,
+                   int unsigned const arr[arr_size], int unsigned value) {
   for (int unsigned i = 0; i < arr_size; i++) {
     if (arr[i] == value) {
       return 1;

@@ -5,10 +5,11 @@
 
 #include "ast.h"
 
-ASTNode *build_block_structure(FILE *fd);
-int matches_continuation_markers(ASTNode *node, char const *const line,
-                                 size_t *match_len);
-void tab_expand(char **line, size_t line_pos, size_t lookahead);
-void add_line_to_ast(ASTNode *root, char **line);
+ASTNode *build_block_structure(FILE fd[static 1]);
+int matches_continuation_markers(ASTNode node[static 1],
+                                 char const line[static 1],
+                                 size_t match_len[static 1]);
+void tab_expand(char *line[static 1], size_t line_pos, size_t lookahead);
+void add_line_to_ast(ASTNode root[static 1], char *line[static 1]);
 
 #endif  // BLOCKS_H
