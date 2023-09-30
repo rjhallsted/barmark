@@ -212,9 +212,9 @@ size_t match_str_then_space(char const str[static 1], char *line[static 1],
   return 0;
 }
 
-size_t matches_unoredered_list_opener_with_symbol(char const str[static 1],
-                                                  char *line[static 1],
-                                                  size_t line_pos) {
+size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
+                                                 char *line[static 1],
+                                                 size_t line_pos) {
   size_t res = match_str_then_space(str, line, line_pos);
   if (res) {
     return res;
@@ -236,18 +236,17 @@ size_t matches_unoredered_list_opener_with_symbol(char const str[static 1],
 }
 
 size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
-  size_t res = matches_unoredered_list_opener_with_symbol("-", line, line_pos);
+  size_t res = matches_unordered_list_opener_with_symbol("-", line, line_pos);
   if (!res)
-    res = matches_unoredered_list_opener_with_symbol("*", line, line_pos);
+    res = matches_unordered_list_opener_with_symbol("*", line, line_pos);
   if (!res)
-    res = matches_unoredered_list_opener_with_symbol("+", line, line_pos);
+    res = matches_unordered_list_opener_with_symbol("+", line, line_pos);
   return res;
 }
 
 size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
-  line_pos += match_up_to_3_spaces(&line_ref, line_pos);
-  size_t i = 0;
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
   while (line_ref[line_pos + i] >= '0' && line_ref[line_pos + i] <= '9') {
     i++;
   }
@@ -262,6 +261,7 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
     free(line_ref);
     return 0;
   }
+  if (f_debug()) printf("match_len for OL-LI opening is %zu\n", i + 1);
   return i + 1;
 }
 
@@ -592,6 +592,8 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                node, ASTN_UNORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type == ASTN_ORDERED_LIST) {
+    if (f_debug())
+      printf("match len while add OL-LI is %zu\n", opener_match_len);
     return child = add_child_block_with_cont_markers(
                node, ASTN_ORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
   } else if (node_type == ASTN_BLOCK_QUOTE) {
@@ -763,6 +765,12 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
        node->type == ASTN_ORDERED_LIST_ITEM) &&
       !is_all_whitespace((*line) + (*line_pos))) {
     size_t diff = match_up_to_3_spaces(line, *line_pos);
+    if (f_debug()) {
+      printf("cleaning up list item cont markers\n");
+      printf("line is '%s'", (*line) + (*line_pos));
+      printf("diff is %zu\n", diff);
+    }
+
     char *tmp = repeat_x(' ', diff);
     node->cont_markers = str_append(node->cont_markers, tmp);
     free(tmp);
