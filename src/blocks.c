@@ -632,14 +632,16 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
 
 void print_tree(ASTNode node[static 1], size_t level) {
   char *indent = repeat_x(' ', level * 2);
-  if (node->options)
+  if (node->options) {
     printf("%s%s-%s\n", indent, NODE_TYPE_NAMES[node->type],
            node->options->wide ? "wide" : "tight");
-  else if (node->cont_markers)
+  } else if (node->cont_markers) {
     printf("%s%s->'%s'\n", indent, NODE_TYPE_NAMES[node->type],
            node->cont_markers);
-  else
+  } else {
     printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
+  }
+
   if (node->contents) {
     printf("%s+>%s\n", indent, node->contents);
   }
