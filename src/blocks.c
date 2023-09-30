@@ -22,7 +22,7 @@ void reset_late_continuation(void) {
 }
 
 int matches_continuation_markers_with_leading_spaces(ASTNode *node,
-                                                     const char *line,
+                                                     char const *const line,
                                                      size_t *match_len) {
   size_t i = 0;
   while (line[i] == ' ' && i < 3) {
@@ -45,7 +45,7 @@ int matches_continuation_markers_with_leading_spaces(ASTNode *node,
  * @param match_len
  * @return int
  */
-int matches_continuation_markers(ASTNode *node, const char *line,
+int matches_continuation_markers(ASTNode *node, const char *const line,
                                  size_t *match_len) {
   if (!(node->cont_markers)) {
     return 1;
@@ -99,7 +99,7 @@ void convert_last_text_child_to_paragraph(ASTNode *node) {
 
 int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
 
-int is_all_whitespace(const char *line) {
+int is_all_whitespace(char const *const line) {
   size_t i = 0;
   while (is_whitespace(line[i])) {
     i++;
@@ -192,7 +192,8 @@ size_t matches_code_block(char **line, size_t line_pos) {
   return 0;
 }
 
-size_t match_str_then_space(const char *str, char **line, size_t line_pos) {
+size_t match_str_then_space(char const *const str, char **line,
+                            size_t line_pos) {
   char *line_ref = strdup(*line);
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
 
@@ -209,7 +210,8 @@ size_t match_str_then_space(const char *str, char **line, size_t line_pos) {
   return 0;
 }
 
-size_t matches_unoredered_list_opener_with_symbol(const char *str, char **line,
+size_t matches_unoredered_list_opener_with_symbol(char const *const str,
+                                                  char **line,
                                                   size_t line_pos) {
   size_t res = match_str_then_space(str, line, line_pos);
   if (res) {
@@ -472,7 +474,7 @@ unsigned int meets_code_block_conditions(ASTNode *node) {
   return 1;
 }
 
-unsigned int is_empty_line_following_paragraph(const char *line,
+unsigned int is_empty_line_following_paragraph(char const *const line,
                                                ASTNode *preceding_node) {
   if (preceding_node) {
     return is_all_whitespace(line) && preceding_node->type == ASTN_PARAGRAPH;
@@ -540,7 +542,7 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
  * @param line
  * @return int
  */
-ASTNode *is_block_end(ASTNode *node, const char *line) {
+ASTNode *is_block_end(ASTNode *node, char const *const line) {
   if (node->type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
     return node;
   }
@@ -783,7 +785,8 @@ void swap_nodes(ASTNode *a, ASTNode *b) {
   *b = tmp;
 }
 
-ASTNode *determine_writable_node_from_context(ASTNode *node, const char *line) {
+ASTNode *determine_writable_node_from_context(ASTNode *node,
+                                              char const *const line) {
   /* logic to determine where to add line based on current node and context */
 
   //////////

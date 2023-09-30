@@ -6,7 +6,7 @@
 #include "blocks.h"
 #include "util.h"
 
-void showUsage(char *errorMessage) {
+void showUsage(char const *const errorMessage) {
   const char *usageText = "\t./barmark <filename>";
   printf("%s\nUSAGE:\n%s\n", errorMessage, usageText);
 }
