@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,20 +39,20 @@ char *repeat_x(char x, size_t times) {
   return out;
 }
 
-int array_contains(int unsigned const arr_size,
-                   int unsigned const arr[arr_size], int unsigned value) {
+bool array_contains(int unsigned const arr_size,
+                    int unsigned const arr[arr_size], int unsigned value) {
   for (int unsigned i = 0; i < arr_size; i++) {
     if (arr[i] == value) {
-      return 1;
+      return true;
     }
   }
-  return 0;
+  return false;
 }
 
-int f_debug(void) {
+bool f_debug(void) {
   char *res = getenv("DEBUG");
   if (res) {
-    return 1;
+    return true;
   }
-  return 0;
+  return false;
 }

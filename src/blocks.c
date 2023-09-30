@@ -1,6 +1,7 @@
 #include "blocks.h"
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,7 +22,7 @@ void reset_late_continuation(void) {
   LATE_CONTINUATION_CONTENTS = strdup("");
 }
 
-int matches_continuation_markers_with_leading_spaces(
+bool matches_continuation_markers_with_leading_spaces(
     ASTNode node[static 1], char const line[static 1],
     size_t match_len[static 1]) {
   size_t i = 0;
@@ -43,11 +44,11 @@ int matches_continuation_markers_with_leading_spaces(
  * @param node
  * @param line
  * @param match_len
- * @return int
+ * @return bool
  */
-int matches_continuation_markers(ASTNode node[static 1],
-                                 char const line[static 1],
-                                 size_t match_len[static 1]) {
+bool matches_continuation_markers(ASTNode node[static 1],
+                                  char const line[static 1],
+                                  size_t match_len[static 1]) {
   if (!(node->cont_markers)) {
     return 1;
   }
@@ -60,10 +61,10 @@ int matches_continuation_markers(ASTNode node[static 1],
   }
   if (node->cont_markers[ni] == '\0') {
     *match_len = li;
-    return 1;
+    return true;
   }
   *match_len = 0;
-  return 0;
+  return false;
 }
 
 /**
@@ -98,14 +99,14 @@ void convert_last_text_child_to_paragraph(ASTNode node[static 1]) {
   ast_add_child(child, text);
 }
 
-int is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
+bool is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
 
-int is_all_whitespace(char const line[static 1]) {
+bool is_all_whitespace(char const line[static 1]) {
   size_t i = 0;
   while (is_whitespace(line[i])) {
     i++;
   }
-  return (line[i] == '\0') ? 1 : 0;
+  return line[i] == '\0';
 }
 
 // converts all text children to paragraphs
@@ -426,17 +427,17 @@ void close_descendent_blocks(ASTNode node[static 1]) {
   }
 }
 
-unsigned int has_open_child(ASTNode node[static 1]) {
+bool has_open_child(ASTNode node[static 1]) {
   return (node->children_count > 0 &&
           node->children[node->children_count - 1]->open &&
           node->children[node->children_count - 1]->type != ASTN_TEXT);
 }
 
-unsigned int has_text(ASTNode node[static 1]) {
+bool has_text(ASTNode node[static 1]) {
   for (size_t i = 0; i < node->children_count; i++) {
-    if (node->children[i]->type == ASTN_TEXT) return 1;
+    if (node->children[i]->type == ASTN_TEXT) return true;
   }
-  return 0;
+  return false;
 }
 
 char *get_node_contents(ASTNode node[static 1]) {
@@ -458,39 +459,39 @@ ASTNode *find_in_edge_of_tree(ASTNode node[static 1], unsigned int type) {
   return NULL;
 }
 
-unsigned int meets_setext_conditions(ASTNode node[static 1]) {
+bool meets_setext_conditions(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   return (child &&
           (child->type == ASTN_PARAGRAPH || child->type == ASTN_TEXT) &&
           !LATE_CONTINUATION_LINES);
 }
 
-unsigned int meets_code_block_conditions(ASTNode node[static 1]) {
+bool meets_code_block_conditions(ASTNode node[static 1]) {
   ASTNode *deepest = get_deepest_non_text_child(node);
   if (!LATE_CONTINUATION_LINES &&
       (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
                       NOT_INTERRUPTIBLE_BY_CODE_BLOCK, node->type) ||
        array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
                       NOT_INTERRUPTIBLE_BY_CODE_BLOCK, deepest->type))) {
-    return 0;
+    return false;
   }
-  return 1;
+  return true;
 }
 
-unsigned int is_empty_line_following_paragraph(
-    char const line[static 1], ASTNode preceding_node[static 1]) {
+bool is_empty_line_following_paragraph(char const line[static 1],
+                                       ASTNode preceding_node[static 1]) {
   if (preceding_node) {
     return is_all_whitespace(line) && preceding_node->type == ASTN_PARAGRAPH;
   } else
-    return 0;
+    return false;
 }
 
 /***
  * Returns 0 if no block start is found.
  */
-int block_start_type(char *line[static 1], size_t line_pos,
-                     ASTNode current_node[static 1],
-                     size_t match_len[static 1]) {
+int unsigned block_start_type(char *line[static 1], size_t line_pos,
+                              ASTNode current_node[static 1],
+                              size_t match_len[static 1]) {
   ASTNode *child = get_last_child(current_node);
   if (f_debug()) {
     printf("line: '%s'\n", (*line) + line_pos);
@@ -698,9 +699,8 @@ char find_list_char(char line[static 1]) {
   return 0;
 }
 
-unsigned int should_add_to_parent_instead(ASTNode node[static 1],
-                                          int unsigned new_node_type,
-                                          char list_char) {
+bool should_add_to_parent_instead(ASTNode node[static 1],
+                                  int unsigned new_node_type, char list_char) {
   return ((node->type == ASTN_UNORDERED_LIST &&
            new_node_type != ASTN_UNORDERED_LIST_ITEM) ||
           (node->type == ASTN_UNORDERED_LIST &&
@@ -733,7 +733,7 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
   return node;
 }
 
-int unsigned is_leaf_only_node(int unsigned type) {
+bool is_leaf_only_node(int unsigned type) {
   return array_contains(LEAF_ONLY_NODES_SIZE, LEAF_ONLY_NODES, type);
 }
 
