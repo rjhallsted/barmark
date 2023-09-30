@@ -472,6 +472,14 @@ unsigned int meets_code_block_conditions(ASTNode *node) {
   return 1;
 }
 
+unsigned int is_empty_line_following_paragraph(const char *line,
+                                               ASTNode *preceding_node) {
+  if (preceding_node) {
+    return is_all_whitespace(line) && preceding_node->type == ASTN_PARAGRAPH;
+  } else
+    return 0;
+}
+
 /***
  * Returns 0 if no block start is found.
  */
@@ -497,9 +505,13 @@ int block_start_type(char **line, size_t line_pos, ASTNode *current_node,
     return ASTN_SETEXT_H1;
   } else if ((*match_len = matches_thematic_break(line, line_pos))) {
     return ASTN_THEMATIC_BREAK;
-  } else if ((*match_len = matches_unordered_list_opening(line, line_pos))) {
+  } else if ((*match_len = matches_unordered_list_opening(line, line_pos)) &&
+             !is_empty_line_following_paragraph((*line) + (*match_len),
+                                                child)) {
     return ASTN_UNORDERED_LIST_ITEM;
-  } else if ((*match_len = matches_ordered_list_opening(line, line_pos))) {
+  } else if ((*match_len = matches_ordered_list_opening(line, line_pos)) &&
+             !is_empty_line_following_paragraph((*line) + (*match_len),
+                                                child)) {
     return ASTN_ORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;
