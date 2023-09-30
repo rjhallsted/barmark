@@ -785,9 +785,90 @@ void swap_nodes(ASTNode a[static 1], ASTNode b[static 1]) {
   *b = tmp;
 }
 
+bool is_item_in_narrow_list_that_should_become_wide(ASTNode node[static 1]) {
+  return (node->type == ASTN_UNORDERED_LIST_ITEM ||
+          node->type == ASTN_ORDERED_LIST_ITEM) &&
+         !node->parent->options->wide && LATE_CONTINUATION_LINES == 1 &&
+         has_text(node) && !is_all_whitespace(get_node_contents(node));
+}
+
+bool is_new_item_in_wide_list(ASTNode node[static 1]) {
+  return (node->type == ASTN_UNORDERED_LIST_ITEM ||
+          node->type == ASTN_ORDERED_LIST_ITEM) &&
+         !has_open_child(node) && node->parent->options->wide;
+}
+
+bool is_new_line_in_item_in_narrow_list(ASTNode node[static 1],
+                                        char const line[static 1]) {
+  return (node->type == ASTN_UNORDERED_LIST ||
+          node->type == ASTN_ORDERED_LIST) &&
+         !LATE_CONTINUATION_LINES && has_open_child(node) &&
+         !is_all_whitespace(line);
+}
+
+bool is_child_of_item_in_narrow_list_that_should_become_wide(
+    ASTNode node[static 1]) {
+  return node->parent &&
+         (node->parent->type == ASTN_UNORDERED_LIST_ITEM ||
+          node->parent->type == ASTN_ORDERED_LIST_ITEM) &&
+         !node->parent->parent->options->wide && has_text(node->parent) &&
+         LATE_CONTINUATION_LINES == 1;
+}
+
+bool is_list_item_with_unusable_late_continuation_lines(
+    ASTNode node[static 1]) {
+  // list items can only use empty continuation lines if the first or second
+  // line actually has contents
+  return LATE_CONTINUATION_LINES &&
+         (node->type == ASTN_UNORDERED_LIST_ITEM ||
+          node->type == ASTN_ORDERED_LIST_ITEM) &&
+         has_text(node) && is_all_whitespace(get_node_contents(node));
+}
+
+bool is_continuable_list_item(ASTNode node[static 1]) {
+  return LATE_CONTINUATION_LINES && (node->type == ASTN_UNORDERED_LIST_ITEM ||
+                                     node->type == ASTN_ORDERED_LIST_ITEM);
+}
+
+bool is_continuable_paragraph(ASTNode node[static 1],
+                              char const line[static 1]) {
+  ASTNode *child = get_last_child(node);
+  return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
+         !LATE_CONTINUATION_LINES && !is_all_whitespace(line);
+}
+
+bool has_child_paragraph_that_should_be_closed(ASTNode node[static 1],
+                                               char const line[static 1]) {
+  ASTNode *child = get_last_child(node);
+  return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
+         !LATE_CONTINUATION_LINES && is_all_whitespace(line);
+}
+
+bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
+                                                    char const line[static 1]) {
+  ASTNode *child = get_last_child(node);
+  return has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
+         !is_all_whitespace(line) && has_open_child(child);
+}
+
+bool should_split_blockquote(ASTNode node[static 1]) {
+  return node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES &&
+         has_open_child(node);
+}
+
+bool should_add_default_paragraph_to_blockquote(ASTNode node[static 1],
+                                                char const line[static 1]) {
+  ASTNode *child = get_last_child(node);
+  return node->type == ASTN_BLOCK_QUOTE && !is_all_whitespace(line) &&
+         (!has_open_child(node) ||
+          (has_open_child(node) && child->type != ASTN_PARAGRAPH));
+}
+
 ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
                                               char const line[static 1]) {
-  /* logic to determine where to add line based on current node and context */
+  /* logic to determine where to add line based on current node and context.
+    Tread carefully, as predicate order matters.
+   */
 
   //////////
   if (f_debug()) {
@@ -797,45 +878,28 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
 
   ASTNode *child = get_last_child(node);
 
-  if ((node->type == ASTN_UNORDERED_LIST_ITEM ||
-       node->type == ASTN_ORDERED_LIST_ITEM) &&
-      !node->parent->options->wide && LATE_CONTINUATION_LINES == 1 &&
-      has_text(node) && !is_all_whitespace(get_node_contents(node))) {
-    // tight list that should become a wide list
+  if (is_item_in_narrow_list_that_should_become_wide(node)) {
     if (f_debug()) printf("widening list\n");
     widen_list(node->parent);
     // have the next case handle the new item now that the list state is fixed
     return determine_writable_node_from_context(node, line);
-  } else if (node->type == ASTN_UNORDERED_LIST_ITEM && !has_open_child(node) &&
-             node->parent->options->wide) {
-    // new item in a wide list
+  } else if (is_new_item_in_wide_list(node)) {
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
-  } else if (node->type == ASTN_UNORDERED_LIST && !LATE_CONTINUATION_LINES &&
-             has_open_child(node) && !is_all_whitespace(line)) {
-    // new line in an item in a narrow list
+  } else if (is_new_line_in_item_in_narrow_list(node, line)) {
     if (f_debug())
       printf("Adding trailing line to last item in unordered list.\n");
     node = child;
     return determine_writable_node_from_context(node, line);
-  } else if (node->parent &&
-             (node->parent->type == ASTN_UNORDERED_LIST_ITEM ||
-              node->parent->type == ASTN_ORDERED_LIST_ITEM) &&
-             !node->parent->parent->options->wide && has_text(node->parent) &&
-             LATE_CONTINUATION_LINES == 1) {
-    // new child of list item in narrow list that should widen list
+  } else if (is_child_of_item_in_narrow_list_that_should_become_wide(node)) {
     if (f_debug()) printf("widening list as child of list item\n");
-    // widen list (which adds another item to the parent, then swap the
-    // children)
+    // widen list, which adds another item to the parent, then swap the
+    // children, to maintain correct order
     widen_list(node->parent->parent);
     swap_nodes(node, node->parent->children[1]);
     node = node->parent->children[1];
     return determine_writable_node_from_context(node, line);
-  } else if (LATE_CONTINUATION_LINES &&
-             node->type == ASTN_UNORDERED_LIST_ITEM && has_text(node) &&
-             is_all_whitespace(get_node_contents(node))) {
-    // list items can only use empty continuation lines if the first or second
-    // line actually has contents
+  } else if (is_list_item_with_unusable_late_continuation_lines(node)) {
     if (f_debug())
       printf(
           "Closing this list due to continuation lines and adding a paragraph "
@@ -843,10 +907,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     node->parent->open = 0;
     node = node->parent->parent;
     return determine_writable_node_from_context(node, line);
-  } else if (LATE_CONTINUATION_LINES &&
-             (node->type == ASTN_UNORDERED_LIST_ITEM ||
-              node->type == ASTN_ORDERED_LIST_ITEM)) {
-    // continuable list item
+  } else if (is_continuable_list_item(node)) {
     if (!node->parent->options->wide) {
       if (f_debug())
         printf("widening list and adding a new paragraph to this node\n");
@@ -857,33 +918,27 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
 
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
-  } else if (node->type == ASTN_UNORDERED_LIST) {
+  } else if (node->type == ASTN_UNORDERED_LIST ||
+             node->type == ASTN_ORDERED_LIST) {
     // matched the list, but not as a list item, so shouldn't actually be in the
     // list
     node = node->parent;
     return determine_writable_node_from_context(node, line);
-  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES && !is_all_whitespace(line)) {
-    // case where we can continue a paragraph
+  } else if (is_continuable_paragraph(node, line)) {
     return determine_writable_node_from_context(child, line);
-  } else if (has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-             !LATE_CONTINUATION_LINES && is_all_whitespace(line)) {
+  } else if (has_child_paragraph_that_should_be_closed(node, line)) {
     if (f_debug()) printf("closing child paragraph due to empty line\n");
     child->open = 0;
     return determine_writable_node_from_context(node, line);
-  } else if (has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
-             !is_all_whitespace(line) && has_open_child(child)) {
+  } else if (should_determine_context_from_blockquote_child(node, line)) {
     if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
-  } else if (node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES &&
-             has_open_child(node)) {
+  } else if (should_split_blockquote(node)) {
     if (f_debug()) printf("splitting a blockquote due to empty lines\n");
     node = node->parent;
     child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
     return determine_writable_node_from_context(child, line);
-  } else if (node->type == ASTN_BLOCK_QUOTE && !is_all_whitespace(line) &&
-             (!has_open_child(node) ||
-              (has_open_child(node) && child->type != ASTN_PARAGRAPH))) {
+  } else if (should_add_default_paragraph_to_blockquote(node, line)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
@@ -894,6 +949,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
     return determine_writable_node_from_context(child, line);
   }
+  // This context is correct. Use the current node
   return node;
 }
 
