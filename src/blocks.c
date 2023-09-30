@@ -759,7 +759,8 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
     if (f_debug()) printf("new block start: %s\n", NODE_TYPE_NAMES[node->type]);
   }
   // cleanup list items so that continuation markers use all leading spaces.
-  if (node->type == ASTN_UNORDERED_LIST_ITEM &&
+  if ((node->type == ASTN_UNORDERED_LIST_ITEM ||
+       node->type == ASTN_ORDERED_LIST_ITEM) &&
       !is_all_whitespace((*line) + (*line_pos))) {
     size_t diff = match_up_to_3_spaces(line, *line_pos);
     char *tmp = repeat_x(' ', diff);
