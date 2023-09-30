@@ -797,9 +797,10 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
 
   ASTNode *child = get_last_child(node);
 
-  if (node->type == ASTN_UNORDERED_LIST_ITEM && !node->parent->options->wide &&
-      LATE_CONTINUATION_LINES == 1 && has_text(node) &&
-      !is_all_whitespace(get_node_contents(node))) {
+  if ((node->type == ASTN_UNORDERED_LIST_ITEM ||
+       node->type == ASTN_ORDERED_LIST_ITEM) &&
+      !node->parent->options->wide && LATE_CONTINUATION_LINES == 1 &&
+      has_text(node) && !is_all_whitespace(get_node_contents(node))) {
     // tight list that should become a wide list
     if (f_debug()) printf("widening list\n");
     widen_list(node->parent);
@@ -817,7 +818,9 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
       printf("Adding trailing line to last item in unordered list.\n");
     node = child;
     return determine_writable_node_from_context(node, line);
-  } else if (node->parent && node->parent->type == ASTN_UNORDERED_LIST_ITEM &&
+  } else if (node->parent &&
+             (node->parent->type == ASTN_UNORDERED_LIST_ITEM ||
+              node->parent->type == ASTN_ORDERED_LIST_ITEM) &&
              !node->parent->parent->options->wide && has_text(node->parent) &&
              LATE_CONTINUATION_LINES == 1) {
     // new child of list item in narrow list that should widen list
@@ -841,7 +844,8 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     node = node->parent->parent;
     return determine_writable_node_from_context(node, line);
   } else if (LATE_CONTINUATION_LINES &&
-             node->type == ASTN_UNORDERED_LIST_ITEM) {
+             (node->type == ASTN_UNORDERED_LIST_ITEM ||
+              node->type == ASTN_ORDERED_LIST_ITEM)) {
     // continuable list item
     if (!node->parent->options->wide) {
       if (f_debug())
