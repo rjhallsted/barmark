@@ -460,6 +460,13 @@ bool meets_setext_conditions(ASTNode node[static 1]) {
 
 bool meets_code_block_conditions(ASTNode node[static 1]) {
   ASTNode *deepest = get_deepest_non_text_child(node);
+
+  if (f_debug()) {
+    printf("checking code block conditions:\n");
+    printf("  node->type:    %s\n", NODE_TYPE_NAMES[node->type]);
+    printf("  deepest->type: %s\n", NODE_TYPE_NAMES[deepest->type]);
+  }
+
   if (!LATE_CONTINUATION_LINES &&
       (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
                       NOT_INTERRUPTIBLE_BY_CODE_BLOCK, node->type) ||

@@ -102,6 +102,33 @@ void test_tab_expand(void) {
   free(line);
 }
 
+void test_get_deepest_non_text_child(void) {
+  ASTNode *root = ast_create_node(ASTN_DOCUMENT);
+  ASTNode *node = root;
+
+  ASTNode *deepest = get_deepest_non_text_child(root);
+  TEST_ASSERT_EQUAL(ASTN_DOCUMENT, deepest->type);
+
+  ASTNode *child = ast_create_node(ASTN_ORDERED_LIST);
+  ast_add_child(node, child);
+  node = child;
+  deepest = get_deepest_non_text_child(root);
+  TEST_ASSERT_EQUAL(ASTN_ORDERED_LIST, deepest->type);
+
+  child = ast_create_node(ASTN_ORDERED_LIST_ITEM);
+  ast_add_child(node, child);
+  node = child;
+  deepest = get_deepest_non_text_child(root);
+  TEST_ASSERT_EQUAL(ASTN_ORDERED_LIST_ITEM, deepest->type);
+
+  child = ast_create_node(ASTN_TEXT);
+  ast_add_child(node, child);
+  node = child;
+  deepest = get_deepest_non_text_child(root);
+  // Text doesn't get returned
+  TEST_ASSERT_EQUAL(ASTN_ORDERED_LIST_ITEM, deepest->type);
+}
+
 // void test_nested_lists_construction(void) {
 //   ASTNode *root = ast_create_node(ASTN_DOCUMENT);
 //   char *line1 = strdup(" - foo\n");
@@ -126,6 +153,8 @@ void run_blocks_tests(void) {
   RUN_TEST(test_matches_continuation_markers_matches);
   printf("---tab_expand\n");
   RUN_TEST(test_tab_expand);
+  printf("---get_deepest_non_text_child\n");
+  RUN_TEST(test_get_deepest_non_text_child);
   // printf("---construction tests\n");
   // RUN_TEST(test_nested_lists_construction);
 }
