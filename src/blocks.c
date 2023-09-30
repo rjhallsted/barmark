@@ -331,49 +331,41 @@ size_t matches_h6_opening(char *line[static 1], size_t line_pos) {
   return matches_atx_header(line, line_pos, 6);
 }
 
-// TODO: Rework this to use early exit checks instead of sticking the returns in
-// else blocks
 size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
-  char c;
   size_t i = match_up_to_3_spaces(&line_ref, line_pos);
-  if (line_ref[line_pos + i] == '*' || line_ref[line_pos + i] == '-' ||
-      line_ref[line_pos + i] == '_') {
-    c = line_ref[line_pos + i];
-    i += 1;
-  } else {
+  char c = line_ref[line_pos + i];
+  if (c != '*' && c != '-' && c != '_') {
     free(line_ref);
     return 0;
   }
+  i++;
   while (is_whitespace(line_ref[line_pos + i])) {
     i++;
   }
-  if (line_ref[line_pos + i] == c) {
-    i++;
-  } else {
+  if (line_ref[line_pos + i] != c) {
     free(line_ref);
     return 0;
   }
+  i++;
   while (is_whitespace(line_ref[line_pos + i])) {
     i++;
   }
-  if (line_ref[line_pos + i] == c) {
-    i++;
-  } else {
+  if (line_ref[line_pos + i] != c) {
     free(line_ref);
     return 0;
   }
+  i++;
   while (is_whitespace(line_ref[line_pos + i]) || line_ref[line_pos + i] == c) {
     i++;
   }
-  if (line_ref[line_pos + i] == '\0') {
-    free(*line);
-    *line = line_ref;
-    return i;
-  } else {
+  if (line_ref[line_pos + i] != '\0') {
     free(line_ref);
     return 0;
   }
+  free(*line);
+  *line = line_ref;
+  return i;
 }
 
 size_t matches_setext_h2(char *line[static 1], size_t line_pos) {
