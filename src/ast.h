@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 enum AST_NODE_TYPES {
@@ -37,7 +38,8 @@ static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_H4,         ASTN_H5,        ASTN_H6,       ASTN_THEMATIC_BREAK,
     ASTN_PARAGRAPH,  ASTN_SETEXT_H1, ASTN_SETEXT_H2};
 
-// NOTE: These are unappendable "to"
+// NOTE: You cannot "append to" these, rather than being unable to append
+// them to other nodes
 static const unsigned int UNNAPENDABLE_NODES_SIZE = 9;
 static const unsigned int UNAPPENDABLE_NODES[UNNAPENDABLE_NODES_SIZE] = {
     ASTN_H1,
@@ -67,7 +69,7 @@ typedef struct {
 
 typedef struct ASTNode {
   unsigned int type;
-  unsigned int open;
+  bool open;
   char *contents;
   char *cont_markers;
   struct ASTNode **children;

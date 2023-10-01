@@ -10,7 +10,7 @@
 ASTNode *ast_create_node(unsigned int type) {
   ASTNode *node = malloc(sizeof(ASTNode));
   node->type = type;
-  node->open = 1;
+  node->open = true;
   node->contents = NULL;
   node->cont_markers = strdup("");
   node->children = NULL;

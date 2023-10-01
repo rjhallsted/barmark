@@ -435,7 +435,7 @@ size_t matches_setext_h1(char *line[static 1], size_t line_pos) {
 /* end matching functions */
 
 void close_descendent_blocks(ASTNode node[static 1]) {
-  node->open = 0;
+  node->open = false;
   if (node->children_count > 0) {
     close_descendent_blocks(node->children[node->children_count - 1]);
   }
@@ -941,7 +941,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
       printf(
           "Closing this list due to continuation lines and adding a paragraph "
           "instead\n");
-    node->parent->open = 0;
+    node->parent->open = false;
     node = node->parent->parent;
     return determine_writable_node_from_context(node, line);
   } else if (is_continuable_list_item(node)) {
@@ -965,7 +965,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     return determine_writable_node_from_context(child, line);
   } else if (has_child_paragraph_that_should_be_closed(node, line)) {
     if (f_debug()) printf("closing child paragraph due to empty line\n");
-    child->open = 0;
+    child->open = false;
     return determine_writable_node_from_context(node, line);
   } else if (should_determine_context_from_blockquote_child(node, line)) {
     if (f_debug()) printf("determining context from blockquote child\n");
@@ -1013,7 +1013,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     if ((tmp = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE))) {
       if (f_debug())
         printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
-      tmp->open = 0;
+      tmp->open = false;
     } else {
       LATE_CONTINUATION_LINES += 1;
       if (line_pos >= 4) {
@@ -1036,7 +1036,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
 
   // cleanup
   if (array_contains(UNNAPENDABLE_NODES_SIZE, UNAPPENDABLE_NODES, node->type)) {
-    node->open = 0;
+    node->open = false;
   }
 
   reset_late_continuation();
