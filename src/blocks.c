@@ -159,44 +159,28 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
  * replace original line with tab expanded one.
  */
 
-size_t match_up_to_3_spaces(char *line[static 1], size_t line_pos) {
+size_t match_range_of_spaces(char *line[static 1], size_t line_pos, size_t min,
+                             size_t max) {
   size_t i = 0;
   char *line_ref = strdup(*line);
-  tab_expand(&line_ref, line_pos, 3);
-
-  while (line_ref[line_pos + i] == ' ' && i < 3) {
+  while (i < max) {
+    tab_expand(&line_ref, line_pos + i, 1);
+    if (line_ref[line_pos + i] != ' ') {
+      break;
+    }
     i++;
   }
-  if (i > 0) {
-    free(*line);
-    *line = line_ref;
-    return i;
-  } else {
-    free(line_ref);
-    return 0;
-  }
-}
-
-size_t match_up_to_3_spaces_but_not_more(char *line[static 1],
-                                         size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t res = match_up_to_3_spaces(&line_ref, line_pos);
-  if (!res) {
-    free(line_ref);
-    return 0;
-  } else if (res < 3) {
-    free(*line);
-    *line = line_ref;
-    return res;
-  }
-  tab_expand(&line_ref, line_pos + 3, 1);
-  if (line_ref[line_pos + 4] == ' ') {
+  if ((i == max && line_ref[line_pos + i] == ' ') || i < min) {
     free(line_ref);
     return 0;
   }
   free(*line);
   *line = line_ref;
-  return 3;
+  return i;
+}
+
+size_t match_up_to_3_spaces(char *line[static 1], size_t line_pos) {
+  return match_range_of_spaces(line, line_pos, 0, 3);
 }
 
 size_t matches_code_block(char *line[static 1], size_t line_pos) {
@@ -243,7 +227,7 @@ size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
     // allow a max of 4 meaningful spaces. We've already matched 1 so far
     // So if we match more than 3 here, they're not meaningful for list
     // item indentation.
-    res += match_up_to_3_spaces_but_not_more(&line_ref, line_pos + res);
+    res += match_range_of_spaces(&line_ref, line_pos + res, 0, 3);
     free(*line);
     *line = line_ref;
     return res;
@@ -274,24 +258,33 @@ size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
 
 size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
+  size_t i = match_up_to_3_spaces(&line_ref, line_pos);  // leading spaces
+  // numbers
   while (line_ref[line_pos + i] >= '0' && line_ref[line_pos + i] <= '9') {
     i++;
   }
+  // period
   if (i == 0 || line_ref[line_pos + i] != '.') {
     free(line_ref);
     return 0;
   }
   i++;
-  // TODO: match all following spaces here instead of only one.
+  // trailing space (or line end)
   tab_expand(&line_ref, line_pos + i, 1);
   if (line_ref[line_pos + i] != ' ' && line_ref[line_pos + i] != '\n' &&
       line_ref[line_pos + i] != '\0') {
     free(line_ref);
     return 0;
   }
+  i++;
+  // rest of trailing spaces
+  i += match_range_of_spaces(&line_ref, line_pos + i, 0, 3);
+
   if (f_debug()) printf("match_len for OL-LI opening is %zu\n", i + 1);
-  return i + 1;
+
+  free(*line);
+  *line = line_ref;
+  return i;
 }
 
 size_t matches_paragraph_opening(char *line[static 1], size_t line_pos) {
@@ -1009,7 +1002,12 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   node = traverse_to_last_match(node, line, &line_pos, &match_len);
-  if (f_debug()) printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
+  if (f_debug()) {
+    printf("matched node: %s\n", NODE_TYPE_NAMES[node->type]);
+    printf("line now is: '%s'\n", (*line) + line_pos);
+  }
+
+  // TODO: Need to implement late_continuation lines in a block-localized way.
 
   if (is_all_whitespace(*line)) {
     if ((tmp = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE))) {
