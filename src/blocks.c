@@ -177,6 +177,28 @@ size_t match_up_to_3_spaces(char *line[static 1], size_t line_pos) {
   }
 }
 
+size_t match_up_to_3_spaces_but_not_more(char *line[static 1],
+                                         size_t line_pos) {
+  char *line_ref = strdup(*line);
+  size_t res = match_up_to_3_spaces(&line_ref, line_pos);
+  if (!res) {
+    free(line_ref);
+    return 0;
+  } else if (res < 3) {
+    free(*line);
+    *line = line_ref;
+    return res;
+  }
+  tab_expand(&line_ref, line_pos + 3, 1);
+  if (line_ref[line_pos + 4] == ' ') {
+    free(line_ref);
+    return 0;
+  }
+  free(*line);
+  *line = line_ref;
+  return 3;
+}
+
 size_t matches_code_block(char *line[static 1], size_t line_pos) {
   size_t i = 0;
   char *line_ref = strdup(*line);
@@ -215,12 +237,18 @@ size_t match_str_then_space(char const str[static 1], char *line[static 1],
 size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
                                                  char *line[static 1],
                                                  size_t line_pos) {
-  size_t res = match_str_then_space(str, line, line_pos);
+  char *line_ref = strdup(*line);
+  size_t res = match_str_then_space(str, &line_ref, line_pos);
   if (res) {
+    // allow a max of 4 meaningful spaces. We've already matched 1 so far
+    // So if we match more than 3 here, they're not meaningful for list
+    // item indentation.
+    res += match_up_to_3_spaces_but_not_more(&line_ref, line_pos + res);
+    free(*line);
+    *line = line_ref;
     return res;
   } else {
     // try case where we match the symbol, but then line is all whitespace
-    char *line_ref = strdup(*line);
     res = match_up_to_3_spaces(&line_ref, line_pos);
     if (str_starts_with(line_ref + line_pos + res, str)) {
       res += strlen(str);
@@ -255,6 +283,7 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
     return 0;
   }
   i++;
+  // TODO: match all following spaces here instead of only one.
   tab_expand(&line_ref, line_pos + i, 1);
   if (line_ref[line_pos + i] != ' ' && line_ref[line_pos + i] != '\n' &&
       line_ref[line_pos + i] != '\0') {
@@ -672,7 +701,8 @@ void tab_expand(char *line[static 1], size_t line_pos, size_t lookahead) {
   char *line_ref = *line;
   unsigned int i = 0;
 
-  while (line_ref[line_pos + i] == ' ' && i < (lookahead - 1)) {
+  while (line_ref[line_pos + i] && line_ref[line_pos + i] == ' ' &&
+         i < (lookahead - 1)) {
     i++;
   }
   if (line_ref[line_pos + i] != '\t') {
@@ -749,9 +779,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
   // If a block start exists, create it, then keep checking for more.
   // Intelligently rework blocks if new block needs to be moved to parent
   while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
-         !is_leaf_only_node(node->type)  // &&
-         //  !is_disallowed_child(node->type, node_type)
-  ) {
+         !is_leaf_only_node(node->type)) {
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       list_char = find_list_char((*line) + (*line_pos));
     }
@@ -1001,6 +1029,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     return;
   }
 
+  // TODO: Probably need to handle possible lazy continuation here
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
   node = determine_writable_node_from_context(node, (*line) + line_pos);
 
