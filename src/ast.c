@@ -17,6 +17,7 @@ ASTNode *ast_create_node(unsigned int type) {
   node->children_count = 0;
   node->parent = NULL;
   node->options = NULL;
+  node->late_continuation_lines = 0;
 
   return node;
 }

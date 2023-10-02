@@ -78,6 +78,7 @@ typedef struct ASTNode {
   // TODO: Replace with union of different options types once there's more than
   // one
   ASTListOptions *options;
+  size_t late_continuation_lines;
 } ASTNode;
 
 ASTNode *ast_create_node(unsigned int type);

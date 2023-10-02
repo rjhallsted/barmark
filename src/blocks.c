@@ -13,8 +13,60 @@
 
 /* Controls whether a late continuation is possible. Gets set to 1
 when an empty line is encountered, and set to 0 otherwise. */
+// Currently working on removing this from global state
 unsigned int LATE_CONTINUATION_LINES = 0;
 char *LATE_CONTINUATION_CONTENTS = NULL;
+
+/**
+ * @brief Get the last child node. Returns NULL if no children exist.
+ *
+ * @param node
+ * @return ASTNode*
+ */
+ASTNode *get_last_child(ASTNode node[static 1]) {
+  if (node->children_count == 0) {
+    return NULL;
+  }
+  return node->children[node->children_count - 1];
+}
+
+ASTNode *get_deepest_non_text_child(ASTNode node[static 1]) {
+  ASTNode *child;
+  while ((child = get_last_child(node)) && child->type != ASTN_TEXT) {
+    node = child;
+  }
+  return node;
+}
+
+bool edge_has_late_continuation(ASTNode node[static 1]) {
+  if (node->late_continuation_lines) {
+    return true;
+  }
+  if (node->children_count == 0) {
+    return false;
+  }
+  return edge_has_late_continuation(get_last_child(node));
+}
+
+bool last_sibling_has_late_continuation(ASTNode node[static 1]) {
+  if (node->parent && node->parent->children_count > 1) {
+    ASTNode *sibling = node->parent->children[node->parent->children_count - 2];
+    return edge_has_late_continuation(sibling);
+  }
+  return false;
+}
+
+void increment_late_continuation_on_deepest_child(ASTNode node[static 1]) {
+  ASTNode *deepest = get_deepest_non_text_child(node);
+  deepest->late_continuation_lines += 1;
+}
+
+void clear_block_late_continuation_lines(ASTNode node[static 1]) {
+  node->late_continuation_lines = 0;
+  for (size_t i = 0; i < node->children_count; i++) {
+    clear_block_late_continuation_lines(node->children[i]);
+  }
+}
 
 void reset_late_continuation(void) {
   LATE_CONTINUATION_LINES = 0;
@@ -67,27 +119,6 @@ bool matches_continuation_markers(ASTNode node[static 1],
   return false;
 }
 
-/**
- * @brief Get the last child node. Returns NULL if no children exist.
- *
- * @param node
- * @return ASTNode*
- */
-ASTNode *get_last_child(ASTNode node[static 1]) {
-  if (node->children_count == 0) {
-    return NULL;
-  }
-  return node->children[node->children_count - 1];
-}
-
-ASTNode *get_deepest_non_text_child(ASTNode node[static 1]) {
-  ASTNode *child;
-  while ((child = get_last_child(node)) && child->type != ASTN_TEXT) {
-    node = child;
-  }
-  return node;
-}
-
 void convert_last_text_child_to_paragraph(ASTNode node[static 1]) {
   ASTNode *text = get_last_child(node);
   if (!text || text->type != ASTN_TEXT) {
@@ -123,6 +154,7 @@ void convert_texts_to_paragraphs(ASTNode node[static 1]) {
   }
 }
 
+// TODO: Update this use of late continuation lines last
 void add_line_to_node(ASTNode node[static 1], char *line) {
   ASTNode *child = get_last_child(node);
 
@@ -477,7 +509,7 @@ bool meets_setext_conditions(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   return (child &&
           (child->type == ASTN_PARAGRAPH || child->type == ASTN_TEXT) &&
-          !LATE_CONTINUATION_LINES);
+          !edge_has_late_continuation(node));
 }
 
 bool meets_code_block_conditions(ASTNode node[static 1]) {
@@ -489,7 +521,7 @@ bool meets_code_block_conditions(ASTNode node[static 1]) {
     printf("  deepest->type: %s\n", NODE_TYPE_NAMES[deepest->type]);
   }
 
-  if (!LATE_CONTINUATION_LINES &&
+  if (!edge_has_late_continuation(node) &&
       (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
                       NOT_INTERRUPTIBLE_BY_CODE_BLOCK, node->type) ||
        array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
@@ -664,13 +696,15 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
 void print_tree(ASTNode node[static 1], size_t level) {
   char *indent = repeat_x(' ', level * 2);
   if (node->options) {
-    printf("%s%s-%s\n", indent, NODE_TYPE_NAMES[node->type],
-           node->options->wide ? "wide" : "tight");
+    printf("%s%s-%s (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->options->wide ? "wide" : "tight",
+           node->late_continuation_lines);
   } else if (node->cont_markers) {
-    printf("%s%s->'%s'\n", indent, NODE_TYPE_NAMES[node->type],
-           node->cont_markers);
+    printf("%s%s->'%s' (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->cont_markers, node->late_continuation_lines);
   } else {
-    printf("%s%s\n", indent, NODE_TYPE_NAMES[node->type]);
+    printf("%s%s (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->late_continuation_lines);
   }
 
   if (node->contents) {
@@ -825,7 +859,7 @@ void swap_nodes(ASTNode a[static 1], ASTNode b[static 1]) {
 bool is_item_in_narrow_list_that_should_become_wide(ASTNode node[static 1]) {
   return (node->type == ASTN_UNORDERED_LIST_ITEM ||
           node->type == ASTN_ORDERED_LIST_ITEM) &&
-         !node->parent->options->wide && LATE_CONTINUATION_LINES == 1 &&
+         !node->parent->options->wide && edge_has_late_continuation(node) &&
          has_text(node) && !is_all_whitespace(get_node_contents(node));
 }
 
@@ -839,7 +873,7 @@ bool is_new_line_in_item_in_narrow_list(ASTNode node[static 1],
                                         char const line[static 1]) {
   return (node->type == ASTN_UNORDERED_LIST ||
           node->type == ASTN_ORDERED_LIST) &&
-         !LATE_CONTINUATION_LINES && has_open_child(node) &&
+         !edge_has_late_continuation(node) && has_open_child(node) &&
          !is_all_whitespace(line);
 }
 
@@ -849,22 +883,24 @@ bool is_child_of_item_in_narrow_list_that_should_become_wide(
          (node->parent->type == ASTN_UNORDERED_LIST_ITEM ||
           node->parent->type == ASTN_ORDERED_LIST_ITEM) &&
          !node->parent->parent->options->wide && has_text(node->parent) &&
-         LATE_CONTINUATION_LINES == 1;
+         edge_has_late_continuation(node->parent->parent);
 }
 
 bool is_list_item_with_unusable_late_continuation_lines(
     ASTNode node[static 1]) {
   // list items can only use empty continuation lines if the first or second
   // line actually has contents
-  return LATE_CONTINUATION_LINES &&
+  return edge_has_late_continuation(node) &&
          (node->type == ASTN_UNORDERED_LIST_ITEM ||
           node->type == ASTN_ORDERED_LIST_ITEM) &&
          has_text(node) && is_all_whitespace(get_node_contents(node));
 }
 
 bool is_continuable_list_item(ASTNode node[static 1]) {
-  return LATE_CONTINUATION_LINES && (node->type == ASTN_UNORDERED_LIST_ITEM ||
-                                     node->type == ASTN_ORDERED_LIST_ITEM);
+  return (edge_has_late_continuation(node) ||
+          last_sibling_has_late_continuation(node)) &&
+         (node->type == ASTN_UNORDERED_LIST_ITEM ||
+          node->type == ASTN_ORDERED_LIST_ITEM);
 }
 
 bool is_continuable_paragraph(ASTNode node[static 1],
@@ -1016,6 +1052,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
       tmp->open = false;
     } else {
       LATE_CONTINUATION_LINES += 1;
+      increment_late_continuation_on_deepest_child(node);
       if (line_pos >= 4) {
         LATE_CONTINUATION_CONTENTS =
             str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
@@ -1024,6 +1061,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
             str_append(LATE_CONTINUATION_CONTENTS, "\n");
       }
     }
+    if (f_debug()) print_tree(root, 0);
     return;
   }
 
