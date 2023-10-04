@@ -41,24 +41,13 @@ bool has_open_child(ASTNode node[static 1]) {
 }
 
 ASTNode *find_in_edge_of_tree(ASTNode node[static 1], unsigned int type) {
-  if (node->type == type) {
-    return node;
-  }
-  if (has_open_child(node)) {
+  do {
+    if (node->type == type) {
+      return node;
+    }
     node = get_last_child(node);
-    return find_in_edge_of_tree(node, type);
-  }
+  } while (node);
   return NULL;
-}
-
-bool edge_has_late_continuation(ASTNode node[static 1]) {
-  if (node->late_continuation_lines) {
-    return true;
-  }
-  if (node->children_count == 0) {
-    return false;
-  }
-  return edge_has_late_continuation(get_last_child(node));
 }
 
 bool scope_has_late_continuation(ASTNode node[static 1]) {
@@ -69,27 +58,6 @@ bool scope_has_late_continuation(ASTNode node[static 1]) {
     node = node->parent;
   }
   return false;
-}
-
-bool last_sibling_has_unused_late_continuation(ASTNode node[static 1]) {
-  if (node->parent && node->parent->children_count > 1) {
-    ASTNode *sibling = node->parent->children[node->parent->children_count - 2];
-    return edge_has_late_continuation(sibling);
-    //  find_in_edge_of_tree(sibling, ASTN_TEXT);
-  }
-  return false;
-}
-
-void increment_late_continuation_on_deepest_child(ASTNode node[static 1]) {
-  ASTNode *deepest = get_deepest_non_text_child(node);
-  deepest->late_continuation_lines += 1;
-}
-
-void clear_block_late_continuation_lines(ASTNode node[static 1]) {
-  node->late_continuation_lines = 0;
-  for (size_t i = 0; i < node->children_count; i++) {
-    clear_block_late_continuation_lines(node->children[i]);
-  }
 }
 
 void reset_late_continuation_above_node(ASTNode *node) {
