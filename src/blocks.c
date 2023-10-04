@@ -38,6 +38,23 @@ ASTNode *get_deepest_non_text_child(ASTNode node[static 1]) {
   return node;
 }
 
+bool has_open_child(ASTNode node[static 1]) {
+  return (node->children_count > 0 &&
+          node->children[node->children_count - 1]->open &&
+          node->children[node->children_count - 1]->type != ASTN_TEXT);
+}
+
+ASTNode *find_in_edge_of_tree(ASTNode node[static 1], unsigned int type) {
+  if (node->type == type) {
+    return node;
+  }
+  if (has_open_child(node)) {
+    node = get_last_child(node);
+    return find_in_edge_of_tree(node, type);
+  }
+  return NULL;
+}
+
 bool edge_has_late_continuation(ASTNode node[static 1]) {
   if (node->late_continuation_lines) {
     return true;
@@ -48,10 +65,11 @@ bool edge_has_late_continuation(ASTNode node[static 1]) {
   return edge_has_late_continuation(get_last_child(node));
 }
 
-bool last_sibling_has_late_continuation(ASTNode node[static 1]) {
+bool last_sibling_has_unused_late_continuation(ASTNode node[static 1]) {
   if (node->parent && node->parent->children_count > 1) {
     ASTNode *sibling = node->parent->children[node->parent->children_count - 2];
     return edge_has_late_continuation(sibling);
+    //  find_in_edge_of_tree(sibling, ASTN_TEXT);
   }
   return false;
 }
@@ -68,10 +86,17 @@ void clear_block_late_continuation_lines(ASTNode node[static 1]) {
   }
 }
 
-void reset_late_continuation(void) {
+void reset_late_continuation_above_node(ASTNode *node) {
+  // old way
   LATE_CONTINUATION_LINES = 0;
   free(LATE_CONTINUATION_CONTENTS);
   LATE_CONTINUATION_CONTENTS = strdup("");
+
+  // new way
+  do {
+    node->late_continuation_lines = 0;
+    node = node->parent;
+  } while (node);
 }
 
 bool matches_continuation_markers_with_leading_spaces(
@@ -473,12 +498,6 @@ void close_descendent_blocks(ASTNode node[static 1]) {
   }
 }
 
-bool has_open_child(ASTNode node[static 1]) {
-  return (node->children_count > 0 &&
-          node->children[node->children_count - 1]->open &&
-          node->children[node->children_count - 1]->type != ASTN_TEXT);
-}
-
 bool has_text(ASTNode node[static 1]) {
   for (size_t i = 0; i < node->children_count; i++) {
     if (node->children[i]->type == ASTN_TEXT) return true;
@@ -492,17 +511,6 @@ char *get_node_contents(ASTNode node[static 1]) {
     return NULL;
   }
   return child->contents;
-}
-
-ASTNode *find_in_edge_of_tree(ASTNode node[static 1], unsigned int type) {
-  if (node->type == type) {
-    return node;
-  }
-  if (has_open_child(node)) {
-    node = get_last_child(node);
-    return find_in_edge_of_tree(node, type);
-  }
-  return NULL;
 }
 
 bool meets_setext_conditions(ASTNode node[static 1]) {
@@ -898,7 +906,7 @@ bool is_list_item_with_unusable_late_continuation_lines(
 
 bool is_continuable_list_item(ASTNode node[static 1]) {
   return (edge_has_late_continuation(node) ||
-          last_sibling_has_late_continuation(node)) &&
+          last_sibling_has_unused_late_continuation(node)) &&
          (node->type == ASTN_UNORDERED_LIST_ITEM ||
           node->type == ASTN_ORDERED_LIST_ITEM);
 }
@@ -1077,7 +1085,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     node->open = false;
   }
 
-  reset_late_continuation();
+  reset_late_continuation_above_node(node);
 
   if (f_debug()) {
     printf("---------------\n");

@@ -43,6 +43,9 @@ spec_test: clean $(NAME)
 spec_test_single: clean $(NAME)
 	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -n=$(t)
 
+spec_test_debug_single: clean $(NAME)
+	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -n=$(t) --no-normalize
+
 spec_test_all: clean $(NAME)
 	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) 
 
