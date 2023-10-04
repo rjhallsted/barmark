@@ -49,6 +49,8 @@ bool array_contains(int unsigned const arr_size,
   return false;
 }
 
+// TODO: Change to preprocessor stuff so code paths that use this
+// aren't included in builds when DEBUG is not set.
 bool f_debug(void) {
   char *res = getenv("DEBUG");
   if (res) {
