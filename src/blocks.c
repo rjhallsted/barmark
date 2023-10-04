@@ -11,10 +11,6 @@
 // TODO: Probably rework setext heading handling so that we don't
 // require different AST node types to handle them
 
-/* Controls whether a late continuation is possible. Gets set to 1
-when an empty line is encountered, and set to 0 otherwise. */
-// Currently working on removing this from global state
-unsigned int LATE_CONTINUATION_LINES = 0;
 char *LATE_CONTINUATION_CONTENTS = NULL;
 
 /**
@@ -88,7 +84,6 @@ void clear_block_late_continuation_lines(ASTNode node[static 1]) {
 
 void reset_late_continuation_above_node(ASTNode *node) {
   // old way
-  LATE_CONTINUATION_LINES = 0;
   free(LATE_CONTINUATION_CONTENTS);
   LATE_CONTINUATION_CONTENTS = strdup("");
 
@@ -194,12 +189,12 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
     child->contents = strdup("");
   }
   // should only apply to code blocks with existing content
-  if (strlen(child->contents) > 0 && LATE_CONTINUATION_LINES) {
+  if (strlen(child->contents) > 0 && node->late_continuation_lines) {
     if (f_debug()) printf("adding late continuation lines to contents\n");
     if (node->type == ASTN_CODE_BLOCK) {
       child->contents = str_append(child->contents, LATE_CONTINUATION_CONTENTS);
     } else {
-      for (unsigned int i = 0; i < LATE_CONTINUATION_LINES; i++) {
+      for (unsigned int i = 0; i < node->late_continuation_lines; i++) {
         child->contents = str_append(child->contents, "\n");
       }
     }
@@ -915,14 +910,14 @@ bool is_continuable_paragraph(ASTNode node[static 1],
                               char const line[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-         !LATE_CONTINUATION_LINES && !is_all_whitespace(line);
+         !edge_has_late_continuation(node) && !is_all_whitespace(line);
 }
 
 bool has_child_paragraph_that_should_be_closed(ASTNode node[static 1],
                                                char const line[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-         !LATE_CONTINUATION_LINES && is_all_whitespace(line);
+         !edge_has_late_continuation(node) && is_all_whitespace(line);
 }
 
 bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
@@ -933,7 +928,7 @@ bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
 }
 
 bool should_split_blockquote(ASTNode node[static 1]) {
-  return node->type == ASTN_BLOCK_QUOTE && LATE_CONTINUATION_LINES &&
+  return node->type == ASTN_BLOCK_QUOTE && edge_has_late_continuation(node) &&
          has_open_child(node);
 }
 
@@ -1059,7 +1054,6 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
         printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
       tmp->open = false;
     } else {
-      LATE_CONTINUATION_LINES += 1;
       increment_late_continuation_on_deepest_child(node);
       if (line_pos >= 4) {
         LATE_CONTINUATION_CONTENTS =
