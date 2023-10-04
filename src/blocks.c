@@ -61,6 +61,16 @@ bool edge_has_late_continuation(ASTNode node[static 1]) {
   return edge_has_late_continuation(get_last_child(node));
 }
 
+bool scope_has_late_continuation(ASTNode node[static 1]) {
+  while (node) {
+    if (node->late_continuation_lines) {
+      return true;
+    }
+    node = node->parent;
+  }
+  return false;
+}
+
 bool last_sibling_has_unused_late_continuation(ASTNode node[static 1]) {
   if (node->parent && node->parent->children_count > 1) {
     ASTNode *sibling = node->parent->children[node->parent->children_count - 2];
@@ -189,16 +199,14 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
     child->contents = strdup("");
   }
   // should only apply to code blocks with existing content
-  if (strlen(child->contents) > 0 && node->late_continuation_lines) {
-    if (f_debug()) printf("adding late continuation lines to contents\n");
-    if (node->type == ASTN_CODE_BLOCK) {
-      child->contents = str_append(child->contents, LATE_CONTINUATION_CONTENTS);
-    } else {
-      for (unsigned int i = 0; i < node->late_continuation_lines; i++) {
-        child->contents = str_append(child->contents, "\n");
-      }
-    }
+  // size_t late_cont_count = current_late_continuation_in_scope(node);
+  if (node->type == ASTN_CODE_BLOCK && strlen(child->contents) > 0 &&
+      scope_has_late_continuation(node)) {
+    if (f_debug())
+      printf("adding late continuation lines to code block contents\n");
+    child->contents = str_append(child->contents, LATE_CONTINUATION_CONTENTS);
   }
+
   child->contents = str_append(child->contents, line);
 }
 
@@ -512,7 +520,7 @@ bool meets_setext_conditions(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   return (child &&
           (child->type == ASTN_PARAGRAPH || child->type == ASTN_TEXT) &&
-          !edge_has_late_continuation(node));
+          !scope_has_late_continuation(node));
 }
 
 bool meets_code_block_conditions(ASTNode node[static 1]) {
@@ -524,7 +532,7 @@ bool meets_code_block_conditions(ASTNode node[static 1]) {
     printf("  deepest->type: %s\n", NODE_TYPE_NAMES[deepest->type]);
   }
 
-  if (!edge_has_late_continuation(node) &&
+  if (!scope_has_late_continuation(node) &&
       (array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
                       NOT_INTERRUPTIBLE_BY_CODE_BLOCK, node->type) ||
        array_contains(NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE,
@@ -862,7 +870,7 @@ void swap_nodes(ASTNode a[static 1], ASTNode b[static 1]) {
 bool is_item_in_narrow_list_that_should_become_wide(ASTNode node[static 1]) {
   return (node->type == ASTN_UNORDERED_LIST_ITEM ||
           node->type == ASTN_ORDERED_LIST_ITEM) &&
-         !node->parent->options->wide && edge_has_late_continuation(node) &&
+         !node->parent->options->wide && scope_has_late_continuation(node) &&
          has_text(node) && !is_all_whitespace(get_node_contents(node));
 }
 
@@ -876,7 +884,7 @@ bool is_new_line_in_item_in_narrow_list(ASTNode node[static 1],
                                         char const line[static 1]) {
   return (node->type == ASTN_UNORDERED_LIST ||
           node->type == ASTN_ORDERED_LIST) &&
-         !edge_has_late_continuation(node) && has_open_child(node) &&
+         !scope_has_late_continuation(node) && has_open_child(node) &&
          !is_all_whitespace(line);
 }
 
@@ -886,22 +894,21 @@ bool is_child_of_item_in_narrow_list_that_should_become_wide(
          (node->parent->type == ASTN_UNORDERED_LIST_ITEM ||
           node->parent->type == ASTN_ORDERED_LIST_ITEM) &&
          !node->parent->parent->options->wide && has_text(node->parent) &&
-         edge_has_late_continuation(node->parent->parent);
+         scope_has_late_continuation(node);
 }
 
 bool is_list_item_with_unusable_late_continuation_lines(
     ASTNode node[static 1]) {
   // list items can only use empty continuation lines if the first or second
   // line actually has contents
-  return edge_has_late_continuation(node) &&
+  return scope_has_late_continuation(node) &&
          (node->type == ASTN_UNORDERED_LIST_ITEM ||
           node->type == ASTN_ORDERED_LIST_ITEM) &&
          has_text(node) && is_all_whitespace(get_node_contents(node));
 }
 
 bool is_continuable_list_item(ASTNode node[static 1]) {
-  return (edge_has_late_continuation(node) ||
-          last_sibling_has_unused_late_continuation(node)) &&
+  return scope_has_late_continuation(node) &&
          (node->type == ASTN_UNORDERED_LIST_ITEM ||
           node->type == ASTN_ORDERED_LIST_ITEM);
 }
@@ -910,14 +917,14 @@ bool is_continuable_paragraph(ASTNode node[static 1],
                               char const line[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-         !edge_has_late_continuation(node) && !is_all_whitespace(line);
+         !scope_has_late_continuation(node) && !is_all_whitespace(line);
 }
 
 bool has_child_paragraph_that_should_be_closed(ASTNode node[static 1],
                                                char const line[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
-         !edge_has_late_continuation(node) && is_all_whitespace(line);
+         !scope_has_late_continuation(child) && is_all_whitespace(line);
 }
 
 bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
@@ -928,7 +935,7 @@ bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
 }
 
 bool should_split_blockquote(ASTNode node[static 1]) {
-  return node->type == ASTN_BLOCK_QUOTE && edge_has_late_continuation(node) &&
+  return node->type == ASTN_BLOCK_QUOTE && scope_has_late_continuation(node) &&
          has_open_child(node);
 }
 
@@ -1054,7 +1061,8 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
         printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
       tmp->open = false;
     } else {
-      increment_late_continuation_on_deepest_child(node);
+      node->late_continuation_lines += 1;
+      // increment_late_continuation_on_deepest_child(node);
       if (line_pos >= 4) {
         LATE_CONTINUATION_CONTENTS =
             str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
