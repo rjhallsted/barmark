@@ -41,12 +41,12 @@ bool has_open_child(ASTNode node[static 1]) {
 }
 
 ASTNode *find_in_edge_of_tree(ASTNode node[static 1], unsigned int type) {
-  do {
+  while (node) {
     if (node->type == type) {
       return node;
     }
     node = get_last_child(node);
-  } while (node);
+  }
   return NULL;
 }
 
@@ -60,7 +60,7 @@ bool scope_has_late_continuation(ASTNode node[static 1]) {
   return false;
 }
 
-void reset_late_continuation_above_node(ASTNode *node) {
+void reset_late_continuation_above_node(ASTNode node[static 1]) {
   // old way
   free(LATE_CONTINUATION_CONTENTS);
   LATE_CONTINUATION_CONTENTS = strdup("");
@@ -469,6 +469,13 @@ void close_descendent_blocks(ASTNode node[static 1]) {
   }
 }
 
+void close_leaf_paragraph(ASTNode node[static 1]) {
+  ASTNode *descendant = get_deepest_non_text_child(node);
+  if (descendant->type == ASTN_PARAGRAPH) {
+    descendant->open = 0;
+  }
+}
+
 bool has_text(ASTNode node[static 1]) {
   for (size_t i = 0; i < node->children_count; i++) {
     if (node->children[i]->type == ASTN_TEXT) return true;
@@ -611,6 +618,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                                              repeat_x(' ', 4));
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
+    // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
@@ -620,6 +628,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                            0);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type != ASTN_ORDERED_LIST) {
+    // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
@@ -759,6 +768,8 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
              NODE_TYPE_NAMES[get_last_child(node)->type]);
     }
     child = get_last_child(node);
+    // TODO: Figure out why I have to check both versions of cont markers here
+    // instead of just the leading spaces version
     if (child->type == ASTN_PARAGRAPH ||
         (!matches_continuation_markers(child, (*line) + (*line_pos),
                                        match_len) &&
@@ -902,9 +913,17 @@ bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
          !is_all_whitespace(line) && has_open_child(child);
 }
 
+bool should_close_blockquote(ASTNode node[static 1]) {
+  return has_open_child(node) &&
+         find_in_edge_of_tree(get_last_child(node), ASTN_BLOCK_QUOTE) &&
+         node->late_continuation_lines;
+}
+
 bool should_split_blockquote(ASTNode node[static 1]) {
-  return node->type == ASTN_BLOCK_QUOTE && scope_has_late_continuation(node) &&
-         has_open_child(node);
+  return node->type == ASTN_BLOCK_QUOTE &&
+         scope_has_late_continuation(node->parent) && node->children_count;
+  // TODO: Figure out why program crashes if the node->children_count contidion
+  // is removed
 }
 
 bool should_add_default_paragraph_to_blockquote(ASTNode node[static 1],
@@ -981,13 +1000,21 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     if (f_debug()) printf("closing child paragraph due to empty line\n");
     child->open = false;
     return determine_writable_node_from_context(node, line);
-  } else if (should_determine_context_from_blockquote_child(node, line)) {
-    if (f_debug()) printf("determining context from blockquote child\n");
-    return determine_writable_node_from_context(child, line);
+  } else if (should_close_blockquote(node)) {
+    if (f_debug()) printf("closing descendant blockquote due to empty lines");
+    ASTNode *descendant =
+        find_in_edge_of_tree(get_last_child(node), ASTN_BLOCK_QUOTE);
+    descendant->open = 0;
+    node->late_continuation_lines = 0;
+    return determine_writable_node_from_context(node, line);
   } else if (should_split_blockquote(node)) {
     if (f_debug()) printf("splitting a blockquote due to empty lines\n");
+    node = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     node = node->parent;
     child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
+    return determine_writable_node_from_context(child, line);
+  } else if (should_determine_context_from_blockquote_child(node, line)) {
+    if (f_debug()) printf("determining context from blockquote child\n");
     return determine_writable_node_from_context(child, line);
   } else if (should_add_default_paragraph_to_blockquote(node, line)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
@@ -1008,7 +1035,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   size_t line_pos = 0;
   size_t match_len = 0;
   ASTNode *node = root;
-  ASTNode *tmp;
+  // ASTNode *tmp;
 
   if (f_debug()) {
     printf("------------\n");
@@ -1023,27 +1050,28 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
 
   // TODO: Need to implement late_continuation lines in a block-localized way.
 
-  if (is_all_whitespace(*line)) {
-    if ((tmp = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE))) {
-      if (f_debug())
-        printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
-      tmp->open = false;
+  if (is_all_whitespace((*line) + line_pos)) {
+    if (f_debug())
+      printf("Found late continuation line on node %s\n",
+             NODE_TYPE_NAMES[node->type]);
+    // if ((tmp = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE))) {
+    //   if (f_debug())
+    //     printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
+    //   tmp->open = false;
+    // } else {
+    node->late_continuation_lines += 1;
+    close_leaf_paragraph(node);
+    if (line_pos >= 4) {
+      LATE_CONTINUATION_CONTENTS =
+          str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
     } else {
-      node->late_continuation_lines += 1;
-      // increment_late_continuation_on_deepest_child(node);
-      if (line_pos >= 4) {
-        LATE_CONTINUATION_CONTENTS =
-            str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
-      } else {
-        LATE_CONTINUATION_CONTENTS =
-            str_append(LATE_CONTINUATION_CONTENTS, "\n");
-      }
+      LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
     }
+    // }
     if (f_debug()) print_tree(root, 0);
     return;
   }
 
-  // TODO: Probably need to handle possible lazy continuation here
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
   node = determine_writable_node_from_context(node, (*line) + line_pos);
 
