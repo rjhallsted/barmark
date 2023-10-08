@@ -6,13 +6,13 @@
 
 #include "util.h"
 
-/* Note that this allows, by design, passing NULL as the value of contents */
 ASTNode *ast_create_node(unsigned int type) {
   ASTNode *node = malloc(sizeof(ASTNode));
   node->type = type;
   node->open = true;
   node->contents = NULL;
   node->cont_markers = strdup("");
+  node->cont_spaces = 0;
   node->children = NULL;
   node->children_count = 0;
   node->parent = NULL;

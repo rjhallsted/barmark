@@ -72,6 +72,7 @@ typedef struct ASTNode {
   bool open;
   char *contents;
   char *cont_markers;
+  unsigned int cont_spaces;
   struct ASTNode **children;
   size_t children_count;
   struct ASTNode *parent;

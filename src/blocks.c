@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "ast.h"
+#include "tab_expand.h"
 #include "util.h"
 
 // TODO: Probably rework setext heading handling so that we don't
@@ -114,6 +115,57 @@ bool matches_continuation_markers(ASTNode node[static 1],
     return true;
   }
   *match_len = 0;
+  return false;
+}
+
+/**
+ * @brief Returns whether a match was found. Takes a pointer to a size_t
+ * and sets that to the number of bytes matched against. 0 is a valid value
+ * for this.
+ *
+ * @param node
+ * @param line
+ * @param match_len
+ * @return bool
+ */
+bool new_matches_continuation_markers(ASTNode node[static 1],
+                                      char *line[static 1], size_t line_pos,
+                                      size_t match_len[static 1]) {
+  // TODO: Once this replaces old version, remove tab expansion from
+  // traverse_to_last_match
+  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
+  size_t i = 0;
+
+  // opportunistically match up to 3 leading spaces
+  while (i < 3 && t1.proposed[i] && t1.proposed[i] == ' ') {
+    i++;
+  }
+  if (node->type == ASTN_BLOCK_QUOTE) {  // special case for blockquote
+    if (t1.proposed[i] == '>') {
+      i += 1;
+      tab_expand_ref t2 = begin_tab_expand(&(t1.proposed), line_pos + i, 1);
+      if (t2.proposed[i] == ' ') {
+        i += 1;
+      }
+      commit_tab_expand(t2);
+      commit_tab_expand(t1);
+      *match_len = i;
+      return true;
+    }
+  } else {  // all other cases
+    tab_expand_ref t2 =
+        begin_tab_expand(&(t1.proposed), line_pos + i, node->cont_spaces - i);
+    while (i < node->cont_spaces && t2.proposed[i] == ' ') {
+      i++;
+    }
+    if (i == node->cont_spaces) {
+      commit_tab_expand(t2);
+      commit_tab_expand(t1);
+      *match_len = i;
+      return true;
+    }
+  }
+  reject_tab_expand(t1);
   return false;
 }
 
