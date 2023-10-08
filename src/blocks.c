@@ -165,7 +165,7 @@ bool new_matches_continuation_markers(ASTNode node[static 1],
       return true;
     }
   }
-  reject_tab_expand(t1);
+  abandon_tab_expand(t1);
   return false;
 }
 
@@ -239,90 +239,83 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
  * replace original line with tab expanded one.
  */
 
-size_t match_range_of_spaces(char *line[static 1], size_t line_pos, size_t min,
-                             size_t max) {
-  size_t i = 0;
-  char *line_ref = strdup(*line);
-  while (i < max) {
-    tab_expand(&line_ref, line_pos + i, 1);
-    if (line_ref[line_pos + i] != ' ') {
-      break;
-    }
-    i++;
-  }
-  if ((i == max && line_ref[line_pos + i] == ' ') || i < min) {
-    free(line_ref);
-    return 0;
-  }
-  free(*line);
-  *line = line_ref;
-  return i;
-}
-
 size_t match_up_to_3_spaces(char *line[static 1], size_t line_pos) {
-  return match_range_of_spaces(line, line_pos, 0, 3);
+  size_t res = 0;
+  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 1);
+  if (t1.proposed[line_pos] == ' ') {
+    res = 1;
+    tab_expand_ref t2 = begin_tab_expand(&(t1.proposed), line_pos + 1, 1);
+    if (t2.proposed[line_pos + 1] == ' ') {
+      res = 2;
+      tab_expand_ref t3 = begin_tab_expand(&(t2.proposed), line_pos + 2, 1);
+      if (t3.proposed[line_pos + 2] == ' ') {
+        res = 3;
+        commit_tab_expand(t3);
+      } else {
+        abandon_tab_expand(t3);
+      }
+      commit_tab_expand(t2);
+    } else {
+      abandon_tab_expand(t2);
+    }
+    commit_tab_expand(t1);
+  } else {
+    abandon_tab_expand(t1);
+  }
+  return res;
 }
 
 size_t matches_code_block(char *line[static 1], size_t line_pos) {
   size_t i = 0;
-  char *line_ref = strdup(*line);
-  tab_expand(&line_ref, line_pos, 4);
+  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 4);
 
-  while (line_ref[line_pos + i] == ' ' && i < 4) {
+  while (t1.proposed[line_pos + i] == ' ' && i < 4) {
     i++;
   }
   if (i == 4) {
-    free(*line);
-    *line = line_ref;
+    commit_tab_expand(t1);
     return i;
   }
-  free(line_ref);
+  abandon_tab_expand(t1);
   return 0;
 }
 
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);
 
-  if (str_starts_with(line_ref + line_pos + i, str)) {
+  if (str_starts_with(t1.proposed + line_pos + i, str)) {
     i += strlen(str);
-    tab_expand(&line_ref, line_pos + i, 1);
-    if (line_ref[line_pos + i] == ' ') {
-      free(*line);
-      *line = line_ref;
+    expand_existing_ref(&t1, line_pos + i, 1);
+    if (t1.proposed[line_pos + i] == ' ') {
+      commit_tab_expand(t1);
       return i + 1;
     }
   }
-  free(line_ref);
+  abandon_tab_expand(t1);
   return 0;
 }
 
 size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
                                                  char *line[static 1],
                                                  size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t res = match_str_then_space(str, &line_ref, line_pos);
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t res = match_str_then_space(str, &(t1.proposed), line_pos);
   if (res) {
-    // allow a max of 4 meaningful spaces. We've already matched 1 so far
-    // So if we match more than 3 here, they're not meaningful for list
-    // item indentation.
-    res += match_range_of_spaces(&line_ref, line_pos + res, 0, 3);
-    free(*line);
-    *line = line_ref;
+    commit_tab_expand(t1);
     return res;
   } else {
     // try case where we match the symbol, but then line is all whitespace
-    res = match_up_to_3_spaces(&line_ref, line_pos);
-    if (str_starts_with(line_ref + line_pos + res, str)) {
+    res = match_up_to_3_spaces(&(t1.proposed), line_pos);
+    if (str_starts_with(t1.proposed + line_pos + res, str)) {
       res += strlen(str);
-      if (is_all_whitespace(line_ref + line_pos + res)) {
-        free(*line);
-        *line = line_ref;
+      if (is_all_whitespace(t1.proposed + line_pos + res)) {
+        commit_tab_expand(t1);
         return res;
       }
     }
-    free(line_ref);
+    abandon_tab_expand(t1);
     return 0;
   }
 }
@@ -336,34 +329,32 @@ size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
   return res;
 }
 
+// TODO: Allow in-place tab-expansion on existing refs
 size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);  // leading spaces
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);  // leading spaces
   // numbers
-  while (line_ref[line_pos + i] >= '0' && line_ref[line_pos + i] <= '9') {
+  while (t1.proposed[line_pos + i] >= '0' && t1.proposed[line_pos + i] <= '9') {
     i++;
   }
   // period
-  if (i == 0 || line_ref[line_pos + i] != '.') {
-    free(line_ref);
+  if (i == 0 || t1.proposed[line_pos + i] != '.') {
+    abandon_tab_expand(t1);
     return 0;
   }
   i++;
   // trailing space (or line end)
-  tab_expand(&line_ref, line_pos + i, 1);
-  if (line_ref[line_pos + i] != ' ' && line_ref[line_pos + i] != '\n' &&
-      line_ref[line_pos + i] != '\0') {
-    free(line_ref);
+  expand_existing_ref(&t1, line_pos + i, 1);
+  if (t1.proposed[line_pos + i] != ' ' && t1.proposed[line_pos + i] != '\n' &&
+      t1.proposed[line_pos + i] != '\0') {
+    abandon_tab_expand(t1);
     return 0;
   }
   i++;
-  // rest of trailing spaces
-  i += match_range_of_spaces(&line_ref, line_pos + i, 0, 3);
 
   if (f_debug()) printf("match_len for OL-LI opening is %zu\n", i + 1);
 
-  free(*line);
-  *line = line_ref;
+  commit_tab_expand(t1);
   return i;
 }
 
@@ -372,19 +363,18 @@ size_t matches_paragraph_opening(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_blockquote_opening(char *line[static 1], size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
-  if (line_ref[line_pos + i] == '>') {
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);
+  if (t1.proposed[line_pos + i] == '>') {
     i++;
-    tab_expand(&line_ref, line_pos + i, 1);
-    if (line_ref[line_pos + i] == ' ') {
+    expand_existing_ref(&t1, line_pos + i, 1);
+    if (t1.proposed[line_pos + i] == ' ') {
       i++;
     }
-    free(*line);
-    *line = line_ref;
+    commit_tab_expand(t1);
     return i;
   }
-  free(line_ref);
+  abandon_tab_expand(t1);
   return 0;
 }
 
@@ -434,81 +424,81 @@ size_t matches_h6_opening(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
-  char c = line_ref[line_pos + i];
+  tab_expand_ref ref = make_unmodified_tab_expand_ref(line);
+  size_t i = match_up_to_3_spaces(&(ref.proposed), line_pos);
+  char c = ref.proposed[line_pos + i];
   if (c != '*' && c != '-' && c != '_') {
-    free(line_ref);
+    abandon_tab_expand(ref);
     return 0;
   }
   i++;
-  while (is_whitespace(line_ref[line_pos + i])) {
+  while (is_whitespace(ref.proposed[line_pos + i])) {
     i++;
   }
-  if (line_ref[line_pos + i] != c) {
-    free(line_ref);
+  if (ref.proposed[line_pos + i] != c) {
+    abandon_tab_expand(ref);
     return 0;
   }
   i++;
-  while (is_whitespace(line_ref[line_pos + i])) {
+  while (is_whitespace(ref.proposed[line_pos + i])) {
     i++;
   }
-  if (line_ref[line_pos + i] != c) {
-    free(line_ref);
+  if (ref.proposed[line_pos + i] != c) {
+    abandon_tab_expand(ref);
     return 0;
   }
   i++;
-  while (is_whitespace(line_ref[line_pos + i]) || line_ref[line_pos + i] == c) {
+  while (is_whitespace(ref.proposed[line_pos + i]) ||
+         ref.proposed[line_pos + i] == c) {
     i++;
   }
-  if (line_ref[line_pos + i] != '\0') {
-    free(line_ref);
+  if (ref.proposed[line_pos + i] != '\0') {
+    abandon_tab_expand(ref);
     return 0;
   }
-  free(*line);
-  *line = line_ref;
+  commit_tab_expand(ref);
   return i;
 }
 
 size_t matches_setext_h2(char *line[static 1], size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
-  if (line_ref[line_pos + i] != '-') {
-    free(line_ref);
+  tab_expand_ref ref = make_unmodified_tab_expand_ref(line);
+  size_t i = match_up_to_3_spaces(&(ref.proposed), line_pos);
+  if (ref.proposed[line_pos + i] != '-') {
+    abandon_tab_expand(ref);
     return 0;
   }
-  while (line_ref[line_pos + i] == '-') {
+  while (ref.proposed[line_pos + i] == '-') {
     i++;
   }
-  while (is_whitespace(line_ref[line_pos + i])) {
+  while (is_whitespace(ref.proposed[line_pos + i])) {
     i++;
   }
-  if (line_ref[line_pos + i] != '\0') {
-    free(line_ref);
+  if (ref.proposed[line_pos + i] != '\0') {
+    abandon_tab_expand(ref);
     return 0;
   }
-  *line = line_ref;
+  commit_tab_expand(ref);
   return i;
 }
 
 size_t matches_setext_h1(char *line[static 1], size_t line_pos) {
-  char *line_ref = strdup(*line);
-  size_t i = match_up_to_3_spaces(&line_ref, line_pos);
-  if (line_ref[line_pos + i] != '=') {
-    free(line_ref);
+  tab_expand_ref ref = make_unmodified_tab_expand_ref(line);
+  size_t i = match_up_to_3_spaces(&(ref.proposed), line_pos);
+  if (ref.proposed[line_pos + i] != '=') {
+    abandon_tab_expand(ref);
     return 0;
   }
-  while (line_ref[line_pos + i] == '=') {
+  while (ref.proposed[line_pos + i] == '=') {
     i++;
   }
-  while (is_whitespace(line_ref[line_pos + i])) {
+  while (is_whitespace(ref.proposed[line_pos + i])) {
     i++;
   }
-  if (line_ref[line_pos + i] != '\0') {
-    free(line_ref);
+  if (ref.proposed[line_pos + i] != '\0') {
+    abandon_tab_expand(ref);
     return 0;
   }
-  *line = line_ref;
+  commit_tab_expand(ref);
   return i;
 }
 
@@ -756,38 +746,6 @@ void print_tree(ASTNode node[static 1], size_t level) {
   free(indent);
 }
 
-/**
- * @brief Expands the next tab if present in the next <lookahead> chars,
- * starting at line_pos. returns new line_pos
- *
- * @param line
- * @param line_pos
- * @return size_t
- */
-void tab_expand(char *line[static 1], size_t line_pos, size_t lookahead) {
-  char *line_ref = *line;
-  unsigned int i = 0;
-
-  while (line_ref[line_pos + i] && line_ref[line_pos + i] == ' ' &&
-         i < (lookahead - 1)) {
-    i++;
-  }
-  if (line_ref[line_pos + i] != '\t') {
-    return;
-  }
-  unsigned int spaces_to_add = 4 - ((line_pos + i) % 4);
-
-  char *out = strndup(line_ref, line_pos + i);
-  char *tmp = repeat_x(' ', spaces_to_add);
-  out = str_append(out, tmp);
-  free(tmp);
-  tmp = strdup(line_ref + line_pos + i + 1);
-  out = str_append(out, tmp);
-  free(tmp);
-  free(line_ref);
-  *line = out;
-}
-
 char find_list_char(char line[static 1]) {
   size_t i = 0;
   while (line[i] && line[i] != '-' && line[i] != '*') {
@@ -814,7 +772,7 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
   ASTNode *child;
   // traverse to last matching node
   while ((*line)[*line_pos] && has_open_child(node)) {
-    tab_expand(line, *line_pos, 4);
+    tab_expand_ref ref = begin_tab_expand(line, *line_pos, 4);
     if (f_debug()) {
       printf("matching against %s\n",
              NODE_TYPE_NAMES[get_last_child(node)->type]);
@@ -823,12 +781,14 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
     // TODO: Figure out why I have to check both versions of cont markers here
     // instead of just the leading spaces version
     if (child->type == ASTN_PARAGRAPH ||
-        (!matches_continuation_markers(child, (*line) + (*line_pos),
+        (!matches_continuation_markers(child, ref.proposed + (*line_pos),
                                        match_len) &&
          !matches_continuation_markers_with_leading_spaces(
-             child, (*line) + (*line_pos), match_len))) {
+             child, ref.proposed + (*line_pos), match_len))) {
+      abandon_tab_expand(ref);
       break;
     }
+    commit_tab_expand(ref);
     node = child;
     *line_pos += *match_len;
   }

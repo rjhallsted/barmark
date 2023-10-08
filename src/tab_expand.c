@@ -40,11 +40,24 @@ char *expand(char line[static 1], size_t line_pos, int unsigned lookahead) {
   return proposed;
 }
 
+tab_expand_ref make_unmodified_tab_expand_ref(char *line[static 1]) {
+  char *proposed = strdup(*line);
+  tab_expand_ref ref = {.orig = line, .proposed = proposed};
+  return ref;
+}
+
 tab_expand_ref begin_tab_expand(char *line[static 1], size_t line_pos,
                                 size_t lookahead) {
   char *proposed = expand(*line, line_pos, lookahead);
   tab_expand_ref ref = {.orig = line, .proposed = proposed};
   return ref;
+}
+
+void expand_existing_ref(tab_expand_ref ref[static 1], size_t line_pos,
+                         size_t lookahead) {
+  char *new_version = expand(ref->proposed, line_pos, lookahead);
+  free(ref->proposed);
+  ref->proposed = new_version;
 }
 
 // TODO: Test
@@ -53,4 +66,4 @@ void commit_tab_expand(tab_expand_ref ref) {
   *(ref.orig) = ref.proposed;
 }
 
-void reject_tab_expand(tab_expand_ref ref) { free(ref.proposed); }
+void abandon_tab_expand(tab_expand_ref ref) { free(ref.proposed); }

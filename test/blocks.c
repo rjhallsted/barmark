@@ -24,84 +24,6 @@ void test_matches_continuation_markers_matches(void) {
   ast_free_node(node);
 }
 
-void test_tab_expand(void) {
-  char *line = strdup("");
-
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("", line);
-  free(line);
-
-  line = strdup(" ");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING(" ", line);
-  free(line);
-
-  line = strdup("  ");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("  ", line);
-  free(line);
-
-  line = strdup("   ");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("   ", line);
-  free(line);
-
-  line = strdup("    ");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("    ", line);
-  free(line);
-
-  line = strdup("\tx");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("    x", line);
-  free(line);
-
-  line = strdup(" \tx");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("    x", line);
-  free(line);
-
-  line = strdup("  \tx");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("    x", line);
-  free(line);
-
-  line = strdup("   \tx");
-  tab_expand(&line, 0, 4);
-  TEST_ASSERT_EQUAL_STRING("    x", line);
-  free(line);
-
-  line = strdup("    \tx");
-  tab_expand(&line, 2, 4);
-  TEST_ASSERT_EQUAL_STRING("        x", line);
-  free(line);
-
-  line = strdup("     \tx");
-  tab_expand(&line, 2, 4);
-  TEST_ASSERT_EQUAL_STRING("        x", line);
-  free(line);
-
-  line = strdup(" \tx");
-  tab_expand(&line, 0, 1);
-  TEST_ASSERT_EQUAL_STRING(" \tx", line);
-  free(line);
-
-  line = strdup(" \tx");
-  tab_expand(&line, 0, 2);
-  TEST_ASSERT_EQUAL_STRING("    x", line);
-  free(line);
-
-  line = strdup("  - foo");
-  tab_expand(&line, 3, 1);
-  TEST_ASSERT_EQUAL_STRING("  - foo", line);
-  free(line);
-
-  line = strdup("  -\tfoo");
-  tab_expand(&line, 3, 1);
-  TEST_ASSERT_EQUAL_STRING("  - foo", line);
-  free(line);
-}
-
 void test_get_deepest_non_text_child(void) {
   ASTNode *root = ast_create_node(ASTN_DOCUMENT);
   ASTNode *node = root;
@@ -151,8 +73,6 @@ void run_blocks_tests(void) {
   printf("--blocks tests\n");
   printf("---matches_continuation_markers\n");
   RUN_TEST(test_matches_continuation_markers_matches);
-  printf("---tab_expand\n");
-  RUN_TEST(test_tab_expand);
   printf("---get_deepest_non_text_child\n");
   RUN_TEST(test_get_deepest_non_text_child);
   // printf("---construction tests\n");
