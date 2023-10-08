@@ -137,17 +137,19 @@ bool new_matches_continuation_markers(ASTNode node[static 1],
   size_t i = 0;
 
   // opportunistically match up to 3 leading spaces
-  while (i < 3 && t1.proposed[i] && t1.proposed[i] == ' ') {
+  while (i < 3 && t1.proposed[line_pos + i] == ' ') {
     i++;
   }
   if (node->type == ASTN_BLOCK_QUOTE) {  // special case for blockquote
-    if (t1.proposed[i] == '>') {
+    if (t1.proposed[line_pos + i] == '>') {
       i += 1;
       tab_expand_ref t2 = begin_tab_expand(&(t1.proposed), line_pos + i, 1);
-      if (t2.proposed[i] == ' ') {
+      if (t2.proposed[line_pos + i] == ' ') {
         i += 1;
+        commit_tab_expand(t2);
+      } else {
+        abandon_tab_expand(t2);
       }
-      commit_tab_expand(t2);
       commit_tab_expand(t1);
       *match_len = i;
       return true;
@@ -155,7 +157,7 @@ bool new_matches_continuation_markers(ASTNode node[static 1],
   } else {  // all other cases
     tab_expand_ref t2 =
         begin_tab_expand(&(t1.proposed), line_pos + i, node->cont_spaces - i);
-    while (i < node->cont_spaces && t2.proposed[i] == ' ') {
+    while (i < node->cont_spaces && t2.proposed[line_pos + i] == ' ') {
       i++;
     }
     if (i == node->cont_spaces) {
@@ -164,9 +166,25 @@ bool new_matches_continuation_markers(ASTNode node[static 1],
       *match_len = i;
       return true;
     }
+    abandon_tab_expand(t2);
   }
   abandon_tab_expand(t1);
   return false;
+}
+
+bool new_matches_continuation_markers_with_leading_spaces(
+    ASTNode node[static 1], char *line[static 1], size_t line_pos,
+    size_t match_len[static 1]) {
+  size_t i = 0;
+  while ((*line)[line_pos + i] == ' ' && i < 3) {
+    i++;
+  }
+  int res =
+      new_matches_continuation_markers(node, line, line_pos + i, match_len);
+  if (res) {
+    *match_len += i;
+  }
+  return res;
 }
 
 void convert_last_text_child_to_paragraph(ASTNode node[static 1]) {
@@ -644,6 +662,18 @@ ASTNode *add_child_block_with_cont_markers(ASTNode node[static 1],
                                            char cont_markers[static 1]) {
   ASTNode *child = ast_create_node(node_type);
   child->cont_markers = cont_markers;
+  if (cont_markers[0] != '>') {
+    child->cont_spaces = strlen(cont_markers);
+  }
+  ast_add_child(node, child);
+  return child;
+}
+
+ASTNode *add_child_block_with_cont_spaces(ASTNode node[static 1],
+                                          int unsigned node_type,
+                                          int unsigned const_spaces) {
+  ASTNode *child = ast_create_node(node_type);
+  child->cont_spaces = const_spaces;
   ast_add_child(node, child);
   return child;
 }
@@ -776,6 +806,7 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
     if (f_debug()) {
       printf("matching against %s\n",
              NODE_TYPE_NAMES[get_last_child(node)->type]);
+      printf("remaining line is: '%s'\n", ref.proposed + (*line_pos));
     }
     child = get_last_child(node);
     // TODO: Figure out why I have to check both versions of cont markers here
@@ -784,7 +815,11 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
         (!matches_continuation_markers(child, ref.proposed + (*line_pos),
                                        match_len) &&
          !matches_continuation_markers_with_leading_spaces(
-             child, ref.proposed + (*line_pos), match_len))) {
+             child, ref.proposed + (*line_pos), match_len) &&
+         !new_matches_continuation_markers(child, &(ref.proposed), *line_pos,
+                                           match_len) &&
+         !new_matches_continuation_markers_with_leading_spaces(
+             child, &(ref.proposed), *line_pos, match_len))) {
       abandon_tab_expand(ref);
       break;
     }

@@ -68,11 +68,11 @@ typedef struct {
 } ASTListOptions;
 
 typedef struct ASTNode {
-  unsigned int type;
+  int unsigned type;
   bool open;
   char *contents;
   char *cont_markers;
-  unsigned int cont_spaces;
+  int unsigned cont_spaces;
   struct ASTNode **children;
   size_t children_count;
   struct ASTNode *parent;
