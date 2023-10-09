@@ -1070,6 +1070,8 @@ ASTNode *build_block_structure(FILE fd[static 1]) {
 
     getline(&line, &buff_len, fd);
     add_line_to_ast(document, &line);
+    free(line);
+    line = NULL;
   }
   free(LATE_CONTINUATION_CONTENTS);
   return document;

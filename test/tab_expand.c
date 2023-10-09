@@ -113,9 +113,18 @@ void test_begin_tab_expand(void) {
   free(line);
   free(res.proposed);
 
+  // below this are the "bug-inspired" cases
+
   line = strdup("12345");
   res = begin_tab_expand(&line, 2, 0);
   TEST_ASSERT_EQUAL_STRING("12345", res.proposed);
+  TEST_ASSERT_EQUAL_PTR(line, *res.orig);
+  free(line);
+  free(res.proposed);
+
+  line = strdup("          indented code\n");
+  res = begin_tab_expand(&line, 0, 0);
+  TEST_ASSERT_EQUAL_STRING("          indented code\n", res.proposed);
   TEST_ASSERT_EQUAL_PTR(line, *res.orig);
   free(line);
   free(res.proposed);

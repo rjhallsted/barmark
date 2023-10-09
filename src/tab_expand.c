@@ -4,7 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-char *expand(char line[static 1], size_t line_pos, int unsigned lookahead) {
+char *expand(char const line[static 1], size_t line_pos,
+             int unsigned lookahead) {
   if (lookahead == 0) {
     return strdup(line);
   }
