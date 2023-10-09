@@ -62,11 +62,10 @@ bool scope_has_late_continuation(ASTNode node[static 1]) {
 }
 
 void reset_late_continuation_above_node(ASTNode node[static 1]) {
-  // old way
+  // TODO: Maybe localize this like I did with the line count?
   free(LATE_CONTINUATION_CONTENTS);
   LATE_CONTINUATION_CONTENTS = strdup("");
 
-  // new way
   do {
     node->late_continuation_lines = 0;
     node = node->parent;
@@ -80,8 +79,6 @@ void reset_late_continuation_above_node(ASTNode node[static 1]) {
  */
 bool matches_continuation_markers(ASTNode node[static 1], char *line[static 1],
                                   size_t line_pos, size_t match_len[static 1]) {
-  // TODO: Once this replaces old version, remove tab expansion from
-  // traverse_to_last_match
   if (node->type == ASTN_BLOCK_QUOTE) {  // special case for blockquote
     if ((*line)[line_pos] == '>') {
       tab_expand_ref ref = begin_tab_expand(line, line_pos + 1, 1);
@@ -167,7 +164,6 @@ void convert_texts_to_paragraphs(ASTNode node[static 1]) {
   }
 }
 
-// TODO: Update this use of late continuation lines last
 void add_line_to_node(ASTNode node[static 1], char *line) {
   ASTNode *child = get_last_child(node);
 
@@ -182,7 +178,6 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
     child->contents = strdup("");
   }
   // should only apply to code blocks with existing content
-  // size_t late_cont_count = current_late_continuation_in_scope(node);
   if (node->type == ASTN_CODE_BLOCK && strlen(child->contents) > 0 &&
       scope_has_late_continuation(node)) {
     if (f_debug())
@@ -1014,17 +1009,11 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     printf("line now is: '%s'\n", (*line) + line_pos);
   }
 
-  // TODO: Need to implement late_continuation lines in a block-localized way.
-
   if (is_all_whitespace((*line) + line_pos)) {
-    if (f_debug())
+    if (f_debug()) {
       printf("Found late continuation line on node %s\n",
              NODE_TYPE_NAMES[node->type]);
-    // if ((tmp = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE))) {
-    //   if (f_debug())
-    //     printf("closing %s due to empty line\n", NODE_TYPE_NAMES[tmp->type]);
-    //   tmp->open = false;
-    // } else {
+    }
     node->late_continuation_lines += 1;
     close_leaf_paragraph(node);
     if (line_pos >= 4) {
@@ -1033,7 +1022,6 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     } else {
       LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
     }
-    // }
     if (f_debug()) print_tree(root, 0);
     return;
   }
