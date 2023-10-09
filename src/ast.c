@@ -11,7 +11,6 @@ ASTNode *ast_create_node(unsigned int type) {
   node->type = type;
   node->open = true;
   node->contents = NULL;
-  node->cont_markers = strdup("");
   node->cont_spaces = 0;
   node->children = NULL;
   node->children_count = 0;
@@ -25,9 +24,6 @@ ASTNode *ast_create_node(unsigned int type) {
 void ast_free_node_only(ASTNode node[static 1]) {
   if (node->contents) {
     free(node->contents);
-  }
-  if (node->cont_markers) {
-    free(node->cont_markers);
   }
   if (node->options) {
     free(node->options);

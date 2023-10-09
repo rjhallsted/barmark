@@ -6,24 +6,6 @@
 #include "../src/ast.h"
 #include "../vendor/unity/unity.h"
 
-void test_matches_continuation_markers_matches(void) {
-  ASTNode *node = ast_create_node(ASTN_PARAGRAPH);
-  node->cont_markers = strdup("abcdef");
-  size_t match_len = 0;
-  char *line = "abcdefghi";
-  TEST_ASSERT_TRUE(matches_continuation_markers(node, line, &match_len));
-  TEST_ASSERT_EQUAL(6, match_len);
-
-  char *line2 = "abcdef";
-  TEST_ASSERT_TRUE(matches_continuation_markers(node, line2, &match_len));
-  TEST_ASSERT_EQUAL(6, match_len);
-
-  char *line3 = "abcde";
-  TEST_ASSERT_FALSE(matches_continuation_markers(node, line3, &match_len));
-  TEST_ASSERT_EQUAL(0, match_len);
-  ast_free_node(node);
-}
-
 void test_get_deepest_non_text_child(void) {
   ASTNode *root = ast_create_node(ASTN_DOCUMENT);
   ASTNode *node = root;
@@ -71,8 +53,6 @@ void test_get_deepest_non_text_child(void) {
 
 void run_blocks_tests(void) {
   printf("--blocks tests\n");
-  printf("---matches_continuation_markers\n");
-  RUN_TEST(test_matches_continuation_markers_matches);
   printf("---get_deepest_non_text_child\n");
   RUN_TEST(test_get_deepest_non_text_child);
   // printf("---construction tests\n");

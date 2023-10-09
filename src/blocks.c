@@ -73,114 +73,59 @@ void reset_late_continuation_above_node(ASTNode node[static 1]) {
   } while (node);
 }
 
-bool matches_continuation_markers_with_leading_spaces(
-    ASTNode node[static 1], char const line[static 1],
-    size_t match_len[static 1]) {
-  size_t i = 0;
-  while (line[i] == ' ' && i < 3) {
-    i++;
-  }
-  int res = matches_continuation_markers(node, line + i, match_len);
-  if (res) {
-    *match_len += i;
-  }
-  return res;
-}
-
 /**
  * @brief Returns whether a match was found. Takes a pointer to a size_t
  * and sets that to the number of bytes matched against. 0 is a valid value
  * for this.
- *
- * @param node
- * @param line
- * @param match_len
- * @return bool
  */
-bool matches_continuation_markers(ASTNode node[static 1],
-                                  char const line[static 1],
-                                  size_t match_len[static 1]) {
-  if (!(node->cont_markers)) {
-    return 1;
-  }
-  if (f_debug()) printf("matching cont markers: '%s'\n", node->cont_markers);
-  size_t ni = 0, li = 0;
-  while (line[li] && node->cont_markers[ni] &&
-         line[li] == node->cont_markers[ni]) {
-    li++;
-    ni++;
-  }
-  if (node->cont_markers[ni] == '\0') {
-    *match_len = li;
-    return true;
-  }
-  *match_len = 0;
-  return false;
-}
-
-/**
- * @brief Returns whether a match was found. Takes a pointer to a size_t
- * and sets that to the number of bytes matched against. 0 is a valid value
- * for this.
- *
- * @param node
- * @param line
- * @param match_len
- * @return bool
- */
-bool new_matches_continuation_markers(ASTNode node[static 1],
-                                      char *line[static 1], size_t line_pos,
-                                      size_t match_len[static 1]) {
+bool matches_continuation_markers(ASTNode node[static 1], char *line[static 1],
+                                  size_t line_pos, size_t match_len[static 1]) {
   // TODO: Once this replaces old version, remove tab expansion from
   // traverse_to_last_match
-  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
-  size_t i = 0;
-
-  // opportunistically match up to 3 leading spaces
-  while (i < 3 && t1.proposed[line_pos + i] == ' ') {
-    i++;
-  }
   if (node->type == ASTN_BLOCK_QUOTE) {  // special case for blockquote
-    if (t1.proposed[line_pos + i] == '>') {
-      i += 1;
-      tab_expand_ref t2 = begin_tab_expand(&(t1.proposed), line_pos + i, 1);
-      if (t2.proposed[line_pos + i] == ' ') {
-        i += 1;
-        commit_tab_expand(t2);
+    if ((*line)[line_pos] == '>') {
+      tab_expand_ref ref = begin_tab_expand(line, line_pos + 1, 1);
+      if (ref.proposed[line_pos + 1] == ' ') {
+        if (f_debug()) printf("matching '> '\n");
+        commit_tab_expand(ref);
+        *match_len = 2;
       } else {
-        abandon_tab_expand(t2);
+        abandon_tab_expand(ref);
+        *match_len = 1;
       }
-      commit_tab_expand(t1);
-      *match_len = i;
       return true;
+    } else {
+      return false;
     }
   } else {  // all other cases
-    tab_expand_ref t2 =
-        begin_tab_expand(&(t1.proposed), line_pos + i, node->cont_spaces - i);
-    while (i < node->cont_spaces && t2.proposed[line_pos + i] == ' ') {
+    if (f_debug()) {
+      printf("Using normal method\n");
+      printf("matching against %s, with space count of %u\n",
+             NODE_TYPE_NAMES[node->type], node->cont_spaces);
+    }
+    tab_expand_ref ref = begin_tab_expand(line, line_pos, node->cont_spaces);
+    size_t i = 0;
+    while (i < node->cont_spaces && ref.proposed[line_pos + i] == ' ') {
       i++;
     }
     if (i == node->cont_spaces) {
-      commit_tab_expand(t2);
-      commit_tab_expand(t1);
+      commit_tab_expand(ref);
       *match_len = i;
       return true;
     }
-    abandon_tab_expand(t2);
+    abandon_tab_expand(ref);
+    return false;
   }
-  abandon_tab_expand(t1);
-  return false;
 }
 
-bool new_matches_continuation_markers_with_leading_spaces(
+bool matches_continuation_markers_with_leading_spaces(
     ASTNode node[static 1], char *line[static 1], size_t line_pos,
     size_t match_len[static 1]) {
   size_t i = 0;
   while ((*line)[line_pos + i] == ' ' && i < 3) {
     i++;
   }
-  int res =
-      new_matches_continuation_markers(node, line, line_pos + i, match_len);
+  int res = matches_continuation_markers(node, line, line_pos + i, match_len);
   if (res) {
     *match_len += i;
   }
@@ -656,24 +601,11 @@ ASTNode *is_block_end(ASTNode node[static 1], char const line[static 1]) {
   return is_block_end(node->children[node->children_count - 1], line);
 }
 
-/* returns a pointer to the child */
-ASTNode *add_child_block_with_cont_markers(ASTNode node[static 1],
-                                           int unsigned node_type,
-                                           char cont_markers[static 1]) {
-  ASTNode *child = ast_create_node(node_type);
-  child->cont_markers = cont_markers;
-  if (cont_markers[0] != '>') {
-    child->cont_spaces = strlen(cont_markers);
-  }
-  ast_add_child(node, child);
-  return child;
-}
-
 ASTNode *add_child_block_with_cont_spaces(ASTNode node[static 1],
                                           int unsigned node_type,
-                                          int unsigned const_spaces) {
+                                          int unsigned cont_spaces) {
   ASTNode *child = ast_create_node(node_type);
-  child->cont_spaces = const_spaces;
+  child->cont_spaces = cont_spaces;
   ast_add_child(node, child);
   return child;
 }
@@ -686,15 +618,14 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
   ASTNode *child;
 
   if (node_type == ASTN_CODE_BLOCK) {
-    return add_child_block_with_cont_markers(node, ASTN_CODE_BLOCK,
-                                             repeat_x(' ', 4));
+    return add_child_block_with_cont_spaces(node, ASTN_CODE_BLOCK, 4);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
-    child->options->wide = 0;
+    child->options->wide = false;
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
                            0);
@@ -704,22 +635,23 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     child = ast_create_node(ASTN_ORDERED_LIST);
     child->options = malloc(sizeof(ASTListOptions));
     child->options->marker = list_char;
-    child->options->wide = 0;
+    child->options->wide = false;
     ast_add_child(node, child);
     return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
-    return child = add_child_block_with_cont_markers(
-               node, ASTN_UNORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
+    return child = add_child_block_with_cont_spaces(
+               node, ASTN_UNORDERED_LIST_ITEM, opener_match_len);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type == ASTN_ORDERED_LIST) {
     if (f_debug())
       printf("match len while add OL-LI is %zu\n", opener_match_len);
-    return child = add_child_block_with_cont_markers(
-               node, ASTN_ORDERED_LIST_ITEM, repeat_x(' ', opener_match_len));
+    return child = add_child_block_with_cont_spaces(
+               node, ASTN_ORDERED_LIST_ITEM, opener_match_len);
   } else if (node_type == ASTN_BLOCK_QUOTE) {
-    return add_child_block_with_cont_markers(node, ASTN_BLOCK_QUOTE,
-                                             strdup(">"));
+    child = ast_create_node(ASTN_BLOCK_QUOTE);
+    ast_add_child(node, child);
+    return child;
   } else if (node_type == ASTN_SETEXT_H1 || node_type == ASTN_SETEXT_H2) {
     // Instead of adding a new child, for setext headings we just change the
     // type of its "sibling" paragraph. Or in the case there is no paragraph, we
@@ -756,15 +688,12 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
 void print_tree(ASTNode node[static 1], size_t level) {
   char *indent = repeat_x(' ', level * 2);
   if (node->options) {
-    printf("%s%s-%s (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
-           node->options->wide ? "wide" : "tight",
+    printf("%s%s-%s [%u] (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->options->wide ? "wide" : "tight", node->cont_spaces,
            node->late_continuation_lines);
-  } else if (node->cont_markers) {
-    printf("%s%s->'%s' (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
-           node->cont_markers, node->late_continuation_lines);
   } else {
-    printf("%s%s (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
-           node->late_continuation_lines);
+    printf("%s%s [%u] (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->cont_spaces, node->late_continuation_lines);
   }
 
   if (node->contents) {
@@ -802,30 +731,23 @@ ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
   ASTNode *child;
   // traverse to last matching node
   while ((*line)[*line_pos] && has_open_child(node)) {
-    tab_expand_ref ref = begin_tab_expand(line, *line_pos, 4);
     if (f_debug()) {
       printf("matching against %s\n",
              NODE_TYPE_NAMES[get_last_child(node)->type]);
-      printf("remaining line is: '%s'\n", ref.proposed + (*line_pos));
+      printf("remaining line is: '%s'\n", (*line) + (*line_pos));
     }
     child = get_last_child(node);
     // TODO: Figure out why I have to check both versions of cont markers here
     // instead of just the leading spaces version
-    if (child->type == ASTN_PARAGRAPH ||
-        (!matches_continuation_markers(child, ref.proposed + (*line_pos),
-                                       match_len) &&
-         !matches_continuation_markers_with_leading_spaces(
-             child, ref.proposed + (*line_pos), match_len) &&
-         !new_matches_continuation_markers(child, &(ref.proposed), *line_pos,
-                                           match_len) &&
-         !new_matches_continuation_markers_with_leading_spaces(
-             child, &(ref.proposed), *line_pos, match_len))) {
-      abandon_tab_expand(ref);
+    if (child->type != ASTN_PARAGRAPH &&
+        (matches_continuation_markers(child, line, *line_pos, match_len) ||
+         matches_continuation_markers_with_leading_spaces(
+             child, line, *line_pos, match_len))) {
+      node = child;
+      *line_pos += *match_len;
+    } else {
       break;
     }
-    commit_tab_expand(ref);
-    node = child;
-    *line_pos += *match_len;
   }
   return node;
 }
@@ -863,16 +785,13 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
   if ((node->type == ASTN_UNORDERED_LIST_ITEM ||
        node->type == ASTN_ORDERED_LIST_ITEM) &&
       !is_all_whitespace((*line) + (*line_pos))) {
-    size_t diff = match_up_to_3_spaces(line, *line_pos);
+    int unsigned diff = match_up_to_3_spaces(line, *line_pos);
     if (f_debug()) {
       printf("cleaning up list item cont markers\n");
       printf("line is '%s'", (*line) + (*line_pos));
-      printf("diff is %zu\n", diff);
+      printf("diff is %u\n", diff);
     }
-
-    char *tmp = repeat_x(' ', diff);
-    node->cont_markers = str_append(node->cont_markers, tmp);
-    free(tmp);
+    node->cont_spaces += diff;
     *line_pos += diff;
   }
 
@@ -880,7 +799,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
 }
 
 void widen_list(ASTNode node[static 1]) {
-  node->options->wide = 1;
+  node->options->wide = true;
   // fix existing list items
   for (size_t i = 0; i < node->children_count; i++) {
     convert_texts_to_paragraphs(node->children[i]);

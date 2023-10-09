@@ -16,8 +16,6 @@ void assert_strings_equal_or_both_null(const char *a, const char *b) {
 void assert_ast_nodes_equal(ASTNode *expected, ASTNode *actual) {
   TEST_ASSERT_EQUAL(expected->type, actual->type);
   assert_strings_equal_or_both_null(expected->contents, actual->contents);
-  assert_strings_equal_or_both_null(expected->cont_markers,
-                                    actual->cont_markers);
 
   TEST_ASSERT_EQUAL(expected->children_count, actual->children_count);
   for (size_t i = 0; i < expected->children_count; ++i) {

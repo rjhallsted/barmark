@@ -5,9 +5,11 @@
 #include <string.h>
 
 char *expand(char line[static 1], size_t line_pos, int unsigned lookahead) {
+  if (lookahead == 0) {
+    return strdup(line);
+  }
   size_t lookahead_bound = line_pos + lookahead;
-  while (line[line_pos] && line[line_pos] == ' ' &&
-         line_pos < lookahead_bound - 1) {
+  while (line[line_pos] == ' ' && line_pos < lookahead_bound - 1) {
     line_pos++;
   }
   if (line[line_pos] != '\t') {
@@ -47,14 +49,14 @@ tab_expand_ref make_unmodified_tab_expand_ref(char *line[static 1]) {
 }
 
 tab_expand_ref begin_tab_expand(char *line[static 1], size_t line_pos,
-                                size_t lookahead) {
+                                int unsigned lookahead) {
   char *proposed = expand(*line, line_pos, lookahead);
   tab_expand_ref ref = {.orig = line, .proposed = proposed};
   return ref;
 }
 
 void expand_existing_ref(tab_expand_ref ref[static 1], size_t line_pos,
-                         size_t lookahead) {
+                         int unsigned lookahead) {
   char *new_version = expand(ref->proposed, line_pos, lookahead);
   free(ref->proposed);
   ref->proposed = new_version;

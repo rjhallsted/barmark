@@ -63,7 +63,7 @@ static const unsigned int
 
 typedef struct {
   char marker;
-  unsigned int wide;
+  bool wide;
   unsigned int starting_num;
 } ASTListOptions;
 
@@ -71,7 +71,6 @@ typedef struct ASTNode {
   int unsigned type;
   bool open;
   char *contents;
-  char *cont_markers;
   int unsigned cont_spaces;
   struct ASTNode **children;
   size_t children_count;

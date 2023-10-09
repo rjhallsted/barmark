@@ -112,6 +112,13 @@ void test_begin_tab_expand(void) {
   TEST_ASSERT_EQUAL_PTR(line, *res.orig);
   free(line);
   free(res.proposed);
+
+  line = strdup("12345");
+  res = begin_tab_expand(&line, 2, 0);
+  TEST_ASSERT_EQUAL_STRING("12345", res.proposed);
+  TEST_ASSERT_EQUAL_PTR(line, *res.orig);
+  free(line);
+  free(res.proposed);
 }
 
 void run_tab_expand_tests(void) {
