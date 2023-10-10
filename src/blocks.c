@@ -853,8 +853,22 @@ bool is_continuable_list_item(ASTNode node[static 1]) {
           node->type == ASTN_ORDERED_LIST_ITEM);
 }
 
-bool is_continuable_paragraph(ASTNode node[static 1],
-                              char const line[static 1]) {
+bool has_continuable_list_item(ASTNode node[static 1]) {
+  ASTNode *child = get_last_child(node);
+  if (has_open_child(node) && (child->type == ASTN_ORDERED_LIST ||
+                               child->type == ASTN_UNORDERED_LIST)) {
+    ASTNode *grandchild = get_last_child(child);
+    if (has_open_child(child) && !scope_has_late_continuation(grandchild) &&
+        (grandchild->type == ASTN_UNORDERED_LIST_ITEM ||
+         grandchild->type == ASTN_ORDERED_LIST_ITEM)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool has_continuable_paragraph(ASTNode node[static 1],
+                               char const line[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_PARAGRAPH &&
          !scope_has_late_continuation(node) && !is_all_whitespace(line);
@@ -867,7 +881,7 @@ bool has_child_paragraph_that_should_be_closed(ASTNode node[static 1],
          !scope_has_late_continuation(child) && is_all_whitespace(line);
 }
 
-bool should_determine_context_from_blockquote_child(ASTNode node[static 1],
+bool should_determine_context_from_child_blockquote(ASTNode node[static 1],
                                                     char const line[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
@@ -889,12 +903,14 @@ bool should_split_blockquote(ASTNode node[static 1]) {
 
 bool should_add_default_paragraph_to_blockquote(ASTNode node[static 1],
                                                 char const line[static 1]) {
-  ASTNode *child = get_last_child(node);
-  return node->type == ASTN_BLOCK_QUOTE && !is_all_whitespace(line) &&
-         (!has_open_child(node) ||
-          (has_open_child(node) && child->type != ASTN_PARAGRAPH));
+  // TODO: See if the commented out stuff is necessary
+  // ASTNode *child = get_last_child(node);
+  return node->type == ASTN_BLOCK_QUOTE && !is_all_whitespace(line);
+  //  (!has_open_child(node));
+  // (has_open_child(node) && child->type != ASTN_PARAGRAPH));
 }
 
+// TODO: Try removing all of the possibly unecessary is_all_whitespace checks
 ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
                                               char const line[static 1]) {
   /* logic to determine where to add line based on current node and context.
@@ -955,7 +971,12 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     // list
     node = node->parent;
     return determine_writable_node_from_context(node, line);
-  } else if (is_continuable_paragraph(node, line)) {
+  } else if (has_continuable_list_item(node)) {
+    if (f_debug())
+      printf("using continuable list item granchild for context\n");
+    return determine_writable_node_from_context(get_last_child(child), line);
+  } else if (has_continuable_paragraph(node, line)) {
+    if (f_debug()) printf("using continuable child paragraph for context\n");
     return determine_writable_node_from_context(child, line);
   } else if (has_child_paragraph_that_should_be_closed(node, line)) {
     if (f_debug()) printf("closing child paragraph due to empty line\n");
@@ -974,8 +995,8 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
     node = node->parent;
     child = add_child_block(node, ASTN_BLOCK_QUOTE, 0, 0);
     return determine_writable_node_from_context(child, line);
-  } else if (should_determine_context_from_blockquote_child(node, line)) {
-    if (f_debug()) printf("determining context from blockquote child\n");
+  } else if (should_determine_context_from_child_blockquote(node, line)) {
+    if (f_debug()) printf("determining context from child blockquote\n");
     return determine_writable_node_from_context(child, line);
   } else if (should_add_default_paragraph_to_blockquote(node, line)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
