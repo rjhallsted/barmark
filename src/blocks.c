@@ -12,6 +12,9 @@
 // TODO: Probably rework setext heading handling so that we don't
 // require different AST node types to handle them
 
+// TODO: Introduce notion of ordered list starting number
+// TODO: Introduce notion of ordered list item delimiter (i.e. '.' vs ')')
+
 char *LATE_CONTINUATION_CONTENTS = NULL;
 
 /**
@@ -717,7 +720,9 @@ bool should_add_to_parent_instead(ASTNode node[static 1],
            new_node_type != ASTN_UNORDERED_LIST_ITEM) ||
           (node->type == ASTN_UNORDERED_LIST &&
            new_node_type == ASTN_UNORDERED_LIST_ITEM && node->options &&
-           node->options->marker != list_char));
+           node->options->marker != list_char) ||
+          (node->type == ASTN_ORDERED_LIST &&
+           new_node_type != ASTN_ORDERED_LIST_ITEM));
 }
 
 ASTNode *traverse_to_last_match(ASTNode node[static 1], char *line[static 1],
