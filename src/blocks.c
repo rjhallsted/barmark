@@ -825,44 +825,42 @@ bool should_add_paragraph_to_blockquote(ASTNode node[static 1]) {
   return node->type == ASTN_BLOCK_QUOTE && !has_open_child(node);
 }
 
-// TODO: Try removing all of the possibly unecessary is_all_whitespace checks
-ASTNode *determine_writable_node_from_context(ASTNode node[static 1],
-                                              char const line[static 1]) {
+ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
   /* logic to determine where to add line based on current node and context.
     Tread carefully, as predicate order matters.
    */
 
   //////////
   if (f_debug()) {
-    printf("determining node from context on %s, line: '%s'\n",
-           NODE_TYPE_NAMES[node->type], line);
+    printf("determining node from context on %s\n",
+           NODE_TYPE_NAMES[node->type]);
   }
 
   ASTNode *child = get_last_child(node);
 
   if (is_new_item_in_wide_list(node)) {
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    return determine_writable_node_from_context(child, line);
+    return determine_writable_node_from_context(child);
   } else if (is_new_line_in_item_in_narrow_list(node)) {
     if (f_debug())
       printf("Adding trailing line to last item in unordered list.\n");
-    return determine_writable_node_from_context(get_last_child(child), line);
+    return determine_writable_node_from_context(get_last_child(child));
   } else if (has_continuable_paragraph(node)) {
     if (f_debug()) printf("using continuable child paragraph for context\n");
-    return determine_writable_node_from_context(child, line);
+    return determine_writable_node_from_context(child);
   } else if (should_determine_context_from_child_blockquote(node)) {
     if (f_debug()) printf("determining context from child blockquote\n");
-    return determine_writable_node_from_context(child, line);
+    return determine_writable_node_from_context(child);
   } else if (should_add_paragraph_to_blockquote(node)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    return determine_writable_node_from_context(child, line);
+    return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
     child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
-    return determine_writable_node_from_context(child, line);
+    return determine_writable_node_from_context(child);
   }
   // This context is correct. Use the current node
   return node;
@@ -903,10 +901,9 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
 
   if ((node->type == ASTN_ORDERED_LIST_ITEM ||
        node->type == ASTN_UNORDERED_LIST_ITEM) &&
-      has_text_as_last_item(node) &&
-      is_all_whitespace(get_node_last_item_contents(node))) {
+      !node->children_count) {
     // list items are only late continuable if the first or second lines have
-    // contents;
+    // contents, in which case there would be children by now
     if (f_debug()) {
       printf("closing list due to unusable late continuation lines");
     }
@@ -929,9 +926,16 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
         node->type == ASTN_UNORDERED_LIST_ITEM) {
       widen_list(node->parent);
     }
-  } else if (node->type == ASTN_BLOCK_QUOTE && node->children_count) {
-    // checking children count as a means of confirming this isn't a new
-    // blockquote just after a late continuation
+  } else if (node->type == ASTN_BLOCK_QUOTE && !node->late_continuation_lines &&
+             node->children_count) {
+    /*
+    Checking late continuation lines to make sure they're not on _this_
+    blockquote, which would indicate we had something like: > foo
+    >
+    > baz
+    checking children count as a means of confirming this isn't a new blockquote
+    just after a late continuation
+    */
     if (f_debug()) {
       printf("splitting blockquote due to late continuation lines\n");
     }
@@ -1038,10 +1042,15 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     // use parent instead
     node = node->parent;
   }
-  node = determine_writable_node_from_context(node, (*line) + line_pos);
+  if (f_debug()) {
+    printf("line: '%s'\n", (*line) + line_pos);
+  }
 
-  if (node->type != ASTN_THEMATIC_BREAK)
+  if (node->type != ASTN_THEMATIC_BREAK &&
+      !is_all_whitespace((*line) + line_pos)) {
+    node = determine_writable_node_from_context(node);
     add_line_to_node(node, (*line) + line_pos);
+  }
 
   // cleanup
   if (array_contains(UNNAPENDABLE_NODES_SIZE, UNAPPENDABLE_NODES, node->type)) {
