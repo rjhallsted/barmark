@@ -869,9 +869,20 @@ ASTNode *handle_late_continuation_for_new_blocks(ASTNode node[static 1]) {
   if (node->type == ASTN_ORDERED_LIST_ITEM ||
       node->type == ASTN_UNORDERED_LIST_ITEM) {
     if (f_debug()) {
-      printf("widening list due to late continuation (from list item)\n");
+      printf("widening list due to late continuation (from new list item)\n");
     }
     widen_list(node->parent);
+    reset_late_continuation_above_node(node);
+  } else if (node->parent &&
+             (node->parent->type == ASTN_ORDERED_LIST_ITEM ||
+              node->parent->type == ASTN_UNORDERED_LIST_ITEM) &&
+             !(node->parent->parent->options->wide)) {
+    if (f_debug()) {
+      printf(
+          "widening list due to late continuation (from new item in existing "
+          "list item)\n");
+    }
+    widen_list(node->parent->parent);
     reset_late_continuation_above_node(node);
   }
 
@@ -900,7 +911,15 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
       printf("widening list due to late continuation (from list item)\n");
     }
     widen_list(node->parent);
-  } else if (node->type == ASTN_BLOCK_QUOTE) {
+  } else if (node->type == ASTN_UNORDERED_LIST ||
+             node->type == ASTN_ORDERED_LIST) {
+    if (f_debug()) {
+      printf("closing list due to empty lines\n");
+    }
+    node->open = false;
+  } else if (node->type == ASTN_BLOCK_QUOTE && node->children_count) {
+    // checking children count as a means of confirming this isn't a new
+    // blockquote just after a late continuation
     if (f_debug()) {
       printf("splitting blockquote due to late continuation lines\n");
     }
@@ -995,13 +1014,13 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
+  if (scope_has_late_continuation(node)) {
+    node = handle_late_continuation(node);
+  }
   if (node->type == ASTN_UNORDERED_LIST || node->type == ASTN_ORDERED_LIST) {
     // resulting node shouldn't ever be the list instead of a list item, so
     // use parent instead
     node = node->parent;
-  }
-  if (scope_has_late_continuation(node)) {
-    node = handle_late_continuation(node);
   }
   node = determine_writable_node_from_context(node, (*line) + line_pos);
 
