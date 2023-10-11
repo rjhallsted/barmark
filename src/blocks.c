@@ -714,6 +714,13 @@ char find_list_char(char line[static 1]) {
   return 0;
 }
 
+void add_late_cont_contents_to_code_block(ASTNode node[static 1]) {
+  ASTNode *text = get_last_child(node);
+  if (strlen(LATE_CONTINUATION_CONTENTS)) {
+    text->contents = str_append(text->contents, LATE_CONTINUATION_CONTENTS);
+  }
+}
+
 bool should_add_to_parent_instead(ASTNode node[static 1],
                                   int unsigned new_node_type, char list_char) {
   return ((node->type == ASTN_UNORDERED_LIST &&
@@ -917,6 +924,11 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
       printf("closing list due to empty lines\n");
     }
     node->open = false;
+    node = node->parent;
+    if (node->type == ASTN_ORDERED_LIST_ITEM ||
+        node->type == ASTN_UNORDERED_LIST_ITEM) {
+      widen_list(node->parent);
+    }
   } else if (node->type == ASTN_BLOCK_QUOTE && node->children_count) {
     // checking children count as a means of confirming this isn't a new
     // blockquote just after a late continuation
@@ -928,6 +940,10 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
+  } else if (node->type == ASTN_CODE_BLOCK && node->children_count) {
+    // we should only add contents to existing code blocks, not new ones, hence
+    // the child check
+    add_late_cont_contents_to_code_block(node);
   }
   reset_late_continuation_above_node(node);
   return node;
