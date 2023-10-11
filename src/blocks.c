@@ -67,7 +67,6 @@ bool scope_has_late_continuation(ASTNode node[static 1]) {
 }
 
 void reset_late_continuation_above_node(ASTNode node[static 1]) {
-  // TODO: Maybe localize this like I did with the line count?
   free(LATE_CONTINUATION_CONTENTS);
   LATE_CONTINUATION_CONTENTS = strdup("");
 
@@ -467,13 +466,6 @@ size_t matches_setext_h1(char *line[static 1], size_t line_pos) {
 
 /* end matching functions */
 
-void close_descendent_blocks(ASTNode node[static 1]) {
-  node->open = false;
-  if (node->children_count > 0) {
-    close_descendent_blocks(node->children[node->children_count - 1]);
-  }
-}
-
 void close_leaf_paragraph(ASTNode node[static 1]) {
   ASTNode *descendant = get_deepest_non_text_child(node);
   if (descendant->type == ASTN_PARAGRAPH) {
@@ -578,25 +570,6 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
     return ASTN_H1;
   }
   return 0;
-}
-
-/**
- * @brief Recursively checks if this node or any of its open children are
- * closed by this line. Returns NULL if false, and a pointer to the
- * node-to-be-closed if true.
- *
- * @param node_type
- * @param line
- * @return int
- */
-ASTNode *is_block_end(ASTNode node[static 1], char const line[static 1]) {
-  if (node->type == ASTN_PARAGRAPH && is_all_whitespace(line)) {
-    return node;
-  }
-  if (node->children_count == 0) {
-    return NULL;
-  }
-  return is_block_end(node->children[node->children_count - 1], line);
 }
 
 ASTNode *add_child_block_with_cont_spaces(ASTNode node[static 1],
@@ -769,12 +742,6 @@ void widen_list(ASTNode node[static 1]) {
   for (size_t i = 0; i < node->children_count; i++) {
     convert_texts_to_paragraphs(node->children[i]);
   }
-}
-
-void swap_nodes(ASTNode a[static 1], ASTNode b[static 1]) {
-  ASTNode tmp = *a;
-  *a = *b;
-  *b = tmp;
 }
 
 bool is_new_item_in_wide_list(ASTNode node[static 1]) {
