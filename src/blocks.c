@@ -871,8 +871,9 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
 ASTNode *handle_late_continuation_for_new_blocks(ASTNode node[static 1]) {
   if (f_debug()) printf("handling late continuation for new blocks\n");
 
-  if (node->type == ASTN_ORDERED_LIST_ITEM ||
-      node->type == ASTN_UNORDERED_LIST_ITEM) {
+  if ((node->type == ASTN_ORDERED_LIST_ITEM ||
+       node->type == ASTN_UNORDERED_LIST_ITEM) &&
+      node->parent->late_continuation_lines) {
     if (f_debug()) {
       printf("widening list due to late continuation (from new list item)\n");
     }
@@ -901,7 +902,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
 
   if ((node->type == ASTN_ORDERED_LIST_ITEM ||
        node->type == ASTN_UNORDERED_LIST_ITEM) &&
-      !node->children_count) {
+      node->parent->late_continuation_lines && !node->children_count) {
     // list items are only late continuable if the first or second lines have
     // contents, in which case there would be children by now
     if (f_debug()) {
@@ -914,7 +915,13 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
     if (f_debug()) {
       printf("widening list due to late continuation (from list item)\n");
     }
-    widen_list(node->parent);
+    ASTNode *list = node->parent;
+    if (!node->children_count) {
+      // no children indicates this is the first line in list item, and we
+      // should widen the parent list
+      list = node->parent->parent->parent;
+    }
+    widen_list(list);
   } else if (node->type == ASTN_UNORDERED_LIST ||
              node->type == ASTN_ORDERED_LIST) {
     if (f_debug()) {
