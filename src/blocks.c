@@ -302,7 +302,7 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   }
   // period
   // TODO: Figure out why the num_start - i check broke stuff
-  if ((num_start - i > 9) || i == 0 || t1.proposed[line_pos + i] != '.') {
+  if ((i - num_start > 9) || i == 0 || t1.proposed[line_pos + i] != '.') {
     abandon_tab_expand(t1);
     return 0;
   }
@@ -918,6 +918,18 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
   return node;
 }
 
+bool meets_paragraph_interruption_by_ol_criteria(ASTNode node[static 1],
+                                                 long unsigned starting_num) {
+  if (!has_open_child(node) || get_last_child(node)->type != ASTN_PARAGRAPH ||
+      scope_has_late_continuation(node)) {
+    return true;
+  }
+  if (starting_num != 1) {
+    return false;
+  }
+  return true;
+}
+
 ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
                                  size_t line_pos[static 1],
                                  size_t match_len[static 1]) {
@@ -934,6 +946,9 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
     }
     if (node_type == ASTN_ORDERED_LIST_ITEM) {
       starting_num = find_starting_num((*line) + (*line_pos));
+      if (!meets_paragraph_interruption_by_ol_criteria(node, starting_num)) {
+        break;
+      }
     }
     *line_pos += *match_len;
 
