@@ -64,7 +64,7 @@ static const unsigned int
 typedef struct {
   char marker;
   bool wide;
-  unsigned int starting_num;
+  long unsigned starting_num;
 } ASTListOptions;
 
 typedef struct ASTNode {
@@ -88,5 +88,6 @@ void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]);
 void ast_move_children_to_contents(ASTNode node[static 1]);
 void ast_remove_child_at_index(ASTNode node[static 1], size_t index);
 void ast_flatten_children(ASTNode node[static 1]);
+ASTListOptions *make_list_options(char list_char, long unsigned starting_num);
 
 #endif  // AST_H

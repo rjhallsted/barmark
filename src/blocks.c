@@ -295,12 +295,14 @@ size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
 size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);  // leading spaces
+  size_t num_start = i;
   // numbers
   while (t1.proposed[line_pos + i] >= '0' && t1.proposed[line_pos + i] <= '9') {
     i++;
   }
   // period
-  if (i == 0 || t1.proposed[line_pos + i] != '.') {
+  // TODO: Figure out why the num_start - i check broke stuff
+  if ((num_start - i > 9) || i == 0 || t1.proposed[line_pos + i] != '.') {
     abandon_tab_expand(t1);
     return 0;
   }
@@ -585,7 +587,8 @@ ASTNode *add_child_block_with_cont_spaces(ASTNode node[static 1],
 Contains all logic for block creation.
 */
 ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
-                         size_t opener_match_len, char list_char) {
+                         size_t opener_match_len, char list_char,
+                         long unsigned starting_num) {
   ASTNode *child;
 
   if (node_type == ASTN_CODE_BLOCK) {
@@ -594,21 +597,18 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node->type != ASTN_UNORDERED_LIST) {
     // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
-    child->options = malloc(sizeof(ASTListOptions));
-    child->options->marker = list_char;
-    child->options->wide = false;
+    child->options = make_list_options(list_char, starting_num);
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
+    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len, 0,
                            0);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type != ASTN_ORDERED_LIST) {
     // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
-    child->options = malloc(sizeof(ASTListOptions));
-    child->options->marker = list_char;
-    child->options->wide = false;
+    child->options = make_list_options(list_char, starting_num);
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0);
+    return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0,
+                           0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     return child = add_child_block_with_cont_spaces(
@@ -687,6 +687,11 @@ char find_list_char(char line[static 1]) {
   return 0;
 }
 
+long unsigned find_starting_num(char line[static 1]) {
+  char *end_ptr = line + strlen(line);
+  return strtoul(line, &end_ptr, 10);
+}
+
 void add_late_cont_contents_to_code_block(ASTNode node[static 1]) {
   ASTNode *text = get_last_child(node);
   if (strlen(LATE_CONTINUATION_CONTENTS)) {
@@ -758,20 +763,6 @@ bool is_new_line_in_item_in_narrow_list(ASTNode node[static 1]) {
           has_open_child(child));
 }
 
-bool has_continuable_list_item(ASTNode node[static 1]) {
-  ASTNode *child = get_last_child(node);
-  if (has_open_child(node) && (child->type == ASTN_ORDERED_LIST ||
-                               child->type == ASTN_UNORDERED_LIST)) {
-    ASTNode *grandchild = get_last_child(child);
-    if (has_open_child(child) && !scope_has_late_continuation(grandchild) &&
-        (grandchild->type == ASTN_UNORDERED_LIST_ITEM ||
-         grandchild->type == ASTN_ORDERED_LIST_ITEM)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool has_continuable_paragraph(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_PARAGRAPH;
@@ -806,7 +797,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
 
   if (is_new_item_in_wide_list(node)) {
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0);
     return determine_writable_node_from_context(child);
   } else if (is_new_line_in_item_in_narrow_list(node)) {
     if (f_debug())
@@ -820,13 +811,13 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
     return determine_writable_node_from_context(child);
   } else if (should_add_paragraph_to_blockquote(node)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0);
     return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0);
     return determine_writable_node_from_context(child);
   }
   // This context is correct. Use the current node
@@ -914,7 +905,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
       printf("splitting blockquote due to late continuation lines\n");
     }
     reset_late_continuation_above_node(node);
-    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0);
+    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0, 0);
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
@@ -931,6 +922,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
                                  size_t line_pos[static 1],
                                  size_t match_len[static 1]) {
   char list_char = 0;
+  long unsigned starting_num = 0;
   int unsigned node_type;
 
   // If a block start exists, create it, then keep checking for more.
@@ -939,6 +931,9 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
          !is_leaf_only_node(node->type)) {
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       list_char = find_list_char((*line) + (*line_pos));
+    }
+    if (node_type == ASTN_ORDERED_LIST_ITEM) {
+      starting_num = find_starting_num((*line) + (*line_pos));
     }
     *line_pos += *match_len;
 
@@ -949,7 +944,8 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
     if (should_add_to_parent_instead(node, node_type, list_char)) {
       node = node->parent;
     }
-    node = add_child_block(node, node_type, *match_len, list_char);
+    node =
+        add_child_block(node, node_type, *match_len, list_char, starting_num);
     if (scope_has_late_continuation(node)) {
       node = handle_late_continuation_for_new_blocks(node);
     }
