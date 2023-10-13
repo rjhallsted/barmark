@@ -12,8 +12,6 @@
 // TODO: Probably rework setext heading handling so that we don't
 // require different AST node types to handle them
 
-// TODO: Introduce notion of ordered list starting number
-// TODO: Introduce notion of ordered list item delimiter (i.e. '.' vs ')')
 // TODO: Handle multi-line code blocks
 // TODO: Handle backslash escapes of block structural characters
 
@@ -302,7 +300,8 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   }
   // period
   // TODO: Figure out why the num_start - i check broke stuff
-  if ((i - num_start > 9) || i == 0 || t1.proposed[line_pos + i] != '.') {
+  if ((i - num_start > 9) || i == 0 ||
+      (t1.proposed[line_pos + i] != '.' && t1.proposed[line_pos + i] != ')')) {
     abandon_tab_expand(t1);
     return 0;
   }
@@ -676,9 +675,23 @@ void print_tree(ASTNode node[static 1], size_t level) {
   free(indent);
 }
 
-char find_list_char(char line[static 1]) {
+char find_unordered_list_char(char line[static 1]) {
   size_t i = 0;
   while (line[i] && line[i] != '-' && line[i] != '*') {
+    i++;
+  }
+  if (line[i]) {
+    return line[i];
+  }
+  return 0;
+}
+
+char find_ordered_list_char(char line[static 1]) {
+  size_t i = 0;
+  while (line[i] == ' ') {
+    i++;
+  }
+  while (line[i] >= '0' && line[i] <= '9') {
     i++;
   }
   if (line[i]) {
@@ -704,7 +717,10 @@ bool should_add_to_parent_instead(ASTNode node[static 1],
   return ((node->type == ASTN_UNORDERED_LIST &&
            new_node_type != ASTN_UNORDERED_LIST_ITEM) ||
           (node->type == ASTN_UNORDERED_LIST &&
-           new_node_type == ASTN_UNORDERED_LIST_ITEM && node->options &&
+           new_node_type == ASTN_UNORDERED_LIST_ITEM &&
+           node->options->marker != list_char) ||
+          (node->type == ASTN_ORDERED_LIST &&
+           new_node_type == ASTN_ORDERED_LIST_ITEM &&
            node->options->marker != list_char) ||
           (node->type == ASTN_ORDERED_LIST &&
            new_node_type != ASTN_ORDERED_LIST_ITEM));
@@ -942,13 +958,14 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
   while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
          !is_leaf_only_node(node->type)) {
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
-      list_char = find_list_char((*line) + (*line_pos));
+      list_char = find_unordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_ORDERED_LIST_ITEM) {
       starting_num = find_starting_num((*line) + (*line_pos));
       if (!meets_paragraph_interruption_by_ol_criteria(node, starting_num)) {
         break;
       }
+      list_char = find_ordered_list_char((*line) + (*line_pos));
     }
     *line_pos += *match_len;
 
