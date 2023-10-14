@@ -8,8 +8,8 @@ void ast_to_html(ASTNode ast[static 1], FILE output_fd[static 1],
                  int unsigned print_tags) {
   HTML_TAG tag = HTML_TAGS[ast->type];
   if (print_tags && tag.show_tag) {
-    if (ast->type == ASTN_ORDERED_LIST && ast->options->starting_num != 1) {
-      printf("<%s start=\"%lu\">", tag.label, ast->options->starting_num);
+    if (ast->type == ASTN_ORDERED_LIST && ast->options->reference_num != 1) {
+      printf("<%s start=\"%lu\">", tag.label, ast->options->reference_num);
     } else {
       printf("<%s>", tag.label);
     }

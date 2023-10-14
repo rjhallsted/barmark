@@ -265,7 +265,7 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
-                                       char id_char) {
+                                       char id_char, long unsigned fence_len) {
   size_t i = 0;
   tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
 
@@ -280,7 +280,8 @@ size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
   while (t1.proposed[line_pos + i] == id_char) {
     i++;
   }
-  if (i - fence_start < 3 || !is_all_whitespace(t1.proposed + line_pos + i)) {
+  if (i - fence_start < fence_len ||
+      !is_all_whitespace(t1.proposed + line_pos + i)) {
     abandon_tab_expand(t1);
     return 0;
   }
@@ -636,21 +637,21 @@ Contains all logic for block creation.
 */
 ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                          size_t opener_match_len, char id_char,
-                         long unsigned starting_num) {
+                         long unsigned reference_num) {
   ASTNode *child;
 
   if (node_type == ASTN_CODE_BLOCK) {
     return add_child_block_with_cont_spaces(node, ASTN_CODE_BLOCK, 4);
   } else if (node_type == ASTN_FENCED_CODE_BLOCK) {
     child = ast_create_node(ASTN_FENCED_CODE_BLOCK);
-    child->options = make_node_options(id_char, starting_num);
+    child->options = make_node_options(id_char, reference_num);
     ast_add_child(node, child);
     return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
-    child->options = make_node_options(id_char, starting_num);
+    child->options = make_node_options(id_char, reference_num);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len, 0,
                            0);
@@ -658,7 +659,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node->type != ASTN_ORDERED_LIST) {
     // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
-    child->options = make_node_options(id_char, starting_num);
+    child->options = make_node_options(id_char, reference_num);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0,
                            0);
@@ -729,15 +730,26 @@ void print_tree(ASTNode node[static 1], size_t level) {
   free(indent);
 }
 
-char find_fenced_code_block_char(char line[static 1]) {
+/*
+Returns the id char if it exists, otherwise 0.
+If the id char is found, it will also set fence_len.
+*/
+char find_fenced_code_block_details(char line[static 1],
+                                    long unsigned fence_len[static 1]) {
   size_t i = 0;
   while (line[i] && line[i] != '`' && line[i] != '~') {
     i++;
   }
-  if (line[i]) {
-    return line[i];
+  if (!line[i]) {
+    return 0;
   }
-  return 0;
+  char id_char = line[i];
+  size_t fence_start = i;
+  while (line[i] == id_char) {
+    i++;
+  }
+  *fence_len = i - fence_start;
+  return id_char;
 }
 
 char find_unordered_list_char(char line[static 1]) {
@@ -1000,12 +1012,12 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
 }
 
 bool meets_paragraph_interruption_by_ol_criteria(ASTNode node[static 1],
-                                                 long unsigned starting_num) {
+                                                 long unsigned reference_num) {
   if (!has_open_child(node) || get_last_child(node)->type != ASTN_PARAGRAPH ||
       scope_has_late_continuation(node)) {
     return true;
   }
-  if (starting_num != 1) {
+  if (reference_num != 1) {
     return false;
   }
   return true;
@@ -1015,7 +1027,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
                                  size_t line_pos[static 1],
                                  size_t match_len[static 1]) {
   char id_char = 0;
-  long unsigned starting_num = 0;
+  long unsigned reference_num = 0;
   int unsigned node_type;
 
   // If a block start exists, create it, then keep checking for more.
@@ -1026,14 +1038,15 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
       id_char = find_unordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_ORDERED_LIST_ITEM) {
-      starting_num = find_starting_num((*line) + (*line_pos));
-      if (!meets_paragraph_interruption_by_ol_criteria(node, starting_num)) {
+      reference_num = find_starting_num((*line) + (*line_pos));
+      if (!meets_paragraph_interruption_by_ol_criteria(node, reference_num)) {
         break;
       }
       id_char = find_ordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_FENCED_CODE_BLOCK) {
-      id_char = find_fenced_code_block_char((*line) + (*line_pos));
+      id_char =
+          find_fenced_code_block_details((*line) + (*line_pos), &reference_num);
     }
     *line_pos += *match_len;
 
@@ -1044,7 +1057,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
     if (should_add_to_parent_instead(node, node_type, id_char)) {
       node = node->parent;
     }
-    node = add_child_block(node, node_type, *match_len, id_char, starting_num);
+    node = add_child_block(node, node_type, *match_len, id_char, reference_num);
     if (scope_has_late_continuation(node)) {
       node = handle_late_continuation_for_new_blocks(node);
     }
@@ -1102,7 +1115,8 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     return;
   }
   if (node->type == ASTN_FENCED_CODE_BLOCK &&
-      matches_fenced_code_block_close(line, line_pos, node->options->id_char)) {
+      matches_fenced_code_block_close(line, line_pos, node->options->id_char,
+                                      node->options->reference_num)) {
     node->open = false;
     if (scope_has_late_continuation(node)) {
       add_late_cont_contents_to_code_block(node);
