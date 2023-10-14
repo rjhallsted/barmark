@@ -126,9 +126,9 @@ void ast_remove_child_at_index(ASTNode node[static 1], size_t index) {
   free(old_children);
 }
 
-ASTListOptions *make_list_options(char list_char, long unsigned starting_num) {
-  ASTListOptions *options = malloc(sizeof(ASTListOptions));
-  options->marker = list_char;
+ASTNodeOptions *make_node_options(char id_char, long unsigned starting_num) {
+  ASTNodeOptions *options = malloc(sizeof(ASTNodeOptions));
+  options->id_char = id_char;
   options->wide = false;
   options->starting_num = starting_num;
   return options;

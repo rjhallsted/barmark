@@ -264,20 +264,20 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   return 0;
 }
 
-size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos) {
+size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
+                                       char id_char) {
   size_t i = 0;
   tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
 
   while (t1.proposed[line_pos + i] == ' ' && i < 3) {
     i++;
   }
-  char c = t1.proposed[line_pos + i];
   size_t fence_start = i;
-  if (c != '`' && c != '~') {
+  if (t1.proposed[line_pos + i] != id_char) {
     abandon_tab_expand(t1);
     return 0;
   }
-  while (t1.proposed[line_pos + i] == c) {
+  while (t1.proposed[line_pos + i] == id_char) {
     i++;
   }
   if (i - fence_start < 3 || !is_all_whitespace(t1.proposed + line_pos + i)) {
@@ -635,17 +635,22 @@ ASTNode *add_child_block_with_cont_spaces(ASTNode node[static 1],
 Contains all logic for block creation.
 */
 ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
-                         size_t opener_match_len, char list_char,
+                         size_t opener_match_len, char id_char,
                          long unsigned starting_num) {
   ASTNode *child;
 
   if (node_type == ASTN_CODE_BLOCK) {
     return add_child_block_with_cont_spaces(node, ASTN_CODE_BLOCK, 4);
+  } else if (node_type == ASTN_FENCED_CODE_BLOCK) {
+    child = ast_create_node(ASTN_FENCED_CODE_BLOCK);
+    child->options = make_node_options(id_char, starting_num);
+    ast_add_child(node, child);
+    return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
-    child->options = make_list_options(list_char, starting_num);
+    child->options = make_node_options(id_char, starting_num);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len, 0,
                            0);
@@ -653,7 +658,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node->type != ASTN_ORDERED_LIST) {
     // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
-    child->options = make_list_options(list_char, starting_num);
+    child->options = make_node_options(id_char, starting_num);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0,
                            0);
@@ -690,11 +695,10 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     }
     child->type = node_type;
     return child;
-  } else if (node_type == ASTN_FENCED_CODE_BLOCK || node_type == ASTN_H1 ||
-             node_type == ASTN_H2 || node_type == ASTN_H3 ||
-             node_type == ASTN_H4 || node_type == ASTN_H5 ||
-             node_type == ASTN_H6 || node_type == ASTN_PARAGRAPH ||
-             node_type == ASTN_THEMATIC_BREAK) {
+  } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
+             node_type == ASTN_H3 || node_type == ASTN_H4 ||
+             node_type == ASTN_H5 || node_type == ASTN_H6 ||
+             node_type == ASTN_PARAGRAPH || node_type == ASTN_THEMATIC_BREAK) {
     child = ast_create_node(node_type);
     ast_add_child(node, child);
     return child;
@@ -723,6 +727,17 @@ void print_tree(ASTNode node[static 1], size_t level) {
     print_tree(node->children[i], level + 1);
   }
   free(indent);
+}
+
+char find_fenced_code_block_char(char line[static 1]) {
+  size_t i = 0;
+  while (line[i] && line[i] != '`' && line[i] != '~') {
+    i++;
+  }
+  if (line[i]) {
+    return line[i];
+  }
+  return 0;
 }
 
 char find_unordered_list_char(char line[static 1]) {
@@ -768,10 +783,10 @@ bool should_add_to_parent_instead(ASTNode node[static 1],
            new_node_type != ASTN_UNORDERED_LIST_ITEM) ||
           (node->type == ASTN_UNORDERED_LIST &&
            new_node_type == ASTN_UNORDERED_LIST_ITEM &&
-           node->options->marker != list_char) ||
+           node->options->id_char != list_char) ||
           (node->type == ASTN_ORDERED_LIST &&
            new_node_type == ASTN_ORDERED_LIST_ITEM &&
-           node->options->marker != list_char) ||
+           node->options->id_char != list_char) ||
           (node->type == ASTN_ORDERED_LIST &&
            new_node_type != ASTN_ORDERED_LIST_ITEM));
 }
@@ -999,7 +1014,7 @@ bool meets_paragraph_interruption_by_ol_criteria(ASTNode node[static 1],
 ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
                                  size_t line_pos[static 1],
                                  size_t match_len[static 1]) {
-  char list_char = 0;
+  char id_char = 0;
   long unsigned starting_num = 0;
   int unsigned node_type;
 
@@ -1008,14 +1023,17 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
   while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
          !is_leaf_only_node(node->type)) {
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
-      list_char = find_unordered_list_char((*line) + (*line_pos));
+      id_char = find_unordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_ORDERED_LIST_ITEM) {
       starting_num = find_starting_num((*line) + (*line_pos));
       if (!meets_paragraph_interruption_by_ol_criteria(node, starting_num)) {
         break;
       }
-      list_char = find_ordered_list_char((*line) + (*line_pos));
+      id_char = find_ordered_list_char((*line) + (*line_pos));
+    }
+    if (node_type == ASTN_FENCED_CODE_BLOCK) {
+      id_char = find_fenced_code_block_char((*line) + (*line_pos));
     }
     *line_pos += *match_len;
 
@@ -1023,11 +1041,10 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
       printf("block start node_type: %s\n", NODE_TYPE_NAMES[node_type]);
 
     // enforce cases of required child types
-    if (should_add_to_parent_instead(node, node_type, list_char)) {
+    if (should_add_to_parent_instead(node, node_type, id_char)) {
       node = node->parent;
     }
-    node =
-        add_child_block(node, node_type, *match_len, list_char, starting_num);
+    node = add_child_block(node, node_type, *match_len, id_char, starting_num);
     if (scope_has_late_continuation(node)) {
       node = handle_late_continuation_for_new_blocks(node);
     }
@@ -1085,7 +1102,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     return;
   }
   if (node->type == ASTN_FENCED_CODE_BLOCK &&
-      matches_fenced_code_block_close(line, line_pos)) {
+      matches_fenced_code_block_close(line, line_pos, node->options->id_char)) {
     node->open = false;
     if (scope_has_late_continuation(node)) {
       add_late_cont_contents_to_code_block(node);

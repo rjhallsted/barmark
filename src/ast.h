@@ -74,10 +74,10 @@ static const unsigned int
         ASTN_PARAGRAPH, ASTN_UNORDERED_LIST, ASTN_ORDERED_LIST};
 
 typedef struct {
-  char marker;
+  char id_char;
   bool wide;
   long unsigned starting_num;
-} ASTListOptions;
+} ASTNodeOptions;
 
 typedef struct ASTNode {
   int unsigned type;
@@ -89,7 +89,7 @@ typedef struct ASTNode {
   struct ASTNode *parent;
   // TODO: Replace with union of different options types once there's more than
   // one
-  ASTListOptions *options;
+  ASTNodeOptions *options;
   size_t late_continuation_lines;
 } ASTNode;
 
@@ -100,6 +100,6 @@ void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]);
 void ast_move_children_to_contents(ASTNode node[static 1]);
 void ast_remove_child_at_index(ASTNode node[static 1], size_t index);
 void ast_flatten_children(ASTNode node[static 1]);
-ASTListOptions *make_list_options(char list_char, long unsigned starting_num);
+ASTNodeOptions *make_node_options(char id_char, long unsigned starting_num);
 
 #endif  // AST_H
