@@ -166,6 +166,13 @@ void convert_texts_to_paragraphs(ASTNode node[static 1]) {
   }
 }
 
+ASTNode *add_text_child(ASTNode node[static 1]) {
+  ASTNode *child = ast_create_node(ASTN_TEXT);
+  ast_add_child(node, child);
+  child->contents = strdup("");
+  return child;
+}
+
 void add_line_to_node(ASTNode node[static 1], char *line) {
   ASTNode *child = get_last_child(node);
 
@@ -175,9 +182,7 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
 
   // force the thing we're adding content to be a text node
   if (!child || child->type != ASTN_TEXT) {
-    child = ast_create_node(ASTN_TEXT);
-    ast_add_child(node, child);
-    child->contents = strdup("");
+    child = add_text_child(node);
   }
   // should only apply to code blocks with existing content
   if (node->type == ASTN_CODE_BLOCK && strlen(child->contents) &&
@@ -1002,9 +1007,16 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
-  } else if (node->type == ASTN_CODE_BLOCK && node->children_count) {
+  } else if ((node->type == ASTN_CODE_BLOCK ||
+              node->type == ASTN_FENCED_CODE_BLOCK) &&
+             node->children_count) {
     // we should only add contents to existing code blocks, not new ones, hence
     // the child check
+    add_late_cont_contents_to_code_block(node);
+  } else if (node->type == ASTN_FENCED_CODE_BLOCK && !node->children_count) {
+    // always add late lines to fenced code blocks, creating a text child if
+    // necessary
+    add_text_child(node);
     add_late_cont_contents_to_code_block(node);
   }
   reset_late_continuation_above_node(node);
