@@ -240,6 +240,54 @@ size_t matches_code_block(char *line[static 1], size_t line_pos) {
   return 0;
 }
 
+size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
+  size_t i = 0;
+  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
+
+  while (t1.proposed[line_pos + i] == ' ' && i < 3) {
+    i++;
+  }
+  char c = t1.proposed[line_pos + i];
+  size_t fence_start = i;
+  if (c != '`' && c != '~') {
+    abandon_tab_expand(t1);
+    return 0;
+  }
+  while (t1.proposed[line_pos + i] == c) {
+    i++;
+  }
+  if (i - fence_start >= 3) {
+    commit_tab_expand(t1);
+    return i;
+  }
+  abandon_tab_expand(t1);
+  return 0;
+}
+
+size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos) {
+  size_t i = 0;
+  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
+
+  while (t1.proposed[line_pos + i] == ' ' && i < 3) {
+    i++;
+  }
+  char c = t1.proposed[line_pos + i];
+  size_t fence_start = i;
+  if (c != '`' && c != '~') {
+    abandon_tab_expand(t1);
+    return 0;
+  }
+  while (t1.proposed[line_pos + i] == c) {
+    i++;
+  }
+  if (i - fence_start < 3 || !is_all_whitespace(t1.proposed + line_pos + i)) {
+    abandon_tab_expand(t1);
+    return 0;
+  }
+  commit_tab_expand(t1);
+  return i;
+}
+
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
@@ -299,7 +347,6 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
     i++;
   }
   // period
-  // TODO: Figure out why the num_start - i check broke stuff
   if ((i - num_start > 9) || i == 0 ||
       (t1.proposed[line_pos + i] != '.' && t1.proposed[line_pos + i] != ')')) {
     abandon_tab_expand(t1);
@@ -539,6 +586,8 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
   if (meets_code_block_conditions(current_node) &&
       (*match_len = matches_code_block(line, line_pos))) {
     return ASTN_CODE_BLOCK;
+  } else if ((*match_len = matches_fenced_code_block(line, line_pos))) {
+    return ASTN_FENCED_CODE_BLOCK;
   } else if (meets_setext_conditions(current_node) &&
              (*match_len = matches_setext_h2(line, line_pos))) {
     return ASTN_SETEXT_H2;
@@ -641,10 +690,11 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     }
     child->type = node_type;
     return child;
-  } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
-             node_type == ASTN_H3 || node_type == ASTN_H4 ||
-             node_type == ASTN_H5 || node_type == ASTN_H6 ||
-             node_type == ASTN_PARAGRAPH || node_type == ASTN_THEMATIC_BREAK) {
+  } else if (node_type == ASTN_FENCED_CODE_BLOCK || node_type == ASTN_H1 ||
+             node_type == ASTN_H2 || node_type == ASTN_H3 ||
+             node_type == ASTN_H4 || node_type == ASTN_H5 ||
+             node_type == ASTN_H6 || node_type == ASTN_PARAGRAPH ||
+             node_type == ASTN_THEMATIC_BREAK) {
     child = ast_create_node(node_type);
     ast_add_child(node, child);
     return child;
@@ -1032,6 +1082,15 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
       LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
     }
     if (f_debug()) print_tree(root, 0);
+    return;
+  }
+  if (node->type == ASTN_FENCED_CODE_BLOCK &&
+      matches_fenced_code_block_close(line, line_pos)) {
+    node->open = false;
+    if (scope_has_late_continuation(node)) {
+      add_late_cont_contents_to_code_block(node);
+      reset_late_continuation_above_node(node);
+    }
     return;
   }
 

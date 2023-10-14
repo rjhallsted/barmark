@@ -18,7 +18,7 @@ typedef struct {
 } HTML_TAG;
 
 // NOTE: These must be in the same order as the AST_NODE_TYPES enum in ast.h
-static const HTML_TAG HTML_TAGS[] = {
+static const HTML_TAG HTML_TAGS[NODE_TYPE_COUNT] = {
     {.label = "",
      .show_tag = false,
      .close = false,
@@ -27,6 +27,11 @@ static const HTML_TAG HTML_TAGS[] = {
      .show_tag = false,
      .close = false,
      .wrap_internals = false},  // TEXT
+    {.label = "pre><code",
+     .show_tag = true,
+     .close = true,
+     .closing_label = "code></pre",
+     .wrap_internals = false},  // CODE_BLOCK
     {.label = "pre><code",
      .show_tag = true,
      .close = true,

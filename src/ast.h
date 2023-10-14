@@ -8,6 +8,7 @@ enum AST_NODE_TYPES {
   ASTN_DOCUMENT = 0,
   ASTN_TEXT,
   ASTN_CODE_BLOCK,
+  ASTN_FENCED_CODE_BLOCK,
   ASTN_BLOCK_QUOTE,
   ASTN_UNORDERED_LIST,
   ASTN_UNORDERED_LIST_ITEM,
@@ -25,18 +26,29 @@ enum AST_NODE_TYPES {
   ASTN_SETEXT_H2
 };
 
-static const unsigned int NODE_TYPE_COUNT = 18;
+static const unsigned int NODE_TYPE_COUNT = 19;
 
 static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
-    "DOC", "TEXT",  "CODE_BLOCK", "BLOCKQUOTE", "UL",        "UL-LI",
-    "OL",  "OL-LI", "P",          "H1",         "H2",        "H3",
-    "H4",  "H5",    "H6",         "THM_BREAK",  "SETEXT_H1", "SETEXT_H2"};
+    "DOC",        "TEXT",      "CODE_BLOCK", "FENCED_CODE_BLOCK",
+    "BLOCKQUOTE", "UL",        "UL-LI",      "OL",
+    "OL-LI",      "P",         "H1",         "H2",
+    "H3",         "H4",        "H5",         "H6",
+    "THM_BREAK",  "SETEXT_H1", "SETEXT_H2"};
 
-static const unsigned int LEAF_ONLY_NODES_SIZE = 11;
+static const unsigned int LEAF_ONLY_NODES_SIZE = 12;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
-    ASTN_CODE_BLOCK, ASTN_H1,        ASTN_H2,       ASTN_H3,
-    ASTN_H4,         ASTN_H5,        ASTN_H6,       ASTN_THEMATIC_BREAK,
-    ASTN_PARAGRAPH,  ASTN_SETEXT_H1, ASTN_SETEXT_H2};
+    ASTN_CODE_BLOCK,
+    ASTN_FENCED_CODE_BLOCK,
+    ASTN_H1,
+    ASTN_H2,
+    ASTN_H3,
+    ASTN_H4,
+    ASTN_H5,
+    ASTN_H6,
+    ASTN_THEMATIC_BREAK,
+    ASTN_PARAGRAPH,
+    ASTN_SETEXT_H1,
+    ASTN_SETEXT_H2};
 
 // NOTE: You cannot "append to" these, rather than being unable to append
 // them to other nodes
