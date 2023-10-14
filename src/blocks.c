@@ -12,7 +12,7 @@
 // TODO: Probably rework setext heading handling so that we don't
 // require different AST node types to handle them
 
-// TODO: Handle multi-line code blocks
+// TODO: Make code fences dedent content lines up to the fences identation
 // TODO: Handle backslash escapes of block structural characters
 
 char *LATE_CONTINUATION_CONTENTS = NULL;
@@ -789,6 +789,9 @@ long unsigned find_starting_num(char line[static 1]) {
 
 void add_late_cont_contents_to_code_block(ASTNode node[static 1]) {
   ASTNode *text = get_last_child(node);
+  if (!text) {
+    text = add_text_child(node);
+  }
   if (strlen(LATE_CONTINUATION_CONTENTS)) {
     text->contents = str_append(text->contents, LATE_CONTINUATION_CONTENTS);
   }
@@ -1007,16 +1010,10 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
-  } else if ((node->type == ASTN_CODE_BLOCK ||
-              node->type == ASTN_FENCED_CODE_BLOCK) &&
-             node->children_count) {
+  } else if ((node->type == ASTN_CODE_BLOCK && node->children_count) ||
+             node->type == ASTN_FENCED_CODE_BLOCK) {
     // we should only add contents to existing code blocks, not new ones, hence
     // the child check
-    add_late_cont_contents_to_code_block(node);
-  } else if (node->type == ASTN_FENCED_CODE_BLOCK && !node->children_count) {
-    // always add late lines to fenced code blocks, creating a text child if
-    // necessary
-    add_text_child(node);
     add_late_cont_contents_to_code_block(node);
   }
   reset_late_continuation_above_node(node);
@@ -1117,7 +1114,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     }
     node->late_continuation_lines += 1;
     close_leaf_paragraph(node);
-    if (line_pos >= 4) {
+    if (line_pos >= 4 || node->type == ASTN_FENCED_CODE_BLOCK) {
       LATE_CONTINUATION_CONTENTS =
           str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
     } else {
