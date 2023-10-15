@@ -10,11 +10,13 @@ void ast_to_html(ASTNode ast[static 1], FILE output_fd[static 1],
   if (print_tags && tag.show_tag) {
     if (ast->type == ASTN_ORDERED_LIST && ast->options->reference_num != 1) {
       printf("<%s start=\"%lu\">", tag.label, ast->options->reference_num);
+    } else if (ast->type == ASTN_FENCED_CODE_BLOCK && ast->contents) {
+      printf("<%s class=\"language-%s\">", tag.label, ast->contents);
     } else {
       printf("<%s>", tag.label);
     }
   }
-  if (ast->contents) {
+  if (ast->type == ASTN_TEXT && ast->contents) {
     printf("%s", ast->contents);
   }
   for (size_t i = 0; i < ast->children_count; i++) {

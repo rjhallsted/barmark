@@ -12,7 +12,8 @@
 // TODO: Probably rework setext heading handling so that we don't
 // require different AST node types to handle them
 
-// TODO: Make code fences dedent content lines up to the fences identation
+// TODO: Refactor all of the shit passed to add_child_block that most blocks
+// don't need
 // TODO: Handle backslash escapes of block structural characters
 
 char *LATE_CONTINUATION_CONTENTS = NULL;
@@ -254,6 +255,7 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   size_t i = 0;
   tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
 
+  // leading spaces
   while (t1.proposed[line_pos + i] == ' ' && i < 3) {
     i++;
   }
@@ -263,15 +265,27 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
     abandon_tab_expand(t1);
     return 0;
   }
+  // fence itself
   while (t1.proposed[line_pos + i] == c) {
     i++;
   }
-  if (i - fence_start >= 3) {
-    commit_tab_expand(t1);
-    return i;
+  if (i - fence_start < 3) {
+    abandon_tab_expand(t1);
+    return 0;
   }
-  abandon_tab_expand(t1);
-  return 0;
+  // info str
+  while (t1.proposed[i] && is_whitespace(t1.proposed[i])) {
+    i++;
+  }
+  while (t1.proposed[i] && !is_whitespace(t1.proposed[i])) {
+    i++;
+  }
+  // consume rest of line so it won't get used
+  while (t1.proposed[i]) {
+    i++;
+  }
+  commit_tab_expand(t1);
+  return i;
 }
 
 size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
@@ -647,8 +661,8 @@ Contains all logic for block creation.
 */
 ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                          size_t opener_match_len, char id_char,
-                         long unsigned reference_num,
-                         int unsigned indentation) {
+                         long unsigned reference_num, int unsigned indentation,
+                         char *info_str) {
   ASTNode *child;
 
   if (node_type == ASTN_CODE_BLOCK) {
@@ -656,6 +670,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
   } else if (node_type == ASTN_FENCED_CODE_BLOCK) {
     child = ast_create_node(ASTN_FENCED_CODE_BLOCK);
     child->options = make_node_options(id_char, reference_num, indentation);
+    child->contents = info_str;
     ast_add_child(node, child);
     return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
@@ -665,7 +680,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     child->options = make_node_options(id_char, reference_num, 0);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len, 0,
-                           0, 0);
+                           0, 0, NULL);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type != ASTN_ORDERED_LIST) {
     // TODO: extract to new_orderd_list_node;
@@ -673,7 +688,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     child->options = make_node_options(id_char, reference_num, 0);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0,
-                           0, 0);
+                           0, 0, NULL);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     return child = add_child_block_with_cont_spaces(
@@ -743,25 +758,41 @@ void print_tree(ASTNode node[static 1], size_t level) {
 
 /*
 Returns the id char if it exists, otherwise 0.
-If the id char is found, it will also set fence_len and indentation
+If the id char is found, it will also set fence_len, indentation, and info_str
+(if one exists)
 */
 char find_fenced_code_block_details(char line[static 1],
                                     long unsigned fence_len[static 1],
-                                    int unsigned indentation[static 1]) {
+                                    int unsigned indentation[static 1],
+                                    char *info_str[static 1]) {
   size_t i = 0;
+  // leading spaces
   while (line[i] && line[i] != '`' && line[i] != '~') {
     i++;
   }
   if (!line[i]) {
     return 0;
   }
+  // id char
   char id_char = line[i];
+  *indentation = i;
+  // fence len
   size_t fence_start = i;
   while (line[i] == id_char) {
     i++;
   }
   *fence_len = i - fence_start;
-  *indentation = fence_start;
+  // info str
+  while (line[i] && is_whitespace(line[i])) {
+    i++;
+  }
+  size_t info_start = i;
+  while (line[i] && !is_whitespace(line[i])) {
+    i++;
+  }
+  if (i > info_start) {
+    *info_str = strndup(line + info_start, i - info_start);
+  }
   return id_char;
 }
 
@@ -906,7 +937,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
 
   if (is_new_item_in_wide_list(node)) {
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0, NULL);
     return determine_writable_node_from_context(child);
   } else if (is_new_line_in_item_in_narrow_list(node)) {
     if (f_debug())
@@ -920,13 +951,13 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
     return determine_writable_node_from_context(child);
   } else if (should_add_paragraph_to_blockquote(node)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0, NULL);
     return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0, NULL);
     return determine_writable_node_from_context(child);
   }
   // This context is correct. Use the current node
@@ -1014,7 +1045,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
       printf("splitting blockquote due to late continuation lines\n");
     }
     reset_late_continuation_above_node(node);
-    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0, 0, 0);
+    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0, 0, 0, NULL);
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
@@ -1046,12 +1077,14 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
   char id_char = 0;
   long unsigned reference_num = 0;
   int unsigned indentation = 0;
+  char *info_str = NULL;
   int unsigned node_type;
 
   // If a block start exists, create it, then keep checking for more.
   // Intelligently rework blocks if new block needs to be moved to parent
   while ((node_type = block_start_type(line, *line_pos, node, match_len)) &&
          !is_leaf_only_node(node->type)) {
+    // get special stuff
     if (node_type == ASTN_UNORDERED_LIST_ITEM) {
       id_char = find_unordered_list_char((*line) + (*line_pos));
     }
@@ -1063,9 +1096,10 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
       id_char = find_ordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_FENCED_CODE_BLOCK) {
-      id_char = find_fenced_code_block_details((*line) + (*line_pos),
-                                               &reference_num, &indentation);
+      id_char = find_fenced_code_block_details(
+          (*line) + (*line_pos), &reference_num, &indentation, &info_str);
     }
+
     *line_pos += *match_len;
 
     if (f_debug())
@@ -1076,7 +1110,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
       node = node->parent;
     }
     node = add_child_block(node, node_type, *match_len, id_char, reference_num,
-                           indentation);
+                           indentation, info_str);
     if (scope_has_late_continuation(node)) {
       node = handle_late_continuation_for_new_blocks(node);
     }

@@ -96,6 +96,10 @@ typedef struct {
 typedef struct ASTNode {
   int unsigned type;
   bool open;
+  /* Contents is only used by the following node types:
+  - Text: has actual output context
+  - Fenced code blocks: Contains the info string if one exists
+  */
   char *contents;
   int unsigned cont_spaces;
   struct ASTNode **children;
