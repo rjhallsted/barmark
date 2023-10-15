@@ -9,11 +9,6 @@
 #include "tab_expand.h"
 #include "util.h"
 
-// TODO: Probably rework setext heading handling so that we don't
-// require different AST node types to handle them
-
-// TODO: Handle backslash escapes of block structural characters
-
 char *LATE_CONTINUATION_CONTENTS = NULL;
 
 /**
@@ -352,7 +347,7 @@ size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
       res += strlen(str);
       if (is_all_whitespace(t1.proposed + line_pos + res)) {
         commit_tab_expand(t1);
-        return res;
+        return res + 1;
       }
     }
     abandon_tab_expand(t1);
@@ -369,7 +364,6 @@ size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
   return res;
 }
 
-// TODO: Allow in-place tab-expansion on existing refs
 size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);  // leading spaces
@@ -394,7 +388,7 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   }
   i++;
 
-  if (f_debug()) printf("match_len for OL-LI opening is %zu\n", i + 1);
+  if (f_debug()) printf("match_len for OL-LI opening is %zu\n", i);
 
   commit_tab_expand(t1);
   return i;
@@ -593,11 +587,9 @@ bool meets_code_block_conditions(ASTNode node[static 1]) {
 }
 
 bool is_empty_line_following_paragraph(char const line[static 1],
-                                       ASTNode preceding_node[static 1]) {
-  if (preceding_node) {
-    return is_all_whitespace(line) && preceding_node->type == ASTN_PARAGRAPH;
-  } else
-    return false;
+                                       ASTNode *preceding_node) {
+  return (preceding_node) && is_all_whitespace(line) &&
+         preceding_node->type == ASTN_PARAGRAPH;
 }
 
 /***
@@ -632,9 +624,7 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
              !is_empty_line_following_paragraph((*line) + (*match_len),
                                                 child)) {
     return ASTN_UNORDERED_LIST_ITEM;
-  } else if ((*match_len = matches_ordered_list_opening(line, line_pos)) &&
-             !is_empty_line_following_paragraph((*line) + (*match_len),
-                                                child)) {
+  } else if ((*match_len = matches_ordered_list_opening(line, line_pos))) {
     return ASTN_ORDERED_LIST_ITEM;
   } else if ((*match_len = matches_blockquote_opening(line, line_pos))) {
     return ASTN_BLOCK_QUOTE;
@@ -901,12 +891,20 @@ bool is_new_item_in_wide_list(ASTNode node[static 1]) {
          node->parent->options->wide;
 }
 
+/*
+True if this node has a child list, and that list has a child item, and that
+item has a child node or text node on it
+*/
 bool is_new_line_in_item_in_narrow_list(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
-  return (has_open_child(node) &&
-          (child->type == ASTN_UNORDERED_LIST ||
-           child->type == ASTN_ORDERED_LIST) &&
-          has_open_child(child));
+  if (has_open_child(node) &&
+      (child->type == ASTN_UNORDERED_LIST ||
+       child->type == ASTN_ORDERED_LIST) &&
+      has_open_child(child)) {
+    child = get_last_child(child);
+    return (has_open_child(child) || has_text_as_last_item(child));
+  }
+  return false;
 }
 
 bool has_continuable_paragraph(ASTNode node[static 1]) {
@@ -917,7 +915,8 @@ bool has_continuable_paragraph(ASTNode node[static 1]) {
 bool should_determine_context_from_child_blockquote(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
   return has_open_child(node) && child->type == ASTN_BLOCK_QUOTE &&
-         has_open_child(child);
+         has_open_child(child) &&
+         get_last_child(child)->type != ASTN_FENCED_CODE_BLOCK;
 }
 
 bool should_close_blockquote(ASTNode node[static 1]) {
@@ -999,6 +998,12 @@ ASTNode *handle_late_continuation_for_new_blocks(ASTNode node[static 1]) {
   return node;
 }
 
+bool has_list_as_grandparent(ASTNode node[static 1]) {
+  return node->parent->parent &&
+         (node->parent->parent->type == ASTN_UNORDERED_LIST ||
+          node->parent->parent->type == ASTN_ORDERED_LIST);
+}
+
 ASTNode *handle_late_continuation(ASTNode node[static 1]) {
   if (f_debug())
     printf("enacting late continuation effects on node %s\n",
@@ -1014,16 +1019,16 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
     }
     node->parent->open = false;
     node = node->parent->parent;
-  } else if (node->type == ASTN_ORDERED_LIST_ITEM ||
-             node->type == ASTN_UNORDERED_LIST_ITEM) {
+  } else if ((node->type == ASTN_ORDERED_LIST_ITEM ||
+              node->type == ASTN_UNORDERED_LIST_ITEM)) {
     if (f_debug()) {
       printf("widening list due to late continuation (from list item)\n");
     }
     ASTNode *list = node->parent;
-    if (!node->children_count) {
+    if (!node->children_count && has_list_as_grandparent(list)) {
       // no children indicates this is the first line in list item, and we
       // should widen the parent list
-      list = node->parent->parent->parent;
+      list = list->parent->parent;
     }
     widen_list(list);
   } else if (node->type == ASTN_UNORDERED_LIST ||
@@ -1066,12 +1071,21 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
 }
 
 bool meets_paragraph_interruption_by_ol_criteria(ASTNode node[static 1],
-                                                 long unsigned reference_num) {
+                                                 long unsigned reference_num,
+                                                 char line[static 1],
+                                                 size_t match_len) {
+  if (f_debug()) {
+    printf("checking ol interrupt with line: '%s'\n", line + match_len);
+  }
+
   if (!has_open_child(node) || get_last_child(node)->type != ASTN_PARAGRAPH ||
       scope_has_late_continuation(node)) {
     return true;
   }
-  if (reference_num != 1) {
+  if (reference_num != 1 || is_all_whitespace(line + match_len)) {
+    if (f_debug()) {
+      printf("ol does not meet paragraph interruption criteria.\n");
+    }
     return false;
   }
   return true;
@@ -1095,8 +1109,12 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
       id_char = find_unordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_ORDERED_LIST_ITEM) {
+      if (f_debug()) {
+        printf("looking for ordered list item bits\n");
+      }
       reference_num = find_starting_num((*line) + (*line_pos));
-      if (!meets_paragraph_interruption_by_ol_criteria(node, reference_num)) {
+      if (!meets_paragraph_interruption_by_ol_criteria(
+              node, reference_num, (*line) + (*line_pos), *match_len)) {
         break;
       }
       id_char = find_ordered_list_char((*line) + (*line_pos));
@@ -1201,6 +1219,9 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
+  if (f_debug()) {
+    printf("after new starts, current node: %s\n", NODE_TYPE_NAMES[node->type]);
+  }
   if (scope_has_late_continuation(node)) {
     node = handle_late_continuation(node);
   }

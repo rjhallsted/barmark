@@ -158,7 +158,7 @@ if __name__ == "__main__":
         pattern_re = re.compile(args.pattern, re.IGNORECASE)
     else:
         pattern_re = re.compile('.')
-    tests = [ test for test in all_tests if re.search(pattern_re, test['section']) and (not args.number or test['example'] == args.number) and (not args.range or test['example'] in args.range) ]
+    tests = [ test for test in all_tests if re.search(pattern_re, test['section']) and (not args.number or test['example'] == args.number) and (not args.range or (test['example'] in args.range)) ]
     if args.dump_tests:
         out(json.dumps(tests, ensure_ascii=False, indent=2))
         exit(0)

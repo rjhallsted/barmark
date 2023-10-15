@@ -13,7 +13,7 @@ TEST_OBJS = $(patsubst %.c, %.o, $(filter-out $(TEST_MAIN).c, $(wildcard test/*.
 CC_CMD = $(CC) $(CFLAGS) -c -o $@ $<
 
 
-SPEC_TEST_RANGES = 1-11,42-55,57-64,67-70,77-78,83-90,92-101,103-105,107-109,111-118,122-137,139-144,146-147,219-225,227-230,232-236,238-258,259,260,262,264-277,279-288,290-295,298-307,310-316,319-320,322-323,325-326,650-652
+SPEC_TEST_RANGES = 1-11,13,42-55,57-64,67-70,77-78,83-90,92-101,103-105,107-109,111-118,122-137,139-144,146-147,219-225,227-230,232-288,290-295,298-307,310-316,319-320,322-323,325-326,650-652
 
 all: $(NAME)
 
@@ -39,12 +39,19 @@ $(NAME)_test: $(OBJS) $(TEST_OBJS) $(TEST_MAIN).o vendor/unity/unity.o
 
 spec_test: clean $(NAME)
 	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -r=$(SPEC_TEST_RANGES)
+	@python3 spec_test/spec_tests.py --spec spec_test/myspec.txt --program ./$(NAME) 
+
+my_spec_test: clean $(NAME)
+	@python3 spec_test/spec_tests.py --spec spec_test/myspec.txt --program ./$(NAME) 
 
 spec_test_single: clean $(NAME)
 	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -n=$(t)
 
 spec_test_debug_single: clean $(NAME)
 	@export DEBUG=1; python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) -n=$(t) --no-normalize
+
+my_spec_test_debug_single: clean $(NAME)
+	@export DEBUG=1; python3 spec_test/spec_tests.py --spec spec_test/myspec.txt --program ./$(NAME) -n=$(t) --no-normalize
 
 spec_test_all: clean $(NAME)
 	@python3 spec_test/spec_tests.py --spec spec_test/spec.txt --program ./$(NAME) 
