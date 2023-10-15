@@ -173,7 +173,16 @@ ASTNode *add_text_child(ASTNode node[static 1]) {
   return child;
 }
 
-void add_line_to_node(ASTNode node[static 1], char *line) {
+char const *advance_line_by_indentation(char const line[static 1],
+                                        int unsigned indentation) {
+  int unsigned i = 0;
+  while (line[i] && line[i] == ' ' && i < indentation) {
+    i++;
+  }
+  return line + i;
+}
+
+void add_line_to_node(ASTNode node[static 1], char const line[static 1]) {
   ASTNode *child = get_last_child(node);
 
   if (f_debug()) {
@@ -184,12 +193,8 @@ void add_line_to_node(ASTNode node[static 1], char *line) {
   if (!child || child->type != ASTN_TEXT) {
     child = add_text_child(node);
   }
-  // should only apply to code blocks with existing content
-  if (node->type == ASTN_CODE_BLOCK && strlen(child->contents) &&
-      strlen(LATE_CONTINUATION_CONTENTS)) {
-    if (f_debug())
-      printf("adding late continuation lines to code block contents\n");
-    child->contents = str_append(child->contents, LATE_CONTINUATION_CONTENTS);
+  if (node->type == ASTN_FENCED_CODE_BLOCK) {
+    line = advance_line_by_indentation(line, node->options->indentation);
   }
 
   child->contents = str_append(child->contents, line);
@@ -642,32 +647,33 @@ Contains all logic for block creation.
 */
 ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                          size_t opener_match_len, char id_char,
-                         long unsigned reference_num) {
+                         long unsigned reference_num,
+                         int unsigned indentation) {
   ASTNode *child;
 
   if (node_type == ASTN_CODE_BLOCK) {
     return add_child_block_with_cont_spaces(node, ASTN_CODE_BLOCK, 4);
   } else if (node_type == ASTN_FENCED_CODE_BLOCK) {
     child = ast_create_node(ASTN_FENCED_CODE_BLOCK);
-    child->options = make_node_options(id_char, reference_num);
+    child->options = make_node_options(id_char, reference_num, indentation);
     ast_add_child(node, child);
     return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
     // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
-    child->options = make_node_options(id_char, reference_num);
+    child->options = make_node_options(id_char, reference_num, 0);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len, 0,
-                           0);
+                           0, 0);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type != ASTN_ORDERED_LIST) {
     // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
-    child->options = make_node_options(id_char, reference_num);
+    child->options = make_node_options(id_char, reference_num, 0);
     ast_add_child(node, child);
     return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0,
-                           0);
+                           0, 0);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     return child = add_child_block_with_cont_spaces(
@@ -737,10 +743,11 @@ void print_tree(ASTNode node[static 1], size_t level) {
 
 /*
 Returns the id char if it exists, otherwise 0.
-If the id char is found, it will also set fence_len.
+If the id char is found, it will also set fence_len and indentation
 */
 char find_fenced_code_block_details(char line[static 1],
-                                    long unsigned fence_len[static 1]) {
+                                    long unsigned fence_len[static 1],
+                                    int unsigned indentation[static 1]) {
   size_t i = 0;
   while (line[i] && line[i] != '`' && line[i] != '~') {
     i++;
@@ -754,6 +761,7 @@ char find_fenced_code_block_details(char line[static 1],
     i++;
   }
   *fence_len = i - fence_start;
+  *indentation = fence_start;
   return id_char;
 }
 
@@ -898,7 +906,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
 
   if (is_new_item_in_wide_list(node)) {
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0);
     return determine_writable_node_from_context(child);
   } else if (is_new_line_in_item_in_narrow_list(node)) {
     if (f_debug())
@@ -912,13 +920,13 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
     return determine_writable_node_from_context(child);
   } else if (should_add_paragraph_to_blockquote(node)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0);
     return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0);
     return determine_writable_node_from_context(child);
   }
   // This context is correct. Use the current node
@@ -1006,7 +1014,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
       printf("splitting blockquote due to late continuation lines\n");
     }
     reset_late_continuation_above_node(node);
-    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0, 0);
+    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0, 0, 0);
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
@@ -1037,6 +1045,7 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
                                  size_t match_len[static 1]) {
   char id_char = 0;
   long unsigned reference_num = 0;
+  int unsigned indentation = 0;
   int unsigned node_type;
 
   // If a block start exists, create it, then keep checking for more.
@@ -1054,8 +1063,8 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
       id_char = find_ordered_list_char((*line) + (*line_pos));
     }
     if (node_type == ASTN_FENCED_CODE_BLOCK) {
-      id_char =
-          find_fenced_code_block_details((*line) + (*line_pos), &reference_num);
+      id_char = find_fenced_code_block_details((*line) + (*line_pos),
+                                               &reference_num, &indentation);
     }
     *line_pos += *match_len;
 
@@ -1066,7 +1075,8 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
     if (should_add_to_parent_instead(node, node_type, id_char)) {
       node = node->parent;
     }
-    node = add_child_block(node, node_type, *match_len, id_char, reference_num);
+    node = add_child_block(node, node_type, *match_len, id_char, reference_num,
+                           indentation);
     if (scope_has_late_continuation(node)) {
       node = handle_late_continuation_for_new_blocks(node);
     }
@@ -1090,6 +1100,28 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
   return node;
 }
 
+void increment_late_cont_lines(char const line[static 1], size_t line_pos,
+                               ASTNode node[static 1]) {
+  char const *trimmed_line = line + line_pos;
+  if (f_debug()) {
+    printf("Found late continuation line on node %s\n",
+           NODE_TYPE_NAMES[node->type]);
+  }
+  node->late_continuation_lines += 1;
+  close_leaf_paragraph(node);
+  if (node->type == ASTN_FENCED_CODE_BLOCK) {
+    trimmed_line =
+        advance_line_by_indentation(trimmed_line, node->options->indentation);
+    LATE_CONTINUATION_CONTENTS =
+        str_append(LATE_CONTINUATION_CONTENTS, trimmed_line);
+  } else if (line_pos >= 4) {
+    LATE_CONTINUATION_CONTENTS =
+        str_append(LATE_CONTINUATION_CONTENTS, trimmed_line);
+  } else {
+    LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
+  }
+}
+
 void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   size_t line_pos = 0;
   size_t match_len = 0;
@@ -1108,18 +1140,7 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   if (is_all_whitespace((*line) + line_pos)) {
-    if (f_debug()) {
-      printf("Found late continuation line on node %s\n",
-             NODE_TYPE_NAMES[node->type]);
-    }
-    node->late_continuation_lines += 1;
-    close_leaf_paragraph(node);
-    if (line_pos >= 4 || node->type == ASTN_FENCED_CODE_BLOCK) {
-      LATE_CONTINUATION_CONTENTS =
-          str_append(LATE_CONTINUATION_CONTENTS, (*line) + line_pos);
-    } else {
-      LATE_CONTINUATION_CONTENTS = str_append(LATE_CONTINUATION_CONTENTS, "\n");
-    }
+    increment_late_cont_lines(*line, line_pos, node);
     if (f_debug()) print_tree(root, 0);
     return;
   }
