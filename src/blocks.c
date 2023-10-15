@@ -12,8 +12,6 @@
 // TODO: Probably rework setext heading handling so that we don't
 // require different AST node types to handle them
 
-// TODO: Refactor all of the shit passed to add_child_block that most blocks
-// don't need
 // TODO: Handle backslash escapes of block structural characters
 
 char *LATE_CONTINUATION_CONTENTS = NULL;
@@ -669,8 +667,7 @@ ASTNode *add_child_block_with_cont_spaces(ASTNode node[static 1],
 Contains all logic for block creation.
 */
 ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
-                         size_t opener_match_len, char id_char,
-                         long unsigned reference_num, int unsigned indentation,
+                         size_t opener_match_len, ASTNodeOptions *options,
                          char *info_str) {
   ASTNode *child;
 
@@ -678,7 +675,7 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     return add_child_block_with_cont_spaces(node, ASTN_CODE_BLOCK, 4);
   } else if (node_type == ASTN_FENCED_CODE_BLOCK) {
     child = ast_create_node(ASTN_FENCED_CODE_BLOCK);
-    child->options = make_node_options(id_char, reference_num, indentation);
+    child->options = options;
     child->contents = info_str;
     ast_add_child(node, child);
     return child;
@@ -686,18 +683,18 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node->type != ASTN_UNORDERED_LIST) {
     // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
-    child->options = make_node_options(id_char, reference_num, 0);
+    child->options = options;
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len, 0,
-                           0, 0, NULL);
+    return add_child_block(child, ASTN_UNORDERED_LIST_ITEM, opener_match_len,
+                           NULL, NULL);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type != ASTN_ORDERED_LIST) {
     // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
-    child->options = make_node_options(id_char, reference_num, 0);
+    child->options = options;
     ast_add_child(node, child);
-    return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len, 0,
-                           0, 0, NULL);
+    return add_child_block(child, ASTN_ORDERED_LIST_ITEM, opener_match_len,
+                           NULL, NULL);
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type == ASTN_UNORDERED_LIST) {
     return child = add_child_block_with_cont_spaces(
@@ -946,7 +943,7 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
   ASTNode *child = get_last_child(node);
 
   if (is_new_item_in_wide_list(node)) {
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0, NULL);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, NULL, NULL);
     return determine_writable_node_from_context(child);
   } else if (is_new_line_in_item_in_narrow_list(node)) {
     if (f_debug())
@@ -960,13 +957,13 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
     return determine_writable_node_from_context(child);
   } else if (should_add_paragraph_to_blockquote(node)) {
     if (f_debug()) printf("adding default paragraph to blockquote\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0, NULL);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, NULL, NULL);
     return determine_writable_node_from_context(child);
   } else if (node->type == ASTN_DOCUMENT) {
     // if we have content, but are still at the document node
     // this is just a paragraph
     if (f_debug()) printf("adding default paragraph\n");
-    child = add_child_block(node, ASTN_PARAGRAPH, 0, 0, 0, 0, NULL);
+    child = add_child_block(node, ASTN_PARAGRAPH, 0, NULL, NULL);
     return determine_writable_node_from_context(child);
   }
   // This context is correct. Use the current node
@@ -1054,7 +1051,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
       printf("splitting blockquote due to late continuation lines\n");
     }
     reset_late_continuation_above_node(node);
-    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, 0, 0, 0, NULL);
+    node = add_child_block(node->parent, ASTN_BLOCK_QUOTE, 0, NULL, NULL);
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
@@ -1118,8 +1115,13 @@ ASTNode *handle_new_block_starts(ASTNode node[static 1], char *line[static 1],
     if (should_add_to_parent_instead(node, node_type, id_char)) {
       node = node->parent;
     }
-    node = add_child_block(node, node_type, *match_len, id_char, reference_num,
-                           indentation, info_str);
+    ASTNodeOptions *options = NULL;
+    if (node_type == ASTN_ORDERED_LIST_ITEM ||
+        node_type == ASTN_UNORDERED_LIST_ITEM ||
+        node_type == ASTN_FENCED_CODE_BLOCK) {
+      options = make_node_options(id_char, reference_num, indentation);
+    }
+    node = add_child_block(node, node_type, *match_len, options, info_str);
     if (scope_has_late_continuation(node)) {
       node = handle_late_continuation_for_new_blocks(node);
     }
