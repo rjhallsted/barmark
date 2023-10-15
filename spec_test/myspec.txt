@@ -11,6 +11,14 @@
    in list
 .
 <ol>
-<li>foo</li>
+<li></li>
+</ol>
+<p>not in list</p>
+<ol>
+<li></li>
+</ol>
+<p>not in list</p>
+<ol>
+<li>in list</li>
 </ol>
 ````````````````````````````````

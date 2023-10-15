@@ -969,6 +969,12 @@ ASTNode *determine_writable_node_from_context(ASTNode node[static 1]) {
   return node;
 }
 
+bool has_list_as_grandparent(ASTNode node[static 1]) {
+  return node->parent->parent &&
+         (node->parent->parent->type == ASTN_UNORDERED_LIST ||
+          node->parent->parent->type == ASTN_ORDERED_LIST);
+}
+
 /* modifies the structure depending on the scenario, and returns the updated
  * contextual node */
 ASTNode *handle_late_continuation_for_new_blocks(ASTNode node[static 1]) {
@@ -993,15 +999,20 @@ ASTNode *handle_late_continuation_for_new_blocks(ASTNode node[static 1]) {
     }
     widen_list(node->parent->parent);
     reset_late_continuation_above_node(node);
+  } else if ((node->type == ASTN_ORDERED_LIST_ITEM ||
+              node->type == ASTN_UNORDERED_LIST_ITEM) &&
+             has_list_as_grandparent(node->parent)) {
+    if (f_debug()) {
+      printf("widening grandparent list due to late continuation\n");
+    }
+    widen_list(node->parent->parent->parent);
+    reset_late_continuation_above_node(node);
+  } else if (node->type == ASTN_ORDERED_LIST_ITEM ||
+             node->type == ASTN_UNORDERED_LIST_ITEM) {
+    reset_late_continuation_above_node(node);
   }
 
   return node;
-}
-
-bool has_list_as_grandparent(ASTNode node[static 1]) {
-  return node->parent->parent &&
-         (node->parent->parent->type == ASTN_UNORDERED_LIST ||
-          node->parent->parent->type == ASTN_ORDERED_LIST);
 }
 
 ASTNode *handle_late_continuation(ASTNode node[static 1]) {
@@ -1024,13 +1035,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
     if (f_debug()) {
       printf("widening list due to late continuation (from list item)\n");
     }
-    ASTNode *list = node->parent;
-    if (!node->children_count && has_list_as_grandparent(list)) {
-      // no children indicates this is the first line in list item, and we
-      // should widen the parent list
-      list = list->parent->parent;
-    }
-    widen_list(list);
+    widen_list(node->parent);
   } else if (node->type == ASTN_UNORDERED_LIST ||
              node->type == ASTN_ORDERED_LIST) {
     if (f_debug()) {
