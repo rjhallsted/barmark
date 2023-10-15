@@ -259,14 +259,15 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   while (t1.proposed[line_pos + i] == ' ' && i < 3) {
     i++;
   }
-  char c = t1.proposed[line_pos + i];
+  i = line_pos + i;
+  char c = t1.proposed[i];
   size_t fence_start = i;
   if (c != '`' && c != '~') {
     abandon_tab_expand(t1);
     return 0;
   }
   // fence itself
-  while (t1.proposed[line_pos + i] == c) {
+  while (t1.proposed[i] == c) {
     i++;
   }
   if (i - fence_start < 3) {
@@ -278,10 +279,18 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
     i++;
   }
   while (t1.proposed[i] && !is_whitespace(t1.proposed[i])) {
+    if (c == '`' && t1.proposed[i] == '`') {
+      abandon_tab_expand(t1);
+      return 0;
+    }
     i++;
   }
   // consume rest of line so it won't get used
   while (t1.proposed[i]) {
+    if (c == '`' && t1.proposed[i] == '`') {
+      abandon_tab_expand(t1);
+      return 0;
+    }
     i++;
   }
   commit_tab_expand(t1);
