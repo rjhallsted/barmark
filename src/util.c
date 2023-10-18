@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,18 @@ char *str_append(char dst[static 1], char const s2[static 1]) {
 char str_starts_with(char const str[static 1], char const sub[static 1]) {
   size_t i = 0;
   while (str[i] && sub[i] && str[i] == sub[i]) {
+    i++;
+  }
+  if (sub[i] != '\0') {
+    return 0;
+  }
+  return 1;
+}
+
+char str_starts_with_case_insensitive(char const str[static 1],
+                                      char const sub[static 1]) {
+  size_t i = 0;
+  while (str[i] && sub[i] && tolower(str[i]) == tolower(sub[i])) {
     i++;
   }
   if (sub[i] != '\0') {

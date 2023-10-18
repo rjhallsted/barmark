@@ -8,6 +8,8 @@
 FILE *openFile(char path[static 1]);
 char *str_append(char dst[static 1], char const s2[static 1]);
 char str_starts_with(char const str[static 1], char const sub[static 1]);
+char str_starts_with_case_insensitive(char const str[static 1],
+                                      char const sub[static 1]);
 char *repeat_x(char x, size_t times);
 bool array_contains(int unsigned const arr_size,
                     int unsigned const arr[arr_size], int unsigned value);

@@ -290,10 +290,10 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   return i;
 }
 
-size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
-                                       ASTNode *node) {
+bool matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
+                                     ASTNode *node) {
   if (node->type != ASTN_FENCED_CODE_BLOCK) {
-    return 0;
+    return false;
   }
   size_t i = 0;
   tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
@@ -304,7 +304,7 @@ size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
   size_t fence_start = i;
   if (t1.proposed[line_pos + i] != node->options->id_char) {
     abandon_tab_expand(t1);
-    return 0;
+    return false;
   }
   while (t1.proposed[line_pos + i] == node->options->id_char) {
     i++;
@@ -312,10 +312,44 @@ size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
   if (i - fence_start < node->options->reference_num ||
       !is_all_whitespace(t1.proposed + line_pos + i)) {
     abandon_tab_expand(t1);
-    return 0;
+    return false;
   }
   commit_tab_expand(t1);
-  return i;
+  return true;
+}
+
+size_t matches_html_block_type_1_opener(char *line[static 1], size_t line_pos) {
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
+  for (int unsigned i = 0; i < HTML_BLOCK_1_OPENERS_SIZE; i++) {
+    if (str_starts_with_case_insensitive(t1.proposed + line_pos,
+                                         HTML_BLOCK_1_OPENERS[i])) {
+      match_len += strlen(HTML_BLOCK_1_OPENERS[i]);
+      if (t1.proposed[line_pos + match_len] == ' ' ||
+          t1.proposed[line_pos + match_len] == '\t' ||
+          t1.proposed[line_pos + match_len] == '>' ||
+          t1.proposed[line_pos + match_len] == '\n' ||
+          t1.proposed[line_pos + match_len] == '\0') {
+        commit_tab_expand(t1);
+        return match_len + 1;
+      }
+    }
+  }
+  abandon_tab_expand(t1);
+  return 0;
+}
+
+bool matches_html_block_type_1_closer(char *line[static 1], size_t line_pos,
+                                      ASTNode node[static 1]) {
+  if (node->type != ASTN_HTML_BLOCK_TYPE_1) {
+    return false;
+  }
+  for (int unsigned i = 0; i < HTML_BLOCK_1_CLOSERS_SIZE; i++) {
+    if (strcasestr((*line) + line_pos, HTML_BLOCK_1_CLOSERS[i])) {
+      return true;
+    }
+  }
+  return false;
 }
 
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
@@ -643,6 +677,9 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
     return ASTN_H2;
   } else if ((*match_len = matches_h1_opening(line, line_pos))) {
     return ASTN_H1;
+  } else if ((*match_len = matches_html_block_type_1_opener(line, line_pos))) {
+    *match_len = 0;  // don't want to consume matched chars for html blocks
+    return ASTN_HTML_BLOCK_TYPE_1;
   }
   return 0;
 }
@@ -724,7 +761,8 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
   } else if (node_type == ASTN_H1 || node_type == ASTN_H2 ||
              node_type == ASTN_H3 || node_type == ASTN_H4 ||
              node_type == ASTN_H5 || node_type == ASTN_H6 ||
-             node_type == ASTN_PARAGRAPH || node_type == ASTN_THEMATIC_BREAK) {
+             node_type == ASTN_PARAGRAPH || node_type == ASTN_THEMATIC_BREAK ||
+             node_type == ASTN_HTML_BLOCK_TYPE_1) {
     child = ast_create_node(node_type);
     ast_add_child(node, child);
     return child;
@@ -1068,8 +1106,7 @@ ASTNode *handle_late_continuation(ASTNode node[static 1]) {
   } else if (should_close_blockquote(node)) {
     ASTNode *descendant = find_in_edge_of_tree(node, ASTN_BLOCK_QUOTE);
     descendant->open = false;
-  } else if ((node->type == ASTN_CODE_BLOCK && node->children_count) ||
-             node->type == ASTN_FENCED_CODE_BLOCK) {
+  } else if (node->type == ASTN_CODE_BLOCK && node->children_count) {
     // we should only add contents to existing code blocks, not new ones, hence
     // the child check
     add_late_cont_contents_to_code_block(node);
@@ -1211,7 +1248,12 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   if (is_all_whitespace((*line) + line_pos)) {
-    increment_late_cont_lines(*line, line_pos, node);
+    if (array_contains(SHOULD_CONSUME_EMPTY_LINES_SIZE,
+                       SHOULD_CONSUME_EMPTY_LINES, node->type)) {
+      add_line_to_node(node, (*line) + line_pos);
+    } else {
+      increment_late_cont_lines(*line, line_pos, node);
+    }
     if (f_debug()) print_tree(root, 0);
     return;
   }
@@ -1223,6 +1265,11 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
       reset_late_continuation_above_node(node);
     }
     if (f_debug()) print_tree(root, 0);
+    return;
+  } else if (matches_html_block_type_1_closer(line, line_pos, node)) {
+    if (f_debug()) print_tree(root, 0);
+    add_line_to_node(node, (*line) + line_pos);
+    node->open = false;
     return;
   }
 

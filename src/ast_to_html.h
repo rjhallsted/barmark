@@ -97,6 +97,10 @@ static const HTML_TAG HTML_TAGS[NODE_TYPE_COUNT] = {
      .show_tag = true,
      .close = true,
      .wrap_internals = true},  // SETEXT_H2,
+    {.label = "",
+     .show_tag = false,
+     .close = false,
+     .wrap_internals = false}  // HTML_BLOCK_TYPE_1
 };
 
 #endif  // AST_TO_HTML_H
