@@ -291,7 +291,10 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
-                                       char id_char, long unsigned fence_len) {
+                                       ASTNode *node) {
+  if (node->type != ASTN_FENCED_CODE_BLOCK) {
+    return 0;
+  }
   size_t i = 0;
   tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
 
@@ -299,14 +302,14 @@ size_t matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
     i++;
   }
   size_t fence_start = i;
-  if (t1.proposed[line_pos + i] != id_char) {
+  if (t1.proposed[line_pos + i] != node->options->id_char) {
     abandon_tab_expand(t1);
     return 0;
   }
-  while (t1.proposed[line_pos + i] == id_char) {
+  while (t1.proposed[line_pos + i] == node->options->id_char) {
     i++;
   }
-  if (i - fence_start < fence_len ||
+  if (i - fence_start < node->options->reference_num ||
       !is_all_whitespace(t1.proposed + line_pos + i)) {
     abandon_tab_expand(t1);
     return 0;
@@ -1212,14 +1215,14 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     if (f_debug()) print_tree(root, 0);
     return;
   }
-  if (node->type == ASTN_FENCED_CODE_BLOCK &&
-      matches_fenced_code_block_close(line, line_pos, node->options->id_char,
-                                      node->options->reference_num)) {
+  // block closing lines
+  if (matches_fenced_code_block_close(line, line_pos, node)) {
     node->open = false;
     if (scope_has_late_continuation(node)) {
       add_late_cont_contents_to_code_block(node);
       reset_late_continuation_above_node(node);
     }
+    if (f_debug()) print_tree(root, 0);
     return;
   }
 
