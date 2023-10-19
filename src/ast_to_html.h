@@ -104,7 +104,11 @@ static const HTML_TAG HTML_TAGS[NODE_TYPE_COUNT] = {
     {.label = "",
      .show_tag = false,
      .close = false,
-     .wrap_internals = false}  // HTML_BLOCK_TYPE_2
+     .wrap_internals = false},  // HTML_BLOCK_TYPE_2
+    {.label = "",
+     .show_tag = false,
+     .close = false,
+     .wrap_internals = false}  // HTML_BLOCK_TYPE_3
 };
 
 #endif  // AST_TO_HTML_H
