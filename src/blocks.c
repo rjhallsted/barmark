@@ -1336,6 +1336,25 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   node = handle_new_block_starts(node, line, &line_pos, &match_len);
+
+  // block closing lines (for instances where they happen in the same line as
+  // the opener)
+  if (matches_fenced_code_block_close(line, line_pos, node)) {
+    node->open = false;
+    if (f_debug()) print_tree(root, 0);
+    return;
+  } else if (matches_html_block_type_1_closer(line, line_pos, node)) {
+    if (f_debug()) print_tree(root, 0);
+    add_line_to_node(node, (*line) + line_pos);
+    node->open = false;
+    return;
+  } else if (matches_html_block_type_2_closer(line, line_pos, node)) {
+    if (f_debug()) print_tree(root, 0);
+    add_line_to_node(node, (*line) + line_pos);
+    node->open = false;
+    return;
+  }
+
   if (f_debug()) {
     printf("after new starts, current node: %s\n", NODE_TYPE_NAMES[node->type]);
   }
