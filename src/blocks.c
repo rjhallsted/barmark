@@ -1291,6 +1291,13 @@ ASTNode *should_add_empty_line_to_node(ASTNode *node) {
   return NULL;
 }
 
+bool matches_closer(ASTNode node[static 1], char *line[static 1],
+                    size_t line_pos) {
+  return (matches_fenced_code_block_close(line, line_pos, node) ||
+          matches_html_block_type_1_closer(line, line_pos, node) ||
+          matches_html_block_type_2_closer(line, line_pos, node));
+}
+
 void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   size_t line_pos = 0;
   size_t match_len = 0;
@@ -1319,19 +1326,12 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
     return;
   }
   // block closing lines
-  if (matches_fenced_code_block_close(line, line_pos, node)) {
+  if (matches_closer(node, line, line_pos)) {
     node->open = false;
-    if (f_debug()) print_tree(root, 0);
-    return;
-  } else if (matches_html_block_type_1_closer(line, line_pos, node)) {
-    if (f_debug()) print_tree(root, 0);
-    add_line_to_node(node, (*line) + line_pos);
-    node->open = false;
-    return;
-  } else if (matches_html_block_type_2_closer(line, line_pos, node)) {
-    if (f_debug()) print_tree(root, 0);
-    add_line_to_node(node, (*line) + line_pos);
-    node->open = false;
+    if (node->type == ASTN_HTML_BLOCK_TYPE_1 ||
+        node->type == ASTN_HTML_BLOCK_TYPE_2) {
+      add_line_to_node(node, (*line) + line_pos);
+    }
     return;
   }
 
@@ -1339,19 +1339,12 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
 
   // block closing lines (for instances where they happen in the same line as
   // the opener)
-  if (matches_fenced_code_block_close(line, line_pos, node)) {
+  if (matches_closer(node, line, line_pos)) {
     node->open = false;
-    if (f_debug()) print_tree(root, 0);
-    return;
-  } else if (matches_html_block_type_1_closer(line, line_pos, node)) {
-    if (f_debug()) print_tree(root, 0);
-    add_line_to_node(node, (*line) + line_pos);
-    node->open = false;
-    return;
-  } else if (matches_html_block_type_2_closer(line, line_pos, node)) {
-    if (f_debug()) print_tree(root, 0);
-    add_line_to_node(node, (*line) + line_pos);
-    node->open = false;
+    if (node->type == ASTN_HTML_BLOCK_TYPE_1 ||
+        node->type == ASTN_HTML_BLOCK_TYPE_2) {
+      add_line_to_node(node, (*line) + line_pos);
+    }
     return;
   }
 
