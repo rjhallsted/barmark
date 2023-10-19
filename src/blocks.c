@@ -32,6 +32,15 @@ ASTNode *get_deepest_non_text_child(ASTNode node[static 1]) {
   return node;
 }
 
+ASTNode *get_deepest_open_non_text_child(ASTNode node[static 1]) {
+  ASTNode *child;
+  while ((child = get_last_child(node)) && child->open &&
+         child->type != ASTN_TEXT) {
+    node = child;
+  }
+  return node;
+}
+
 bool has_open_child(ASTNode node[static 1]) {
   return (node->children_count > 0 &&
           node->children[node->children_count - 1]->open &&
@@ -348,6 +357,28 @@ bool matches_html_block_type_1_closer(char *line[static 1], size_t line_pos,
     if (strcasestr((*line) + line_pos, HTML_BLOCK_1_CLOSERS[i])) {
       return true;
     }
+  }
+  return false;
+}
+
+size_t matches_html_block_type_2_opener(char *line[static 1], size_t line_pos) {
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
+  if (str_starts_with(t1.proposed + line_pos, "<!--")) {
+    commit_tab_expand(t1);
+    return match_len + 4;
+  }
+  abandon_tab_expand(t1);
+  return 0;
+}
+
+bool matches_html_block_type_2_closer(char *line[static 1], size_t line_pos,
+                                      ASTNode node[static 1]) {
+  if (node->type != ASTN_HTML_BLOCK_TYPE_2) {
+    return false;
+  }
+  if (strstr((*line) + line_pos, "-->")) {
+    return true;
   }
   return false;
 }
@@ -680,6 +711,9 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
   } else if ((*match_len = matches_html_block_type_1_opener(line, line_pos))) {
     *match_len = 0;  // don't want to consume matched chars for html blocks
     return ASTN_HTML_BLOCK_TYPE_1;
+  } else if ((*match_len = matches_html_block_type_2_opener(line, line_pos))) {
+    *match_len = 0;  // don't want to consume matched chars for html blocks
+    return ASTN_HTML_BLOCK_TYPE_2;
   }
   return 0;
 }
@@ -762,7 +796,8 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node_type == ASTN_H3 || node_type == ASTN_H4 ||
              node_type == ASTN_H5 || node_type == ASTN_H6 ||
              node_type == ASTN_PARAGRAPH || node_type == ASTN_THEMATIC_BREAK ||
-             node_type == ASTN_HTML_BLOCK_TYPE_1) {
+             node_type == ASTN_HTML_BLOCK_TYPE_1 ||
+             node_type == ASTN_HTML_BLOCK_TYPE_2) {
     child = ast_create_node(node_type);
     ast_add_child(node, child);
     return child;
@@ -1230,6 +1265,32 @@ void increment_late_cont_lines(char const line[static 1], size_t line_pos,
   }
 }
 
+bool has_descendant_of_type(ASTNode *node, int unsigned type) {
+  while (node) {
+    if (!(node->open)) {
+      return false;
+    }
+    if (node->type == type) {
+      return true;
+    }
+    node = get_last_child(node);
+  }
+  return false;
+}
+
+/* If true, returns the node to add the line to. Otherwise returns NULL.*/
+ASTNode *should_add_empty_line_to_node(ASTNode *node) {
+  ASTNode *deepest = get_deepest_open_non_text_child(node);
+  if (array_contains(SHOULD_CONSUME_EMPTY_LINES_SIZE,
+                     SHOULD_CONSUME_EMPTY_LINES, deepest->type)) {
+    if (has_descendant_of_type(node, ASTN_BLOCK_QUOTE)) {
+      return NULL;
+    }
+    return deepest;
+  }
+  return NULL;
+}
+
 void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   size_t line_pos = 0;
   size_t match_len = 0;
@@ -1248,9 +1309,9 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   }
 
   if (is_all_whitespace((*line) + line_pos)) {
-    if (array_contains(SHOULD_CONSUME_EMPTY_LINES_SIZE,
-                       SHOULD_CONSUME_EMPTY_LINES, node->type)) {
-      add_line_to_node(node, (*line) + line_pos);
+    ASTNode *add_to = NULL;
+    if ((add_to = should_add_empty_line_to_node(node))) {
+      add_line_to_node(add_to, (*line) + line_pos);
     } else {
       increment_late_cont_lines(*line, line_pos, node);
     }
@@ -1260,13 +1321,14 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
   // block closing lines
   if (matches_fenced_code_block_close(line, line_pos, node)) {
     node->open = false;
-    if (scope_has_late_continuation(node)) {
-      add_late_cont_contents_to_code_block(node);
-      reset_late_continuation_above_node(node);
-    }
     if (f_debug()) print_tree(root, 0);
     return;
   } else if (matches_html_block_type_1_closer(line, line_pos, node)) {
+    if (f_debug()) print_tree(root, 0);
+    add_line_to_node(node, (*line) + line_pos);
+    node->open = false;
+    return;
+  } else if (matches_html_block_type_2_closer(line, line_pos, node)) {
     if (f_debug()) print_tree(root, 0);
     add_line_to_node(node, (*line) + line_pos);
     node->open = false;
