@@ -28,9 +28,10 @@ enum AST_NODE_TYPES {
   ASTN_HTML_BLOCK_TYPE_2,
   ASTN_HTML_BLOCK_TYPE_3,
   ASTN_HTML_BLOCK_TYPE_4,
+  ASTN_HTML_BLOCK_TYPE_5,
 };
 
-static const unsigned int NODE_TYPE_COUNT = 23;
+static const unsigned int NODE_TYPE_COUNT = 24;
 
 static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "DOC",
@@ -56,9 +57,10 @@ static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "HTML_BLOCK_TYPE_2",
     "HTML_BLOCK_TYPE_3",
     "HTML_BLOCK_TYPE_4",
+    "HTML_BLOCK_TYPE_5",
 };
 
-static const unsigned int LEAF_ONLY_NODES_SIZE = 16;
+static const unsigned int LEAF_ONLY_NODES_SIZE = 17;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_CODE_BLOCK,
     ASTN_FENCED_CODE_BLOCK,
@@ -75,7 +77,9 @@ static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_HTML_BLOCK_TYPE_1,
     ASTN_HTML_BLOCK_TYPE_2,
     ASTN_HTML_BLOCK_TYPE_3,
-    ASTN_HTML_BLOCK_TYPE_4};
+    ASTN_HTML_BLOCK_TYPE_4,
+    ASTN_HTML_BLOCK_TYPE_5,
+};
 
 // NOTE: You cannot "append to" these, rather than being unable to append
 // them to other nodes
@@ -100,11 +104,11 @@ static const unsigned int
     NOT_INTERRUPTIBLE_BY_CODE_BLOCK[NOT_INTERRUPTIBLE_BY_CODE_BLOCK_SIZE] = {
         ASTN_PARAGRAPH, ASTN_UNORDERED_LIST, ASTN_ORDERED_LIST};
 
-static const unsigned int SHOULD_CONSUME_EMPTY_LINES_SIZE = 5;
+static const unsigned int SHOULD_CONSUME_EMPTY_LINES_SIZE = 6;
 static const int unsigned
     SHOULD_CONSUME_EMPTY_LINES[SHOULD_CONSUME_EMPTY_LINES_SIZE] = {
         ASTN_FENCED_CODE_BLOCK, ASTN_HTML_BLOCK_TYPE_1, ASTN_HTML_BLOCK_TYPE_2,
-        ASTN_HTML_BLOCK_TYPE_3, ASTN_HTML_BLOCK_TYPE_4};
+        ASTN_HTML_BLOCK_TYPE_3, ASTN_HTML_BLOCK_TYPE_4, ASTN_HTML_BLOCK_TYPE_5};
 
 ////////////////////////
 // HTML BLOCKS
