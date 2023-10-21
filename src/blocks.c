@@ -451,27 +451,37 @@ bool matches_html_block_type_5_closer(char *line[static 1], size_t line_pos,
   return false;
 }
 
-// size_t matches_html_block_type_6_opener(char *line[static 1], size_t
-// line_pos) {
-//   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
-//   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
-//   for (int unsigned i = 0; i < HTML_BLOCK_1_OPENERS_SIZE; i++) {
-//     if (str_starts_with_case_insensitive(t1.proposed + line_pos,
-//                                          HTML_BLOCK_1_OPENERS[i])) {
-//       match_len += strlen(HTML_BLOCK_1_OPENERS[i]);
-//       if (t1.proposed[line_pos + match_len] == ' ' ||
-//           t1.proposed[line_pos + match_len] == '\t' ||
-//           t1.proposed[line_pos + match_len] == '>' ||
-//           t1.proposed[line_pos + match_len] == '\n' ||
-//           t1.proposed[line_pos + match_len] == '\0') {
-//         commit_tab_expand(t1);
-//         return match_len + 1;
-//       }
-//     }
-//   }
-//   abandon_tab_expand(t1);
-//   return 0;
-// }
+size_t matches_html_block_type_6_opener(char *line[static 1], size_t line_pos) {
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
+  if (t1.proposed[line_pos + match_len] != '<') {
+    abandon_tab_expand(t1);
+    return 0;
+  }
+  match_len++;
+  if (t1.proposed[line_pos + match_len] == '/') {
+    match_len++;
+  }
+  for (int unsigned i = 0; i < HTML_BLOCK_6_TAGS_SIZE; i++) {
+    if (str_starts_with_case_insensitive(t1.proposed + line_pos + match_len,
+                                         HTML_BLOCK_6_TAGS[i])) {
+      match_len += strlen(HTML_BLOCK_6_TAGS[i]);
+      if (t1.proposed[line_pos + match_len] == ' ' ||
+          t1.proposed[line_pos + match_len] == '\t' ||
+          t1.proposed[line_pos + match_len] == '>' ||
+          t1.proposed[line_pos + match_len] == '\n' ||
+          t1.proposed[line_pos + match_len] == '\0') {
+        commit_tab_expand(t1);
+        return match_len + 1;
+      } else if (str_starts_with(t1.proposed + line_pos + match_len, "/>")) {
+        commit_tab_expand(t1);
+        return match_len + 2;
+      }
+    }
+  }
+  abandon_tab_expand(t1);
+  return 0;
+}
 
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
@@ -813,6 +823,9 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
   } else if ((*match_len = matches_html_block_type_5_opener(line, line_pos))) {
     *match_len = 0;  // don't want to consume matched chars for html blocks
     return ASTN_HTML_BLOCK_TYPE_5;
+  } else if ((*match_len = matches_html_block_type_6_opener(line, line_pos))) {
+    *match_len = 0;  // don't want to consume matched chars for html blocks
+    return ASTN_HTML_BLOCK_TYPE_6;
   }
 
   return 0;
@@ -1425,7 +1438,10 @@ void add_line_to_ast(ASTNode root[static 1], char *line[static 1]) {
 
   if (is_all_whitespace((*line) + line_pos)) {
     ASTNode *add_to = NULL;
-    if ((add_to = should_add_empty_line_to_node(node))) {
+    if (array_contains(CLOSED_BY_EMPTY_LINES_SIZE, CLOSED_BY_EMPTY_LINES,
+                       node->type)) {
+      node->open = false;
+    } else if ((add_to = should_add_empty_line_to_node(node))) {
       add_line_to_node(add_to, (*line) + line_pos);
     } else {
       increment_late_cont_lines(*line, line_pos, node);
