@@ -29,9 +29,10 @@ enum AST_NODE_TYPES {
   ASTN_HTML_BLOCK_TYPE_3,
   ASTN_HTML_BLOCK_TYPE_4,
   ASTN_HTML_BLOCK_TYPE_5,
+  ASTN_HTML_BLOCK_TYPE_6,
 };
 
-static const unsigned int NODE_TYPE_COUNT = 24;
+static const unsigned int NODE_TYPE_COUNT = 25;
 
 static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "DOC",
@@ -58,9 +59,10 @@ static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "HTML_BLOCK_TYPE_3",
     "HTML_BLOCK_TYPE_4",
     "HTML_BLOCK_TYPE_5",
+    "HTML_BLOCK_TYPE_6",
 };
 
-static const unsigned int LEAF_ONLY_NODES_SIZE = 17;
+static const unsigned int LEAF_ONLY_NODES_SIZE = 18;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_CODE_BLOCK,
     ASTN_FENCED_CODE_BLOCK,
@@ -79,6 +81,7 @@ static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_HTML_BLOCK_TYPE_3,
     ASTN_HTML_BLOCK_TYPE_4,
     ASTN_HTML_BLOCK_TYPE_5,
+    ASTN_HTML_BLOCK_TYPE_6,
 };
 
 // NOTE: You cannot "append to" these, rather than being unable to append
@@ -121,6 +124,22 @@ static char const *HTML_BLOCK_1_OPENERS[HTML_BLOCK_1_OPENERS_SIZE] = {
 static const unsigned int HTML_BLOCK_1_CLOSERS_SIZE = 4;
 static char const *HTML_BLOCK_1_CLOSERS[HTML_BLOCK_1_CLOSERS_SIZE] = {
     "</pre>", "</script>", "</style>", "</textarea>"};
+
+// TYPE 6
+static const int unsigned HTML_BLOCK_6_TAGS_SIZE = 62;
+static char const *HTML_BLOCK_6_TAGS[HTML_BLOCK_6_TAGS_SIZE] = {
+    "address",  "article",    "aside",  "base",     "basefont", "blockquote",
+    "body",     "caption",    "center", "col",      "colgroup", "dd",
+    "details",  "dialog",     "dir",    "div",      "dl",       "dt",
+    "fieldset", "figcaption", "figure", "footer",   "form",     "frame",
+    "frameset", "h1",         "h2",     "h3",       "h4",       "h5",
+    "h6",       "head",       "header", "hr",       "html",     "iframe",
+    "legend",   "li",         "link",   "main",     "menu",     "menuitem",
+    "nav",      "noframes",   "ol",     "optgroup", "option",   "p",
+    "param",    "section",    "source", "summary",  "table",    "tbody",
+    "td",       "tfoot",      "th",     "thead",    "title",    "tr",
+    "track",    "ul",
+};
 
 ////////////////////////
 // END HTML BLOCKS

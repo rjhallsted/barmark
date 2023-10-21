@@ -62,3 +62,84 @@ b
 </code></pre>
 </blockquote>
 ````````````````````````````````
+
+# Mine: HTML Blocks
+
+```````````````````````````````` example
+  <pre language="haskell"><code>
+foo baz
+</code></pre>
+okay
+.
+  <pre language="haskell"><code>
+foo baz
+</code></pre>
+<p>okay</p>
+````````````````````````````````
+
+
+```````````````````````````````` example
+   <!-- Foo
+
+bar
+   baz -->
+okay
+.
+   <!-- Foo
+
+bar
+   baz -->
+<p>okay</p>
+````````````````````````````````
+
+```````````````````````````````` example
+  <?php
+
+  echo '>';
+
+?>
+okay
+.
+  <?php
+
+  echo '>';
+
+?>
+<p>okay</p>
+````````````````````````````````
+
+```````````````````````````````` example
+  <!DOCTYPE html>
+.
+  <!DOCTYPE html>
+````````````````````````````````
+
+```````````````````````````````` example
+  <![CDATA[
+function matchwo(a,b)
+{
+  if (a < b && a < 0) then {
+    return 1;
+
+  } else {
+
+    return 0;
+  }
+}
+]]>
+okay
+.
+  <![CDATA[
+function matchwo(a,b)
+{
+  if (a < b && a < 0) then {
+    return 1;
+
+  } else {
+
+    return 0;
+  }
+}
+]]>
+<p>okay</p>
+````````````````````````````````

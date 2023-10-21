@@ -332,7 +332,7 @@ size_t matches_html_block_type_1_opener(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   for (int unsigned i = 0; i < HTML_BLOCK_1_OPENERS_SIZE; i++) {
-    if (str_starts_with_case_insensitive(t1.proposed + line_pos,
+    if (str_starts_with_case_insensitive(t1.proposed + line_pos + match_len,
                                          HTML_BLOCK_1_OPENERS[i])) {
       match_len += strlen(HTML_BLOCK_1_OPENERS[i]);
       if (t1.proposed[line_pos + match_len] == ' ' ||
@@ -365,7 +365,7 @@ bool matches_html_block_type_1_closer(char *line[static 1], size_t line_pos,
 size_t matches_html_block_type_2_opener(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
-  if (str_starts_with(t1.proposed + line_pos, "<!--")) {
+  if (str_starts_with(t1.proposed + line_pos + match_len, "<!--")) {
     commit_tab_expand(t1);
     return match_len + 4;
   }
@@ -387,7 +387,7 @@ bool matches_html_block_type_2_closer(char *line[static 1], size_t line_pos,
 size_t matches_html_block_type_3_opener(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
-  if (str_starts_with(t1.proposed + line_pos, "<?")) {
+  if (str_starts_with(t1.proposed + line_pos + match_len, "<?")) {
     commit_tab_expand(t1);
     return match_len + 2;
   }
@@ -409,8 +409,8 @@ bool matches_html_block_type_3_closer(char *line[static 1], size_t line_pos,
 size_t matches_html_block_type_4_opener(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
-  if (str_starts_with(t1.proposed + line_pos, "<!") &&
-      isalpha(t1.proposed[line_pos + 2])) {
+  if (str_starts_with(t1.proposed + line_pos + match_len, "<!") &&
+      isalpha(t1.proposed[line_pos + match_len + 2])) {
     commit_tab_expand(t1);
     return match_len + 3;
   }
@@ -432,7 +432,7 @@ bool matches_html_block_type_4_closer(char *line[static 1], size_t line_pos,
 size_t matches_html_block_type_5_opener(char *line[static 1], size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
-  if (str_starts_with(t1.proposed + line_pos, "<![CDATA[")) {
+  if (str_starts_with(t1.proposed + line_pos + match_len, "<![CDATA[")) {
     commit_tab_expand(t1);
     return match_len + 9;
   }
@@ -450,6 +450,29 @@ bool matches_html_block_type_5_closer(char *line[static 1], size_t line_pos,
   }
   return false;
 }
+
+// size_t matches_html_block_type_6_opener(char *line[static 1], size_t
+// line_pos) {
+//   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+//   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
+//   for (int unsigned i = 0; i < HTML_BLOCK_1_OPENERS_SIZE; i++) {
+//     if (str_starts_with_case_insensitive(t1.proposed + line_pos,
+//                                          HTML_BLOCK_1_OPENERS[i])) {
+//       match_len += strlen(HTML_BLOCK_1_OPENERS[i]);
+//       if (t1.proposed[line_pos + match_len] == ' ' ||
+//           t1.proposed[line_pos + match_len] == '\t' ||
+//           t1.proposed[line_pos + match_len] == '>' ||
+//           t1.proposed[line_pos + match_len] == '\n' ||
+//           t1.proposed[line_pos + match_len] == '\0') {
+//         commit_tab_expand(t1);
+//         return match_len + 1;
+//       }
+//     }
+//   }
+//   abandon_tab_expand(t1);
+//   return 0;
+// }
+
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
@@ -877,7 +900,8 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node_type == ASTN_HTML_BLOCK_TYPE_2 ||
              node_type == ASTN_HTML_BLOCK_TYPE_3 ||
              node_type == ASTN_HTML_BLOCK_TYPE_4 ||
-             node_type == ASTN_HTML_BLOCK_TYPE_5) {
+             node_type == ASTN_HTML_BLOCK_TYPE_5 ||
+             node_type == ASTN_HTML_BLOCK_TYPE_6) {
     // TODO: Remove this if check when this code becomes stable
     child = ast_create_node(node_type);
     ast_add_child(node, child);
