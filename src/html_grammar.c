@@ -2,6 +2,9 @@
 
 #include <ctype.h>
 #include <stdbool.h>
+#include <string.h>
+
+#include "util.h"
 
 /*
 Html grammar matches take a null-terminated string to match against, and a
@@ -214,14 +217,28 @@ bool m_attribute(char line[static 1], size_t match_len[static 1]) {
 /*
 Open Tag:
 '<',tag-name, attributes(0+), m_whitespace_with_opt_line_ending, '/'(0-1), '>'
+
+Also tags an optional array of forbidden tag names and will return false if the
+tag name matches any of them.
 */
-bool m_open_tag(char line[static 1], size_t match_len[static 1]) {
+bool m_open_tag(char line[static 1], size_t match_len[static 1],
+                char **forbidden_tags, int unsigned forbidden_tags_size) {
   if (line[0] != '<') {
     return false;
   }
   size_t match_len_ref = 1;
   if (!m_tag_name(line + match_len_ref, &match_len_ref)) {
     return false;
+  }
+  if (forbidden_tags_size > 0 && forbidden_tags) {
+    char *tag_name = strndup(line + 1, match_len_ref - 1);
+    for (int unsigned i = 0; i < forbidden_tags_size; i++) {
+      if (strcasecmp(tag_name, forbidden_tags[i]) == 0) {
+        free(tag_name);
+        return false;
+      }
+    }
+    free(tag_name);
   }
   while (m_attribute(line + match_len_ref, &match_len_ref)) {
     ;
@@ -241,13 +258,24 @@ bool m_open_tag(char line[static 1], size_t match_len[static 1]) {
 Closing Tag:
 '<', '/', tag-name, attributes(0+), m_whitespace_with_opt_line_ending, '>'
 */
-bool m_closing_tag(char line[static 1], size_t match_len[static 1]) {
+bool m_closing_tag(char line[static 1], size_t match_len[static 1],
+                   char **forbidden_tags, int unsigned forbidden_tags_size) {
   if (line[0] != '<' || line[1] != '/') {
     return false;
   }
   size_t match_len_ref = 2;
   if (!m_tag_name(line + match_len_ref, &match_len_ref)) {
     return false;
+  }
+  if (forbidden_tags_size > 0 && forbidden_tags) {
+    char *tag_name = strndup(line + 1, match_len_ref - 1);
+    for (int unsigned i = 0; i < forbidden_tags_size; i++) {
+      if (strcasecmp(tag_name, forbidden_tags[i]) == 0) {
+        free(tag_name);
+        return false;
+      }
+    }
+    free(tag_name);
   }
   while (m_attribute(line + match_len_ref, &match_len_ref)) {
     ;
