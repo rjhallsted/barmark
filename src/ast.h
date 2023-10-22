@@ -30,9 +30,10 @@ enum AST_NODE_TYPES {
   ASTN_HTML_BLOCK_TYPE_4,
   ASTN_HTML_BLOCK_TYPE_5,
   ASTN_HTML_BLOCK_TYPE_6,
+  ASTN_HTML_BLOCK_TYPE_7,
 };
 
-static const unsigned int NODE_TYPE_COUNT = 25;
+static const unsigned int NODE_TYPE_COUNT = 26;
 
 static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "DOC",
@@ -60,9 +61,10 @@ static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "HTML_BLOCK_TYPE_4",
     "HTML_BLOCK_TYPE_5",
     "HTML_BLOCK_TYPE_6",
+    "HTML_BLOCK_TYPE_7",
 };
 
-static const unsigned int LEAF_ONLY_NODES_SIZE = 18;
+static const unsigned int LEAF_ONLY_NODES_SIZE = 19;
 static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_CODE_BLOCK,
     ASTN_FENCED_CODE_BLOCK,
@@ -82,6 +84,7 @@ static const unsigned int LEAF_ONLY_NODES[LEAF_ONLY_NODES_SIZE] = {
     ASTN_HTML_BLOCK_TYPE_4,
     ASTN_HTML_BLOCK_TYPE_5,
     ASTN_HTML_BLOCK_TYPE_6,
+    ASTN_HTML_BLOCK_TYPE_7,
 };
 
 // NOTE: You cannot "append to" these, rather than being unable to append
@@ -113,10 +116,10 @@ static const int unsigned
         ASTN_FENCED_CODE_BLOCK, ASTN_HTML_BLOCK_TYPE_1, ASTN_HTML_BLOCK_TYPE_2,
         ASTN_HTML_BLOCK_TYPE_3, ASTN_HTML_BLOCK_TYPE_4, ASTN_HTML_BLOCK_TYPE_5};
 
-static const unsigned int CLOSED_BY_EMPTY_LINES_SIZE = 1;
+// TODO: See if Paragraphs can go in this array
+static const unsigned int CLOSED_BY_EMPTY_LINES_SIZE = 2;
 static const int unsigned CLOSED_BY_EMPTY_LINES[CLOSED_BY_EMPTY_LINES_SIZE] = {
-    ASTN_HTML_BLOCK_TYPE_6,
-};
+    ASTN_HTML_BLOCK_TYPE_6, ASTN_HTML_BLOCK_TYPE_7};
 
 ////////////////////////
 // HTML BLOCKS

@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "ast.h"
+#include "html_grammar.h"
 #include "tab_expand.h"
 #include "util.h"
 
@@ -483,6 +484,24 @@ size_t matches_html_block_type_6_opener(char *line[static 1], size_t line_pos) {
   return 0;
 }
 
+size_t matches_html_block_type_7_opener(char *line[static 1], size_t line_pos) {
+  const int unsigned forbidden_tags_size = 4;
+  const char *forbidden_tags[forbidden_tags_size] = {"pre", "script", "style",
+                                                     "textarea"};
+
+  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
+  if (m_open_tag(t1.proposed + match_len, &match_len, forbidden_tags_size,
+                 forbidden_tags) ||
+      m_closing_tag(t1.proposed + match_len, &match_len, forbidden_tags_size,
+                    forbidden_tags)) {
+    commit_tab_expand(t1);
+    return match_len;
+  }
+  abandon_tab_expand(t1);
+  return 0;
+}
+
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
   tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
@@ -826,6 +845,9 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
   } else if ((*match_len = matches_html_block_type_6_opener(line, line_pos))) {
     *match_len = 0;  // don't want to consume matched chars for html blocks
     return ASTN_HTML_BLOCK_TYPE_6;
+  } else if ((*match_len = matches_html_block_type_7_opener(line, line_pos))) {
+    *match_len = 0;  // don't want to consume matched chars for html blocks
+    return ASTN_HTML_BLOCK_TYPE_7;
   }
 
   return 0;
@@ -914,7 +936,8 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
              node_type == ASTN_HTML_BLOCK_TYPE_3 ||
              node_type == ASTN_HTML_BLOCK_TYPE_4 ||
              node_type == ASTN_HTML_BLOCK_TYPE_5 ||
-             node_type == ASTN_HTML_BLOCK_TYPE_6) {
+             node_type == ASTN_HTML_BLOCK_TYPE_6 ||
+             node_type == ASTN_HTML_BLOCK_TYPE_7) {
     // TODO: Remove this if check when this code becomes stable
     child = ast_create_node(node_type);
     ast_add_child(node, child);
