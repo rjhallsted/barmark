@@ -116,7 +116,6 @@ static const int unsigned
         ASTN_FENCED_CODE_BLOCK, ASTN_HTML_BLOCK_TYPE_1, ASTN_HTML_BLOCK_TYPE_2,
         ASTN_HTML_BLOCK_TYPE_3, ASTN_HTML_BLOCK_TYPE_4, ASTN_HTML_BLOCK_TYPE_5};
 
-// TODO: See if Paragraphs can go in this array
 static const unsigned int CLOSED_BY_EMPTY_LINES_SIZE = 2;
 static const int unsigned CLOSED_BY_EMPTY_LINES[CLOSED_BY_EMPTY_LINES_SIZE] = {
     ASTN_HTML_BLOCK_TYPE_6, ASTN_HTML_BLOCK_TYPE_7};

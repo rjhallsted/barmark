@@ -883,7 +883,6 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
     return child;
   } else if (node_type == ASTN_UNORDERED_LIST_ITEM &&
              node->type != ASTN_UNORDERED_LIST) {
-    // TODO: extract to new_unorderd_list_node;
     child = ast_create_node(ASTN_UNORDERED_LIST);
     child->options = options;
     ast_add_child(node, child);
@@ -891,7 +890,6 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
                            NULL, NULL);
   } else if (node_type == ASTN_ORDERED_LIST_ITEM &&
              node->type != ASTN_ORDERED_LIST) {
-    // TODO: extract to new_orderd_list_node;
     child = ast_create_node(ASTN_ORDERED_LIST);
     child->options = options;
     ast_add_child(node, child);
