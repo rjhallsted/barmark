@@ -845,7 +845,10 @@ int unsigned block_start_type(char *line[static 1], size_t line_pos,
   } else if ((*match_len = matches_html_block_type_6_opener(line, line_pos))) {
     *match_len = 0;  // don't want to consume matched chars for html blocks
     return ASTN_HTML_BLOCK_TYPE_6;
-  } else if ((*match_len = matches_html_block_type_7_opener(line, line_pos))) {
+  } else if ((!child ||
+              child->type != ASTN_PARAGRAPH) &&  // type 7 html blocks cannot
+                                                 // interrupt paragraphs
+             (*match_len = matches_html_block_type_7_opener(line, line_pos))) {
     *match_len = 0;  // don't want to consume matched chars for html blocks
     return ASTN_HTML_BLOCK_TYPE_7;
   }
