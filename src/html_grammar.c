@@ -142,6 +142,7 @@ bool m_single_quoted_attribute_value(char line[static 1],
   if (line[match_len_ref] != '\'') {
     return false;
   }
+  match_len_ref++;
   *match_len += match_len_ref;
   return true;
 }
@@ -162,6 +163,7 @@ bool m_double_quoted_attribute_value(char line[static 1],
   if (line[match_len_ref] != '"') {
     return false;
   }
+  match_len_ref++;
   *match_len += match_len_ref;
   return true;
 }
