@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "ast_to_html.h"
 #include "blocks.h"
+#include "inline.h"
 #include "util.h"
 
 void showUsage(char const errorMessage[static 1]) {
@@ -19,6 +20,8 @@ int main(int argc, char *argv[argc + 1]) {
   }
 
   ASTNode *root = build_block_structure(fd);
+  parse_inline(root);
+
   // TODO: allow for output files other than stdout
   ast_to_html(root, stdout, 1);
   ast_free_node(root);

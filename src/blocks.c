@@ -8,7 +8,7 @@
 
 #include "ast.h"
 #include "html_grammar.h"
-#include "tab_expand.h"
+#include "string_mod.h"
 #include "util.h"
 
 char *LATE_CONTINUATION_CONTENTS = NULL;
@@ -88,13 +88,13 @@ bool matches_continuation_markers(ASTNode node[static 1], char *line[static 1],
                                   size_t line_pos, size_t match_len[static 1]) {
   if (node->type == ASTN_BLOCK_QUOTE) {  // special case for blockquote
     if ((*line)[line_pos] == '>') {
-      tab_expand_ref ref = begin_tab_expand(line, line_pos + 1, 1);
+      string_mod_ref ref = begin_tab_expand_string_mod(line, line_pos + 1, 1);
       if (ref.proposed[line_pos + 1] == ' ') {
         if (f_debug()) printf("matching '> '\n");
-        commit_tab_expand(ref);
+        commit_string_mod(ref);
         *match_len = 2;
       } else {
-        abandon_tab_expand(ref);
+        abandon_string_mod(ref);
         *match_len = 1;
       }
       return true;
@@ -107,17 +107,18 @@ bool matches_continuation_markers(ASTNode node[static 1], char *line[static 1],
       printf("matching against %s, with space count of %u\n",
              NODE_TYPE_NAMES[node->type], node->cont_spaces);
     }
-    tab_expand_ref ref = begin_tab_expand(line, line_pos, node->cont_spaces);
+    string_mod_ref ref =
+        begin_tab_expand_string_mod(line, line_pos, node->cont_spaces);
     size_t i = 0;
     while (i < node->cont_spaces && ref.proposed[line_pos + i] == ' ') {
       i++;
     }
     if (i == node->cont_spaces) {
-      commit_tab_expand(ref);
+      commit_string_mod(ref);
       *match_len = i;
       return true;
     }
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return false;
   }
 }
@@ -216,48 +217,50 @@ void add_line_to_node(ASTNode node[static 1], char const line[static 1]) {
 
 size_t match_up_to_3_spaces(char *line[static 1], size_t line_pos) {
   size_t res = 0;
-  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 1);
+  string_mod_ref t1 = begin_tab_expand_string_mod(line, line_pos, 1);
   if (t1.proposed[line_pos] == ' ') {
     res = 1;
-    tab_expand_ref t2 = begin_tab_expand(&(t1.proposed), line_pos + 1, 1);
+    string_mod_ref t2 =
+        begin_tab_expand_string_mod(&(t1.proposed), line_pos + 1, 1);
     if (t2.proposed[line_pos + 1] == ' ') {
       res = 2;
-      tab_expand_ref t3 = begin_tab_expand(&(t2.proposed), line_pos + 2, 1);
+      string_mod_ref t3 =
+          begin_tab_expand_string_mod(&(t2.proposed), line_pos + 2, 1);
       if (t3.proposed[line_pos + 2] == ' ') {
         res = 3;
-        commit_tab_expand(t3);
+        commit_string_mod(t3);
       } else {
-        abandon_tab_expand(t3);
+        abandon_string_mod(t3);
       }
-      commit_tab_expand(t2);
+      commit_string_mod(t2);
     } else {
-      abandon_tab_expand(t2);
+      abandon_string_mod(t2);
     }
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
   } else {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
   }
   return res;
 }
 
 size_t matches_code_block(char *line[static 1], size_t line_pos) {
   size_t i = 0;
-  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 4);
+  string_mod_ref t1 = begin_tab_expand_string_mod(line, line_pos, 4);
 
   while (t1.proposed[line_pos + i] == ' ' && i < 4) {
     i++;
   }
   if (i == 4) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return i;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
 size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   size_t i = 0;
-  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
+  string_mod_ref t1 = begin_tab_expand_string_mod(line, line_pos, 3);
 
   // leading spaces
   while (t1.proposed[line_pos + i] == ' ' && i < 3) {
@@ -267,7 +270,7 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   char c = t1.proposed[i];
   size_t fence_start = i;
   if (c != '`' && c != '~') {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return 0;
   }
   // fence itself
@@ -275,7 +278,7 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
     i++;
   }
   if (i - fence_start < 3) {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return 0;
   }
   // info str
@@ -284,7 +287,7 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   }
   while (t1.proposed[i] && !is_whitespace(t1.proposed[i])) {
     if (c == '`' && t1.proposed[i] == '`') {
-      abandon_tab_expand(t1);
+      abandon_string_mod(t1);
       return 0;
     }
     i++;
@@ -292,12 +295,12 @@ size_t matches_fenced_code_block(char *line[static 1], size_t line_pos) {
   // consume rest of line so it won't get used
   while (t1.proposed[i]) {
     if (c == '`' && t1.proposed[i] == '`') {
-      abandon_tab_expand(t1);
+      abandon_string_mod(t1);
       return 0;
     }
     i++;
   }
-  commit_tab_expand(t1);
+  commit_string_mod(t1);
   return i;
 }
 
@@ -307,14 +310,14 @@ bool matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
     return false;
   }
   size_t i = 0;
-  tab_expand_ref t1 = begin_tab_expand(line, line_pos, 3);
+  string_mod_ref t1 = begin_tab_expand_string_mod(line, line_pos, 3);
 
   while (t1.proposed[line_pos + i] == ' ' && i < 3) {
     i++;
   }
   size_t fence_start = i;
   if (t1.proposed[line_pos + i] != node->options->id_char) {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return false;
   }
   while (t1.proposed[line_pos + i] == node->options->id_char) {
@@ -322,15 +325,15 @@ bool matches_fenced_code_block_close(char *line[static 1], size_t line_pos,
   }
   if (i - fence_start < node->options->reference_num ||
       !is_all_whitespace(t1.proposed + line_pos + i)) {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return false;
   }
-  commit_tab_expand(t1);
+  commit_string_mod(t1);
   return true;
 }
 
 size_t matches_html_block_type_1_opener(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   for (int unsigned i = 0; i < HTML_BLOCK_1_OPENERS_SIZE; i++) {
     if (str_starts_with_case_insensitive(t1.proposed + line_pos + match_len,
@@ -341,12 +344,12 @@ size_t matches_html_block_type_1_opener(char *line[static 1], size_t line_pos) {
           t1.proposed[line_pos + match_len] == '>' ||
           t1.proposed[line_pos + match_len] == '\n' ||
           t1.proposed[line_pos + match_len] == '\0') {
-        commit_tab_expand(t1);
+        commit_string_mod(t1);
         return match_len + 1;
       }
     }
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -364,13 +367,13 @@ bool matches_html_block_type_1_closer(char *line[static 1], size_t line_pos,
 }
 
 size_t matches_html_block_type_2_opener(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (str_starts_with(t1.proposed + line_pos + match_len, "<!--")) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return match_len + 4;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -386,13 +389,13 @@ bool matches_html_block_type_2_closer(char *line[static 1], size_t line_pos,
 }
 
 size_t matches_html_block_type_3_opener(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (str_starts_with(t1.proposed + line_pos + match_len, "<?")) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return match_len + 2;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -408,14 +411,14 @@ bool matches_html_block_type_3_closer(char *line[static 1], size_t line_pos,
 }
 
 size_t matches_html_block_type_4_opener(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (str_starts_with(t1.proposed + line_pos + match_len, "<!") &&
       isalpha(t1.proposed[line_pos + match_len + 2])) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return match_len + 3;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -431,13 +434,13 @@ bool matches_html_block_type_4_closer(char *line[static 1], size_t line_pos,
 }
 
 size_t matches_html_block_type_5_opener(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (str_starts_with(t1.proposed + line_pos + match_len, "<![CDATA[")) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return match_len + 9;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -453,10 +456,10 @@ bool matches_html_block_type_5_closer(char *line[static 1], size_t line_pos,
 }
 
 size_t matches_html_block_type_6_opener(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (t1.proposed[line_pos + match_len] != '<') {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return 0;
   }
   match_len++;
@@ -472,15 +475,15 @@ size_t matches_html_block_type_6_opener(char *line[static 1], size_t line_pos) {
           t1.proposed[line_pos + match_len] == '>' ||
           t1.proposed[line_pos + match_len] == '\n' ||
           t1.proposed[line_pos + match_len] == '\0') {
-        commit_tab_expand(t1);
+        commit_string_mod(t1);
         return match_len + 1;
       } else if (str_starts_with(t1.proposed + line_pos + match_len, "/>")) {
-        commit_tab_expand(t1);
+        commit_string_mod(t1);
         return match_len + 2;
       }
     }
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -489,43 +492,43 @@ size_t matches_html_block_type_7_opener(char *line[static 1], size_t line_pos) {
   const char *forbidden_tags[forbidden_tags_size] = {"pre", "script", "style",
                                                      "textarea"};
 
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (m_open_tag(t1.proposed + match_len, &match_len, forbidden_tags_size,
                  forbidden_tags) ||
       m_closing_tag(t1.proposed + match_len, &match_len, forbidden_tags_size,
                     forbidden_tags)) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return match_len;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
 size_t match_str_then_space(char const str[static 1], char *line[static 1],
                             size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);
 
   if (str_starts_with(t1.proposed + line_pos + i, str)) {
     i += strlen(str);
-    expand_existing_ref(&t1, line_pos + i, 1);
+    tab_expand_existing_ref(&t1, line_pos + i, 1);
     if (t1.proposed[line_pos + i] == ' ') {
-      commit_tab_expand(t1);
+      commit_string_mod(t1);
       return i + 1;
     }
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
 size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
                                                  char *line[static 1],
                                                  size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t res = match_str_then_space(str, &(t1.proposed), line_pos);
   if (res) {
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return res;
   } else {
     // try case where we match the symbol, but then line is all whitespace
@@ -533,11 +536,11 @@ size_t matches_unordered_list_opener_with_symbol(char const str[static 1],
     if (str_starts_with(t1.proposed + line_pos + res, str)) {
       res += strlen(str);
       if (is_all_whitespace(t1.proposed + line_pos + res)) {
-        commit_tab_expand(t1);
+        commit_string_mod(t1);
         return res + 1;
       }
     }
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return 0;
   }
 }
@@ -552,7 +555,7 @@ size_t matches_unordered_list_opening(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);  // leading spaces
   size_t num_start = i;
   // numbers
@@ -562,22 +565,22 @@ size_t matches_ordered_list_opening(char *line[static 1], size_t line_pos) {
   // period
   if ((i - num_start > 9) || i == 0 ||
       (t1.proposed[line_pos + i] != '.' && t1.proposed[line_pos + i] != ')')) {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return 0;
   }
   i++;
   // trailing space (or line end)
-  expand_existing_ref(&t1, line_pos + i, 1);
+  tab_expand_existing_ref(&t1, line_pos + i, 1);
   if (t1.proposed[line_pos + i] != ' ' && t1.proposed[line_pos + i] != '\n' &&
       t1.proposed[line_pos + i] != '\0') {
-    abandon_tab_expand(t1);
+    abandon_string_mod(t1);
     return 0;
   }
   i++;
 
   if (f_debug()) printf("match_len for OL-LI opening is %zu\n", i);
 
-  commit_tab_expand(t1);
+  commit_string_mod(t1);
   return i;
 }
 
@@ -586,18 +589,18 @@ size_t matches_paragraph_opening(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_blockquote_opening(char *line[static 1], size_t line_pos) {
-  tab_expand_ref t1 = make_unmodified_tab_expand_ref(line);
+  string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t i = match_up_to_3_spaces(&(t1.proposed), line_pos);
   if (t1.proposed[line_pos + i] == '>') {
     i++;
-    expand_existing_ref(&t1, line_pos + i, 1);
+    tab_expand_existing_ref(&t1, line_pos + i, 1);
     if (t1.proposed[line_pos + i] == ' ') {
       i++;
     }
-    commit_tab_expand(t1);
+    commit_string_mod(t1);
     return i;
   }
-  abandon_tab_expand(t1);
+  abandon_string_mod(t1);
   return 0;
 }
 
@@ -647,11 +650,11 @@ size_t matches_h6_opening(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
-  tab_expand_ref ref = make_unmodified_tab_expand_ref(line);
+  string_mod_ref ref = make_unmodified_string_mod_ref(line);
   size_t i = match_up_to_3_spaces(&(ref.proposed), line_pos);
   char c = ref.proposed[line_pos + i];
   if (c != '*' && c != '-' && c != '_') {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
   i++;
@@ -659,7 +662,7 @@ size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
     i++;
   }
   if (ref.proposed[line_pos + i] != c) {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
   i++;
@@ -667,7 +670,7 @@ size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
     i++;
   }
   if (ref.proposed[line_pos + i] != c) {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
   i++;
@@ -676,18 +679,18 @@ size_t matches_thematic_break(char *line[static 1], size_t line_pos) {
     i++;
   }
   if (ref.proposed[line_pos + i] != '\0') {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
-  commit_tab_expand(ref);
+  commit_string_mod(ref);
   return i;
 }
 
 size_t matches_setext_h2(char *line[static 1], size_t line_pos) {
-  tab_expand_ref ref = make_unmodified_tab_expand_ref(line);
+  string_mod_ref ref = make_unmodified_string_mod_ref(line);
   size_t i = match_up_to_3_spaces(&(ref.proposed), line_pos);
   if (ref.proposed[line_pos + i] != '-') {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
   while (ref.proposed[line_pos + i] == '-') {
@@ -697,18 +700,18 @@ size_t matches_setext_h2(char *line[static 1], size_t line_pos) {
     i++;
   }
   if (ref.proposed[line_pos + i] != '\0') {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
-  commit_tab_expand(ref);
+  commit_string_mod(ref);
   return i;
 }
 
 size_t matches_setext_h1(char *line[static 1], size_t line_pos) {
-  tab_expand_ref ref = make_unmodified_tab_expand_ref(line);
+  string_mod_ref ref = make_unmodified_string_mod_ref(line);
   size_t i = match_up_to_3_spaces(&(ref.proposed), line_pos);
   if (ref.proposed[line_pos + i] != '=') {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
   while (ref.proposed[line_pos + i] == '=') {
@@ -718,10 +721,10 @@ size_t matches_setext_h1(char *line[static 1], size_t line_pos) {
     i++;
   }
   if (ref.proposed[line_pos + i] != '\0') {
-    abandon_tab_expand(ref);
+    abandon_string_mod(ref);
     return 0;
   }
-  commit_tab_expand(ref);
+  commit_string_mod(ref);
   return i;
 }
 
