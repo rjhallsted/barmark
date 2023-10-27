@@ -128,7 +128,13 @@ ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
   contents[str_len] = '\0';
 
   ASTNode *new_node = ast_create_node(type);
-  new_node->contents = contents;
+  if (type != ASTN_TEXT) {
+    ASTNode *child = ast_create_node(ASTN_TEXT);
+    child->contents = contents;
+    ast_add_child(new_node, child);
+  } else {
+    new_node->contents = contents;
+  }
   return new_node;
 }
 
@@ -196,12 +202,10 @@ void parse_text(ASTNode node[static 1]) {
 void parse_inline(ASTNode node[static 1]) {
   if (node->type == ASTN_TEXT) {
     parse_text(node);
-  } else {
+  } else if (!array_contains(DONT_PARSE_INLINE_BLOCKS_SIZE,
+                             DONT_PARSE_INLINE_BLOCKS, node->type)) {
     for (size_t i = 0; i < node->children_count; i++) {
-      if (!array_contains(DONT_PARSE_INLINE_BLOCKS_SIZE,
-                          DONT_PARSE_INLINE_BLOCKS, node->type)) {
-        parse_inline(node->children[i]);
-      }
+      parse_inline(node->children[i]);
     }
   }
 }
