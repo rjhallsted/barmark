@@ -253,6 +253,7 @@ bool m_open_tag(char line[static 1], size_t match_len[static 1],
   if (line[match_len_ref] != '>') {
     return false;
   }
+  match_len_ref++;
   *match_len += match_len_ref;
   return true;
 }
@@ -286,6 +287,52 @@ bool m_closing_tag(char line[static 1], size_t match_len[static 1],
   }
   m_whitespace_with_opt_line_ending(line + match_len_ref, &match_len_ref);
   if (line[match_len_ref] != '>') {
+    return false;
+  }
+  match_len_ref++;
+  *match_len += match_len_ref;
+  return true;
+}
+
+/*
+Block level opening tag:
+open-tag, whitespace-spread, line-ending OR null-terminator
+*/
+bool m_block_opening_tag(char line[static 1], size_t match_len[static 1]) {
+  const int unsigned forbidden_tags_size = 4;
+  const char *forbidden_tags[forbidden_tags_size] = {"pre", "script", "style",
+                                                     "textarea"};
+
+  size_t match_len_ref = 0;
+  if (!m_open_tag(line, &match_len_ref, forbidden_tags_size, forbidden_tags)) {
+    return false;
+  }
+  m_whitespace_spread(line + match_len_ref, &match_len_ref);
+  if (!m_line_ending(line + match_len_ref, &match_len_ref) &&
+      line[match_len_ref]) {
+    return false;
+  }
+  *match_len += match_len_ref;
+  return true;
+}
+
+/*
+Block level closing tag:
+closing-tag, whitespace-spread, line-ending OR null-terminator
+*/
+bool m_block_closing_tag(char line[static 1], size_t match_len[static 1]) {
+  const int unsigned forbidden_tags_size = 4;
+  const char *forbidden_tags[forbidden_tags_size] = {"pre", "script", "style",
+                                                     "textarea"};
+
+  size_t match_len_ref = 0;
+  if (!m_closing_tag(line, &match_len_ref, forbidden_tags_size,
+                     forbidden_tags)) {
+    return false;
+  }
+  m_whitespace_spread(line + match_len_ref, &match_len_ref);
+  if (!m_line_ending(line + match_len_ref, &match_len_ref) &&
+      line[match_len_ref]) {
     return false;
   }
   *match_len += match_len_ref;

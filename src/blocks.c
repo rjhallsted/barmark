@@ -478,16 +478,10 @@ size_t matches_html_block_type_6_opener(char *line[static 1], size_t line_pos) {
 }
 
 size_t matches_html_block_type_7_opener(char *line[static 1], size_t line_pos) {
-  const int unsigned forbidden_tags_size = 4;
-  const char *forbidden_tags[forbidden_tags_size] = {"pre", "script", "style",
-                                                     "textarea"};
-
   string_mod_ref t1 = make_unmodified_string_mod_ref(line);
   size_t match_len = match_up_to_3_spaces(&(t1.proposed), line_pos);
-  if (m_open_tag(t1.proposed + match_len, &match_len, forbidden_tags_size,
-                 forbidden_tags) ||
-      m_closing_tag(t1.proposed + match_len, &match_len, forbidden_tags_size,
-                    forbidden_tags)) {
+  if (m_block_opening_tag(t1.proposed + line_pos + match_len, &match_len) ||
+      m_block_closing_tag(t1.proposed + line_pos + match_len, &match_len)) {
     commit_string_mod(t1);
     return match_len;
   }
