@@ -30,9 +30,12 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
     printf("next token at char: '%c'\n", line[*line_pos]);
   }
   if (line[*line_pos] == '`') {
-    // TODO: Convert tokens to contain sequential backticks instead of one each
-    Token *t = new_token(TOKEN_BACKTICK, *line_pos, 1);
-    *line_pos += 1;
+    size_t i = 0;
+    while (line[(*line_pos) + i] == '`') {
+      i++;
+    }
+    Token *t = new_token(TOKEN_BACKTICK, *line_pos, i);
+    *line_pos += i;
     return t;
   }
   size_t start = *line_pos;
@@ -86,26 +89,17 @@ void free_token_list(Token **list) {
 }
 
 size_t find_code_span(Token **token_list, size_t start) {
-  size_t i = 0;
-  while (token_list[start + i] &&
-         token_list[start + i]->type == TOKEN_BACKTICK) {
-    i++;
-  }
-  size_t opener_len = i;
-  if (opener_len == 0) {
+  if (token_list[start]->type != TOKEN_BACKTICK) {
     return 0;
   }
-  size_t j = 0;
-  while (token_list[start + i] && j < opener_len) {
-    if (token_list[start + i]->type == TOKEN_BACKTICK) {
-      j++;
-    } else {
-      j = 0;
-    }
+  size_t i = 1;
+  while (token_list[start + i] &&
+         (token_list[start + i]->type != TOKEN_BACKTICK ||
+          token_list[start + i]->length != token_list[start]->length)) {
     i++;
   }
-  if (j == opener_len) {
-    return start + i;
+  if (token_list[start + i]) {
+    return start + i + 1;
   }
   return 0;
 }
@@ -203,13 +197,8 @@ void parse_text(ASTNode node[static 1]) {
             ASTN_TEXT, token_list, split_pos, i - split_pos, node->contents);
         ast_add_child(node, new_node);
       }
-      split_pos = i;
-      while (token_list[i]->type == TOKEN_BACKTICK) {
-        i++;
-      }
-      size_t opener_len = i - split_pos;
-      split_pos += opener_len;
-      size_t len = next_split_pos - opener_len - split_pos;
+      split_pos = i + 1;
+      size_t len = (next_split_pos - 1) - split_pos;
       ASTNode *new_node = new_node_from_tokens(ASTN_CODE_SPAN, token_list,
                                                split_pos, len, node->contents);
       ast_add_child(node, new_node);
