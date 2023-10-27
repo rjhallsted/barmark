@@ -31,9 +31,12 @@ enum AST_NODE_TYPES {
   ASTN_HTML_BLOCK_TYPE_5,
   ASTN_HTML_BLOCK_TYPE_6,
   ASTN_HTML_BLOCK_TYPE_7,
+
+  // INLINE only nodes
+  ASTN_CODE_SPAN,
 };
 
-static const unsigned int NODE_TYPE_COUNT = 26;
+static const unsigned int NODE_TYPE_COUNT = 27;
 
 static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "DOC",
@@ -62,6 +65,7 @@ static const char *NODE_TYPE_NAMES[NODE_TYPE_COUNT] = {
     "HTML_BLOCK_TYPE_5",
     "HTML_BLOCK_TYPE_6",
     "HTML_BLOCK_TYPE_7",
+    "CODE_SPAN",
 };
 
 static const unsigned int LEAF_ONLY_NODES_SIZE = 19;

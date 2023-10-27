@@ -21,6 +21,9 @@ int main(int argc, char *argv[argc + 1]) {
 
   ASTNode *root = build_block_structure(fd);
   parse_inline(root);
+  if (f_debug()) {
+    print_tree(root, 0);
+  }
 
   // TODO: allow for output files other than stdout
   ast_to_html(root, stdout, 1);

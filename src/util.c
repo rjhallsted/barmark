@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ast.h"
+
 FILE *openFile(char const path[static 1]) {
   FILE *fd = fopen(path, "r");
   if (fd == NULL) {
@@ -70,4 +72,24 @@ bool f_debug(void) {
     return true;
   }
   return false;
+}
+
+void print_tree(ASTNode node[static 1], size_t level) {
+  char *indent = repeat_x(' ', level * 2);
+  if (node->options) {
+    printf("%s%s-%s [%u] (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->options->wide ? "wide" : "tight", node->cont_spaces,
+           node->late_continuation_lines);
+  } else {
+    printf("%s%s [%u] (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
+           node->cont_spaces, node->late_continuation_lines);
+  }
+
+  if (node->contents) {
+    printf("%s++:%s\n", indent, node->contents);
+  }
+  for (size_t i = 0; i < node->children_count; i++) {
+    print_tree(node->children[i], level + 1);
+  }
+  free(indent);
 }

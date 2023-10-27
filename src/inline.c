@@ -84,6 +84,54 @@ void free_token_list(Token **list) {
   free(list);
 }
 
+size_t find_code_span(Token **token_list, size_t start) {
+  size_t i = 0;
+  while (token_list[start + i] &&
+         token_list[start + i]->type == TOKEN_BACKTICK) {
+    i++;
+  }
+  size_t opener_len = i;
+  if (opener_len == 0) {
+    return 0;
+  }
+  size_t j = 0;
+  while (token_list[start + i] && j < opener_len) {
+    if (token_list[start + i]->type == TOKEN_BACKTICK) {
+      j++;
+    } else {
+      j = 0;
+    }
+    i++;
+  }
+  if (j == opener_len) {
+    return start + i;
+  }
+  return 0;
+}
+
+ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
+                              size_t length, char *line) {
+  if (f_debug()) {
+    printf("making node of type %s from tokens\n", NODE_TYPE_NAMES[type]);
+  }
+  size_t str_len = 0;
+  for (size_t i = 0; i < length; i++) {
+    str_len += tokens[start + i]->length;
+  }
+  char *contents = malloc(str_len + 1);
+  size_t pos = 0;
+  for (size_t i = 0; i < length; i++) {
+    strncpy(contents + pos, line + tokens[start + i]->start,
+            tokens[start + i]->length);
+    pos += tokens[start + i]->length;
+  }
+  contents[str_len] = '\0';
+
+  ASTNode *new_node = ast_create_node(type);
+  new_node->contents = contents;
+  return new_node;
+}
+
 void parse_text(ASTNode node[static 1]) {
   if (f_debug()) {
     printf("parsing text on node type %s\n", NODE_TYPE_NAMES[node->type]);
@@ -107,6 +155,41 @@ void parse_text(ASTNode node[static 1]) {
   if (f_debug()) {
     print_token_list(node->contents, token_list);
   }
+  size_t i = 0;
+  size_t next_split_pos = 0;
+  size_t split_pos = 0;
+  while (token_list[i]) {
+    if ((next_split_pos = find_code_span(token_list, i))) {
+      if (i > 0) {
+        ASTNode *new_node = new_node_from_tokens(
+            ASTN_TEXT, token_list, split_pos, i - split_pos, node->contents);
+        ast_add_child(node, new_node);
+      }
+      split_pos = i;
+      while (token_list[i]->type == TOKEN_BACKTICK) {
+        i++;
+      }
+      size_t opener_len = i - split_pos;
+      split_pos += opener_len;
+      size_t len = next_split_pos - opener_len - split_pos;
+      ASTNode *new_node = new_node_from_tokens(ASTN_CODE_SPAN, token_list,
+                                               split_pos, len, node->contents);
+      ast_add_child(node, new_node);
+
+      // reset
+      split_pos = next_split_pos;
+      i = next_split_pos;
+    } else {
+      i++;
+    }
+  }
+  if (token_list[split_pos]) {
+    ASTNode *new_node = new_node_from_tokens(ASTN_TEXT, token_list, split_pos,
+                                             i - split_pos, node->contents);
+    ast_add_child(node, new_node);
+  }
+  free(node->contents);
+  node->contents = NULL;
   free_token_list(token_list);
 }
 
@@ -115,7 +198,10 @@ void parse_inline(ASTNode node[static 1]) {
     parse_text(node);
   } else {
     for (size_t i = 0; i < node->children_count; i++) {
-      parse_inline(node->children[i]);
+      if (!array_contains(DONT_PARSE_INLINE_BLOCKS_SIZE,
+                          DONT_PARSE_INLINE_BLOCKS, node->type)) {
+        parse_inline(node->children[i]);
+      }
     }
   }
 }

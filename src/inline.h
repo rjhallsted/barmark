@@ -22,4 +22,12 @@ typedef struct Token {
   size_t length;
 } Token;
 
+static const int unsigned DONT_PARSE_INLINE_BLOCKS_SIZE = 9;
+static const int unsigned
+    DONT_PARSE_INLINE_BLOCKS[DONT_PARSE_INLINE_BLOCKS_SIZE] = {
+        ASTN_CODE_BLOCK,        ASTN_FENCED_CODE_BLOCK, ASTN_HTML_BLOCK_TYPE_1,
+        ASTN_HTML_BLOCK_TYPE_2, ASTN_HTML_BLOCK_TYPE_3, ASTN_HTML_BLOCK_TYPE_4,
+        ASTN_HTML_BLOCK_TYPE_5, ASTN_HTML_BLOCK_TYPE_6, ASTN_HTML_BLOCK_TYPE_7,
+};
+
 #endif  // INLINE_H

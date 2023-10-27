@@ -953,26 +953,6 @@ ASTNode *add_child_block(ASTNode node[static 1], int unsigned node_type,
   }
 }
 
-void print_tree(ASTNode node[static 1], size_t level) {
-  char *indent = repeat_x(' ', level * 2);
-  if (node->options) {
-    printf("%s%s-%s [%u] (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
-           node->options->wide ? "wide" : "tight", node->cont_spaces,
-           node->late_continuation_lines);
-  } else {
-    printf("%s%s [%u] (%zu)\n", indent, NODE_TYPE_NAMES[node->type],
-           node->cont_spaces, node->late_continuation_lines);
-  }
-
-  if (node->contents) {
-    printf("%s+>%s\n", indent, node->contents);
-  }
-  for (size_t i = 0; i < node->children_count; i++) {
-    print_tree(node->children[i], level + 1);
-  }
-  free(indent);
-}
-
 /*
 Returns the id char if it exists, otherwise 0.
 If the id char is found, it will also set fence_len, indentation, and info_str
