@@ -7,7 +7,7 @@ void parse_inline(ASTNode node[static 1]);
 
 enum TOKEN_TYPES {
   TOKEN_TEXT = 0,
-  TOKEN_BACKTICK,
+  TOKEN_BACKTICKS,
 };
 
 static const int unsigned TOKEN_TYPES_SIZE = 2;

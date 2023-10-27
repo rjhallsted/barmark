@@ -34,7 +34,7 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
     while (line[(*line_pos) + i] == '`') {
       i++;
     }
-    Token *t = new_token(TOKEN_BACKTICK, *line_pos, i);
+    Token *t = new_token(TOKEN_BACKTICKS, *line_pos, i);
     *line_pos += i;
     return t;
   }
@@ -89,12 +89,12 @@ void free_token_list(Token **list) {
 }
 
 size_t find_code_span(Token **token_list, size_t start) {
-  if (token_list[start]->type != TOKEN_BACKTICK) {
+  if (token_list[start]->type != TOKEN_BACKTICKS) {
     return 0;
   }
   size_t i = 1;
   while (token_list[start + i] &&
-         (token_list[start + i]->type != TOKEN_BACKTICK ||
+         (token_list[start + i]->type != TOKEN_BACKTICKS ||
           token_list[start + i]->length != token_list[start]->length)) {
     i++;
   }
