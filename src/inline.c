@@ -30,6 +30,7 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
     printf("next token at char: '%c'\n", line[*line_pos]);
   }
   if (line[*line_pos] == '`') {
+    // TODO: Convert tokens to contain sequential backticks instead of one each
     Token *t = new_token(TOKEN_BACKTICK, *line_pos, 1);
     *line_pos += 1;
     return t;
@@ -109,6 +110,36 @@ size_t find_code_span(Token **token_list, size_t start) {
   return 0;
 }
 
+void convert_line_endings_to_spaces(char str[static 1]) {
+  size_t i = 0;
+  while (str[i]) {
+    if (str[i] == '\n') {
+      str[i] = ' ';
+    }
+    i++;
+  }
+}
+
+void prepare_code_span_contents(char *contents[static 1]) {
+  string_mod_ref ref = make_unmodified_string_mod_ref(contents);
+  size_t len = strlen(ref.proposed);
+  convert_line_endings_to_spaces(ref.proposed);
+  // special starting and trailing spaces trimming
+  if (ref.proposed[0] == ' ' && ref.proposed[len - 1] == ' ' &&
+      !is_all_whitespace(ref.proposed)) {
+    char *new = strndup(ref.proposed + 1, len - 2);
+    free(ref.proposed);
+    ref.proposed = new;
+  }
+  commit_string_mod(ref);
+}
+
+void prepare_contents(int unsigned node_type, char *contents[static 1]) {
+  if (node_type == ASTN_CODE_SPAN) {
+    prepare_code_span_contents(contents);
+  }
+}
+
 ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
                               size_t length, char *line) {
   if (f_debug()) {
@@ -126,6 +157,7 @@ ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
     pos += tokens[start + i]->length;
   }
   contents[str_len] = '\0';
+  prepare_contents(type, &contents);
 
   ASTNode *new_node = ast_create_node(type);
   if (type != ASTN_TEXT) {

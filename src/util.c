@@ -93,3 +93,13 @@ void print_tree(ASTNode node[static 1], size_t level) {
   }
   free(indent);
 }
+
+bool is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
+
+bool is_all_whitespace(char const line[static 1]) {
+  size_t i = 0;
+  while (is_whitespace(line[i])) {
+    i++;
+  }
+  return line[i] == '\0';
+}

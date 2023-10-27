@@ -148,16 +148,6 @@ void convert_last_text_child_to_paragraph(ASTNode node[static 1]) {
   ast_add_child(child, text);
 }
 
-bool is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
-
-bool is_all_whitespace(char const line[static 1]) {
-  size_t i = 0;
-  while (is_whitespace(line[i])) {
-    i++;
-  }
-  return line[i] == '\0';
-}
-
 // converts all text children to paragraphs
 void convert_texts_to_paragraphs(ASTNode node[static 1]) {
   ASTNode *text, *child;

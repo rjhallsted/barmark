@@ -17,5 +17,7 @@ bool array_contains(int unsigned const arr_size,
                     int unsigned const arr[arr_size], int unsigned value);
 bool f_debug(void);
 void print_tree(ASTNode node[static 1], size_t level);
+bool is_whitespace(char c);
+bool is_all_whitespace(char const line[static 1]);
 
 #endif  // UTIL_H
