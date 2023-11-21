@@ -3,7 +3,8 @@
 #include "../vendor/unity/unity.h"
 #include "ast.h"
 #include "blocks.h"
-#include "tab_expand.h"
+#include "string_mod.h"
+#include "unicode.h"
 #include "util.h"
 
 void setUp(void) {}
@@ -15,6 +16,7 @@ int main(void) {
   astTests();
   run_blocks_tests();
   util_tests();
-  run_tab_expand_tests();
+  string_mod_tests();
+  unicode_tests();
   return UNITY_END();
 }
