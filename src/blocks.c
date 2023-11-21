@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "ast.h"
-#include "html_grammar.h"
+#include "grammar.h"
 #include "string_mod.h"
 #include "util.h"
 

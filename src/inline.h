@@ -8,12 +8,16 @@ void parse_inline(ASTNode node[static 1]);
 enum TOKEN_TYPES {
   TOKEN_TEXT = 0,
   TOKEN_BACKTICKS,
+  TOKEN_STARS,
+  TOKEN_UNDERSCORES,
 };
 
-static const int unsigned TOKEN_TYPES_SIZE = 2;
+static const int unsigned TOKEN_TYPES_SIZE = 4;
 static char const *TOKEN_TYPE_NAMES[TOKEN_TYPES_SIZE] = {
     "TEXT",
-    "BACKTICK",
+    "BACKTICKS",
+    "STARS",
+    "UNDERSCORES",
 };
 
 typedef struct Token {

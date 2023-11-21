@@ -1,9 +1,10 @@
-#include "html_grammar.h"
+#include "grammar.h"
 
 #include <ctype.h>
 #include <stdbool.h>
 #include <string.h>
 
+#include "inline.h"
 #include "util.h"
 
 /*
@@ -338,3 +339,35 @@ bool m_block_closing_tag(char line[static 1], size_t match_len[static 1]) {
   *match_len += match_len_ref;
   return true;
 }
+
+/*****************************
+ * Token-based grammar below this line
+ *****************************/
+
+/*
+star-delimeter-run:
+'*'(1+)
+*/
+// bool mt_star_delimeter_run(Token *token_list[static 1],
+//                            size_t match_len[static 1]) {
+//   size_t i = 0;
+// }
+
+/*
+underscore-delimeter-run:
+'_'(1+)
+*/
+
+/*
+Left-flanking delimiter run:
+[unicode-punctuation,unicode-whitespace],[star-delimeter-run,underscore-delimiter-run],unicode-punctuation
+OR
+[star-delimter-run,underscore-delimiter-run],![unicode-whitespace,unicode-punctuation]
+*/
+
+/*
+Right-flanking delimiter run:
+unicode-punctuation,[star-delimeter-run,underscore-delimiter-run],[unicode-whitespace,unicode-punctuation]
+OR
+![unicode-punctuation,unicode-whitespace],[star-delimeter-run,underscore-delimiter-run]
+*/

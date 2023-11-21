@@ -25,31 +25,49 @@ Token *new_token(int unsigned type, size_t start, size_t length) {
 }
 
 // TODO: Will end up more abstracted away, but for now this works
+
+Token *get_token_of_type(int unsigned token_type, char token_symbol,
+                         char const line[static 1], size_t line_pos[static 1]) {
+  size_t i = 0;
+  while (line[(*line_pos) + i] == token_symbol) {
+    i++;
+  }
+  if (i == 0) {
+    return NULL;
+  }
+  Token *t = new_token(token_type, *line_pos, i);
+  *line_pos += i;
+  return t;
+}
+
 Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
   if (f_debug()) {
     printf("next token at char: '%c'\n", line[*line_pos]);
   }
-  if (line[*line_pos] == '`') {
-    size_t i = 0;
-    while (line[(*line_pos) + i] == '`') {
-      i++;
-    }
-    Token *t = new_token(TOKEN_BACKTICKS, *line_pos, i);
-    *line_pos += i;
+  Token *t;
+  if ((t = get_token_of_type(TOKEN_BACKTICKS, '`', line, line_pos))) {
     return t;
   }
+  if ((t = get_token_of_type(TOKEN_STARS, '*', line, line_pos))) {
+    return t;
+  }
+  if ((t = get_token_of_type(TOKEN_UNDERSCORES, '_', line, line_pos))) {
+    return t;
+  }
+
+  // text
+  const char *reserved_chars = "`*";
   size_t start = *line_pos;
-  size_t i = 0;
-  while (line[start + i] && line[start + i] != '`') {
-    i++;
-  }
-  if (i > 0) {
-    Token *t = new_token(TOKEN_TEXT, start, i);
-    *line_pos += i;
-    return t;
-  } else {
+  if (!line[start]) {
     return NULL;
   }
+  size_t i = 0;
+  while (line[start + i] && !strchr(reserved_chars, line[start + i])) {
+    i++;
+  }
+  t = new_token(TOKEN_TEXT, start, i);
+  *line_pos += i;
+  return t;
 }
 
 Token **build_token_list(char const line[static 1]) {
