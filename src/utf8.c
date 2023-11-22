@@ -59,9 +59,6 @@ char first_byte_masks[6] = {
 
 codepoint utf8_char(char *str, int unsigned *len) {
   *len = utf8_char_len(str);
-  if (*len == 1) {
-    return (codepoint)str[0];
-  }
   codepoint cp = str[0] & first_byte_masks[*len - 1];
   for (int unsigned i = 1; i < *len; i++) {
     cp = (cp << 6) | (str[i] & 0x3F);
