@@ -4,7 +4,7 @@
 #include "ast.h"
 #include "blocks.h"
 #include "string_mod.h"
-#include "unicode.h"
+#include "utf8.h"
 #include "util.h"
 
 void setUp(void) {}
@@ -17,6 +17,6 @@ int main(void) {
   run_blocks_tests();
   util_tests();
   string_mod_tests();
-  unicode_tests();
+  utf8_tests();
   return UNITY_END();
 }
