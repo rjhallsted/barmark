@@ -3,10 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static int unsigned utf_len_lookup[256] = {
+static int unsigned utf_len_lookup[254] = {
     // 0-127 are all 1 byte long (0b0xxxx xxxx)
-    // 128-191 (0b10xx xxxx) indicate we are mid-character and are an error if
-    //   we encounter at the beginning
+    // 128-191 (0b10xx xxxx) indicate we are mid-character, so 0
     // 192-223 (0xb110x xxxx) are all 2 bytes
     // 224-239 (0b1110 xxxx) are all 3 bytes
     // 240-247 (0b1111 0xxx) are all 4 bytes
@@ -38,19 +37,20 @@ static int unsigned utf_len_lookup[256] = {
 
     0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4,
 
-    0x5, 0x5, 0x5, 0x5, 0x6, 0x6, 0x0, 0x0,
+    0x5, 0x5, 0x5, 0x5, 0x6, 0x6,
 };
 
 /*
-Returns the length, in bytes, of the first utf8 character in the string
+Returns the length, in bytes, of the first utf8 character in the string.
+A return value of 0 indicates this byte is in the middle of a character or is
+not a valid utf8 starting byte
 */
-int unsigned utf8_character_len(char *str) {
-  int unsigned res = utf_len_lookup[(unsigned char)str[0]];
-  if (!res) {
-    printf("FOUND INVALID UTF8 FIRST CHAR\n");
+int unsigned utf8_char_len(char *str) {
+  if ((unsigned char)str[0] > 253) {
+    printf("INVALID UTF8 byte\n");
     exit(EXIT_FAILURE);
   }
-  return res;
+  return utf_len_lookup[(unsigned char)str[0]];
 }
 
 char first_byte_masks[6] = {
@@ -58,8 +58,7 @@ char first_byte_masks[6] = {
 };
 
 codepoint utf8_char(char *str, int unsigned *len) {
-  *len = utf8_character_len(str);
-  printf("len: %u\n", *len);
+  *len = utf8_char_len(str);
   if (*len == 1) {
     return (codepoint)str[0];
   }
