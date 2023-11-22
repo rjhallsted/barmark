@@ -25,12 +25,28 @@ Token *new_token(int unsigned type, size_t start, size_t length) {
   return t;
 }
 
-Token *get_token_of_type(int unsigned token_type, codepoint cp,
+bool codepoint_collection_contains(codepoint_collection coll, codepoint cp) {
+  for (size_t i = 0; i < coll.length; i++) {
+    if (cp >= coll.ranges[i].min && cp <= coll.ranges[i].max) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Token *get_token_of_type(int unsigned token_type, codepoint_collection coll,
                          char const line[static 1], size_t line_pos[static 1]) {
   size_t i = 0;
   int unsigned char_len = 0;
-  while (utf8_char((line + *line_pos + i), &char_len) == cp) {
+  if (codepoint_collection_contains(
+          coll, utf8_char((line + *line_pos + i), &char_len))) {
     i += char_len;
+  }
+  if (coll.runnable) {
+    while (codepoint_collection_contains(
+        coll, utf8_char((line + *line_pos + i), &char_len))) {
+      i += char_len;
+    }
   }
   if (i == 0) {
     return NULL;
@@ -40,31 +56,47 @@ Token *get_token_of_type(int unsigned token_type, codepoint cp,
   return t;
 }
 
+/*
+Making token parsing based on "known tokens":
+- make a map of TOKEN_TYPE->Codepoints wwhere "codepoints" is a list of
+  codepoint ranges that would be in that token type.
+  - "range" is a struct of {min, max}
+  - each codepoint maps to a list of those
+- include boolean indicating whether there should be a "run" of that token type
+  or if every token instance is a single character
+*/
+
+bool is_known_codepoint(codepoint cp) {
+  for (size_t i = 1; i < TOKEN_TYPES_SIZE; i++) {
+    if (codepoint_collection_contains(TOKEN_RANGES[i], cp)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
   if (f_debug()) {
     printf("next token at char: '%c'\n", line[*line_pos]);
   }
   Token *t;
-  if ((t = get_token_of_type(TOKEN_BACKTICKS, '`', line, line_pos))) {
-    return t;
-  }
-  if ((t = get_token_of_type(TOKEN_STARS, '*', line, line_pos))) {
-    return t;
-  }
-  if ((t = get_token_of_type(TOKEN_UNDERSCORES, '_', line, line_pos))) {
-    return t;
+  for (size_t i = 1; i < TOKEN_TYPES_SIZE; i++) {
+    if ((t = get_token_of_type(i, TOKEN_RANGES[i], line, line_pos))) {
+      return t;
+    }
   }
 
   // text
-  // TODO: Make "reserved char" lookup codepoint based as well
-  const char *reserved_chars = "`*";
   size_t start = *line_pos;
   if (!line[start]) {
     return NULL;
   }
   size_t i = 0;
-  while (line[start + i] && !strchr(reserved_chars, line[start + i])) {
-    i++;
+  int unsigned len = 0;
+  codepoint cp;
+  while (line[start + i] && (cp = utf8_char(line + start + i, &len)) &&
+         !is_known_codepoint(cp)) {
+    i += len;
   }
   t = new_token(TOKEN_TEXT, start, i);
   *line_pos += i;
