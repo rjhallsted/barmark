@@ -5,6 +5,7 @@
 
 #include "ast.h"
 #include "string_mod.h"
+#include "utf8.h"
 #include "util.h"
 
 /*
@@ -24,13 +25,12 @@ Token *new_token(int unsigned type, size_t start, size_t length) {
   return t;
 }
 
-// TODO: Will end up more abstracted away, but for now this works
-
-Token *get_token_of_type(int unsigned token_type, char token_symbol,
+Token *get_token_of_type(int unsigned token_type, codepoint cp,
                          char const line[static 1], size_t line_pos[static 1]) {
   size_t i = 0;
-  while (line[(*line_pos) + i] == token_symbol) {
-    i++;
+  int unsigned char_len = 0;
+  while (utf8_char((line + *line_pos + i), &char_len) == cp) {
+    i += char_len;
   }
   if (i == 0) {
     return NULL;
@@ -56,6 +56,7 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
   }
 
   // text
+  // TODO: Make "reserved char" lookup codepoint based as well
   const char *reserved_chars = "`*";
   size_t start = *line_pos;
   if (!line[start]) {

@@ -45,7 +45,7 @@ Returns the length, in bytes, of the first utf8 character in the string.
 A return value of 0 indicates this byte is in the middle of a character or is
 not a valid utf8 starting byte
 */
-int unsigned utf8_char_len(char *str) {
+int unsigned utf8_char_len(char const *str) {
   if ((unsigned char)str[0] > 253) {
     printf("INVALID UTF8 byte\n");
     exit(EXIT_FAILURE);
@@ -57,8 +57,11 @@ char first_byte_masks[6] = {
     0xFF, 0x1F, 0x0F, 0x07, 0x03, 0x01,
 };
 
-codepoint utf8_char(char *str, int unsigned *len) {
+codepoint utf8_char(char const *str, int unsigned *len) {
   *len = utf8_char_len(str);
+  if (*len == 0) {
+    return 0;
+  }
   codepoint cp = str[0] & first_byte_masks[*len - 1];
   for (int unsigned i = 1; i < *len; i++) {
     cp = (cp << 6) | (str[i] & 0x3F);
