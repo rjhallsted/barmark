@@ -6,7 +6,7 @@
 
 void test_utf_char(void) {
   int unsigned len = 0;
-  unsigned char* input = "foo";
+  char *input = "foo";
   codepoint res = utf8_char(input, &len);
   TEST_ASSERT_EQUAL(1, len);
   TEST_ASSERT_EQUAL(0x66, res);

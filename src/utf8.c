@@ -44,10 +44,8 @@ static int unsigned utf_len_lookup[256] = {
 /*
 Returns the length, in bytes, of the first utf8 character in the string
 */
-int unsigned utf8_character_len(unsigned char *str) {
-  printf("uncast: %c\n", str[0]);
-  printf("searching with %x\n", (int unsigned)str[0]);
-  int unsigned res = utf_len_lookup[(int unsigned)str[0]];
+int unsigned utf8_character_len(char *str) {
+  int unsigned res = utf_len_lookup[(unsigned char)str[0]];
   if (!res) {
     printf("FOUND INVALID UTF8 FIRST CHAR\n");
     exit(EXIT_FAILURE);
@@ -55,11 +53,11 @@ int unsigned utf8_character_len(unsigned char *str) {
   return res;
 }
 
-unsigned charfirst_byte_masks[6] = {
+char first_byte_masks[6] = {
     0xFF, 0x1F, 0x0F, 0x07, 0x03, 0x01,
 };
 
-codepoint utf8_char(unsigned char *str, int unsigned *len) {
+codepoint utf8_char(char *str, int unsigned *len) {
   *len = utf8_character_len(str);
   printf("len: %u\n", *len);
   if (*len == 1) {
