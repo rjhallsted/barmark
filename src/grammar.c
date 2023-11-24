@@ -345,25 +345,55 @@ bool m_block_closing_tag(char line[static 1], size_t match_len[static 1]) {
  *****************************/
 
 /*
-star-delimeter-run:
-'*'(1+)
-*/
-// bool mt_star_delimeter_run(Token *token_list[static 1],
-//                            size_t match_len[static 1]) {
-//   size_t i = 0;
-// }
-
-/*
-underscore-delimeter-run:
-'_'(1+)
-*/
-
-/*
 Left-flanking delimiter run:
 [unicode-punctuation,unicode-whitespace],[star-delimeter-run,underscore-delimiter-run],unicode-punctuation
 OR
-[star-delimter-run,underscore-delimiter-run],![unicode-whitespace,unicode-punctuation]
+[star-delimeter-run,underscore-delimiter-run],![unicode-whitespace,unicode-punctuation]
 */
+bool mt_left_flanking_delimiter_run_1(Token *token_list[static 1], size_t pos,
+                                      size_t *match_len) {
+  if (pos == 0) {
+    return false;
+  }
+  if (!token_list[pos - 1] || (token_list[pos - 1]->type != TOKEN_PUNCTUATION &&
+                               token_list[pos - 1]->type != TOKEN_WHITESPACE)) {
+    return false;
+  }
+  if (!token_list[pos - 1] ||
+      (token_list[pos - 1]->type != TOKEN_STARS &&
+       token_list[pos - 1]->type != TOKEN_UNDERSCORES)) {
+    return false;
+  }
+  if (!token_list[pos + 1] || token_list[pos + 1]->type != TOKEN_PUNCTUATION) {
+    return false;
+  }
+  *match_len = 1;
+  return true;
+}
+
+bool mt_left_flanking_delimiter_run_2(Token *token_list[static 1], size_t pos,
+                                      size_t *match_len) {
+  if (pos == 0) {
+    return false;
+  }
+  if (!token_list[pos - 1] ||
+      (token_list[pos - 1]->type != TOKEN_STARS &&
+       token_list[pos - 1]->type != TOKEN_UNDERSCORES)) {
+    return false;
+  }
+  if (token_list[pos] && (token_list[pos]->type == TOKEN_PUNCTUATION ||
+                          token_list[pos]->type == TOKEN_WHITESPACE)) {
+    return false;
+  }
+  *match_len = 1;
+  return true;
+}
+
+bool mt_left_flanking_delimiter_run(Token *token_list[static 1], size_t pos,
+                                    size_t *match_len) {
+  return mt_left_flanking_delimiter_run_1(token_list, pos, match_len) ||
+         mt_left_flanking_delimiter_run_2(token_list, pos, match_len);
+}
 
 /*
 Right-flanking delimiter run:
@@ -371,3 +401,40 @@ unicode-punctuation,[star-delimeter-run,underscore-delimiter-run],[unicode-white
 OR
 ![unicode-punctuation,unicode-whitespace],[star-delimeter-run,underscore-delimiter-run]
 */
+bool mt_right_flanking_delimiter_run_1(Token *token_list[static 1], size_t pos,
+                                       size_t *match_len) {
+  if (!token_list[pos - 1] || token_list[pos - 1]->type != TOKEN_PUNCTUATION) {
+    return false;
+  }
+  if (!token_list[pos] || (token_list[pos]->type != TOKEN_STARS &&
+                           token_list[pos]->type != TOKEN_UNDERSCORES)) {
+    return false;
+  }
+  if (!token_list[pos + 1] ||
+      (token_list[pos + 1]->type != TOKEN_PUNCTUATION &&
+       token_list[pos + 1]->type != TOKEN_PUNCTUATION)) {
+    return false;
+  }
+  *match_len = 1;
+  return true;
+}
+
+bool mt_right_flanking_delimiter_run_2(Token *token_list[static 1], size_t pos,
+                                       size_t *match_len) {
+  if (token_list[pos - 1] && (token_list[pos - 1]->type == TOKEN_PUNCTUATION ||
+                              token_list[pos - 1]->type == TOKEN_WHITESPACE)) {
+    return false;
+  }
+  if (!token_list[pos] || (token_list[pos]->type != TOKEN_STARS &&
+                           token_list[pos]->type != TOKEN_UNDERSCORES)) {
+    return false;
+  }
+  *match_len = 1;
+  return true;
+}
+
+bool mt_right_flanking_delimiter_run(Token *token_list[static 1], size_t pos,
+                                     size_t *match_len) {
+  return mt_right_flanking_delimiter_run_1(token_list, pos, match_len) ||
+         mt_right_flanking_delimiter_run_2(token_list, pos, match_len);
+}

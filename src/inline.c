@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "ast.h"
+#include "grammar.h"
 #include "string_mod.h"
 #include "utf8.h"
 #include "util.h"
@@ -210,24 +211,50 @@ ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
   return new_node;
 }
 
+void add_new_node_from_tokens(ASTNode *dest, int unsigned type,
+                              Token *token_list[static 1], size_t start,
+                              size_t len) {
+  ASTNode *new_node =
+      new_node_from_tokens(type, token_list, start, len, dest->contents);
+  ast_add_child(dest, new_node);
+}
+
+/*
+Returns the type of the next split, and sets next_split_pos
+*/
+int unsigned find_next_split(Token *token_list[static 1], size_t pos,
+                             size_t *next_split_pos) {
+  size_t next;
+  if ((next = find_code_span(token_list, pos))) {
+    *next_split_pos = next;
+    return ASTN_CODE_SPAN;
+  }
+  return 0;
+}
+
+slice slice_based_on_split_type(int unsigned type, size_t split_pos,
+                                size_t next_split_pos) {
+  size_t len = next_split_pos - split_pos;
+  if (type == ASTN_CODE_SPAN) {  // don't include backticks
+    split_pos += 1;
+    len -= 2;
+  }
+  return (slice){.start = split_pos, .len = len};
+}
+
+/*
+  Build up list of token positions (token type, start pos, length)
+  iterate, handle token based on rules. (backticks sequence of length x
+  consumes everything until another backtick sequence of length x, if none
+  found, then that no node is created).
+
+  Once you've determined node start and end, if end of previous node is not 1
+  before node start, put the middle content into text node.
+*/
 void parse_text(ASTNode node[static 1]) {
   if (f_debug()) {
     printf("parsing text on node type %s\n", NODE_TYPE_NAMES[node->type]);
   }
-
-  /*
-    Build up list of token positions (token type, start pos, length)
-    iterate, handle token based on rules. (backticks sequence of length x
-    consumes everything until another backtick sequence of length x, if none
-    found, then that no node is created).
-
-    Once you've determined node start and end, if end of previous node is not 1
-    before node start, put the middle content into text node.
-  */
-  // build up list of tokens
-  // parse, appending children to this node as you go.
-  // once finished, move children of this node to parent (in its place) and
-  // remove this node
   Token **token_list = build_token_list(node->contents);
   // TODO: If token list ends in newline, drop newline
   if (f_debug()) {
@@ -236,20 +263,18 @@ void parse_text(ASTNode node[static 1]) {
   size_t i = 0;
   size_t next_split_pos = 0;
   size_t split_pos = 0;
+  int unsigned split_type = 0;
   while (token_list[i]) {
-    if ((next_split_pos = find_code_span(token_list, i))) {
-      if (i > 0) {
-        ASTNode *new_node = new_node_from_tokens(
-            ASTN_TEXT, token_list, split_pos, i - split_pos, node->contents);
-        ast_add_child(node, new_node);
+    if ((split_type = find_next_split(token_list, i, &next_split_pos))) {
+      if (i > split_pos) {
+        add_new_node_from_tokens(node, ASTN_TEXT, token_list, split_pos,
+                                 i - split_pos);
+        split_pos = i;
       }
-      split_pos = i + 1;
-      size_t len = (next_split_pos - 1) - split_pos;
-      ASTNode *new_node = new_node_from_tokens(ASTN_CODE_SPAN, token_list,
-                                               split_pos, len, node->contents);
-      ast_add_child(node, new_node);
-
-      // reset
+      slice split_slice =
+          slice_based_on_split_type(split_type, split_pos, next_split_pos);
+      add_new_node_from_tokens(node, split_type, token_list, split_slice.start,
+                               split_slice.len);
       split_pos = next_split_pos;
       i = next_split_pos;
     } else {

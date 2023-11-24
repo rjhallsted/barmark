@@ -7,6 +7,11 @@
 
 #include "ast.h"
 
+typedef struct {
+  size_t start;
+  size_t len;
+} slice;
+
 FILE *openFile(char path[static 1]);
 char *str_append(char dst[static 1], char const s2[static 1]);
 char str_starts_with(char const str[static 1], char const sub[static 1]);
