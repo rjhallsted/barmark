@@ -56,16 +56,6 @@ Token *get_token_of_type(int unsigned token_type, codepoint_collection coll,
   return t;
 }
 
-/*
-Making token parsing based on "known tokens":
-- make a map of TOKEN_TYPE->Codepoints wwhere "codepoints" is a list of
-  codepoint ranges that would be in that token type.
-  - "range" is a struct of {min, max}
-  - each codepoint maps to a list of those
-- include boolean indicating whether there should be a "run" of that token type
-  or if every token instance is a single character
-*/
-
 bool is_known_codepoint(codepoint cp) {
   for (size_t i = 1; i < TOKEN_TYPES_SIZE; i++) {
     if (codepoint_collection_contains(TOKEN_CP_RANGES[i], cp)) {
@@ -73,6 +63,23 @@ bool is_known_codepoint(codepoint cp) {
     }
   }
   return false;
+}
+
+Token *next_text_token(char const line[static 1], size_t line_pos[static 1]) {
+  size_t start = *line_pos;
+  if (!line[start]) {
+    return NULL;
+  }
+  size_t i = 0;
+  int unsigned len = 0;
+  codepoint cp;
+  while (line[start + i] && (cp = utf8_char(line + start + i, &len)) &&
+         !is_known_codepoint(cp)) {
+    i += len;
+  }
+  Token *t = new_token(TOKEN_TEXT, start, i);
+  *line_pos += i;
+  return t;
 }
 
 Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
@@ -85,22 +92,7 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
       return t;
     }
   }
-
-  // text
-  size_t start = *line_pos;
-  if (!line[start]) {
-    return NULL;
-  }
-  size_t i = 0;
-  int unsigned len = 0;
-  codepoint cp;
-  while (line[start + i] && (cp = utf8_char(line + start + i, &len)) &&
-         !is_known_codepoint(cp)) {
-    i += len;
-  }
-  t = new_token(TOKEN_TEXT, start, i);
-  *line_pos += i;
-  return t;
+  return next_text_token(line, line_pos);
 }
 
 Token **build_token_list(char const line[static 1]) {
@@ -185,30 +177,33 @@ void prepare_contents(int unsigned node_type, char *contents[static 1]) {
   }
 }
 
+size_t sum_token_slice_lengths(Token **tokens, size_t start, size_t length) {
+  size_t str_len = 0;
+  for (size_t i = 0; i < length; i++) {
+    str_len += tokens[start + i]->length;
+  }
+  return str_len;
+}
+
+char *duplicate_substr_from_token_slice(Token **tokens, size_t start,
+                                        size_t length, char *line) {
+  size_t str_len = sum_token_slice_lengths(tokens, start, length);
+  char *contents = strndup(line + tokens[start]->start, str_len);
+  return contents;
+}
+
 ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
                               size_t length, char *line) {
   if (f_debug()) {
     printf("making node of type %s from tokens\n", NODE_TYPE_NAMES[type]);
   }
-  size_t str_len = 0;
-  for (size_t i = 0; i < length; i++) {
-    str_len += tokens[start + i]->length;
-  }
-  char *contents = malloc(str_len + 1);
-  size_t pos = 0;
-  for (size_t i = 0; i < length; i++) {
-    strncpy(contents + pos, line + tokens[start + i]->start,
-            tokens[start + i]->length);
-    pos += tokens[start + i]->length;
-  }
-  contents[str_len] = '\0';
+  char *contents =
+      duplicate_substr_from_token_slice(tokens, start, length, line);
   prepare_contents(type, &contents);
 
   ASTNode *new_node = ast_create_node(type);
   if (type != ASTN_TEXT) {
-    ASTNode *child = ast_create_node(ASTN_TEXT);
-    child->contents = contents;
-    ast_add_child(new_node, child);
+    ast_add_child_node_with_contents(new_node, ASTN_TEXT, contents);
   } else {
     new_node->contents = contents;
   }

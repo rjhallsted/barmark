@@ -126,6 +126,13 @@ void ast_remove_child_at_index(ASTNode node[static 1], size_t index) {
   free(old_children);
 }
 
+void ast_add_child_node_with_contents(ASTNode node[static 1],
+                                      int unsigned child_type, char *contents) {
+  ASTNode *child = ast_create_node(child_type);
+  child->contents = contents;
+  ast_add_child(node, child);
+}
+
 ASTNodeOptions *make_node_options(char id_char, long unsigned reference_num,
                                   int unsigned indentation) {
   ASTNodeOptions *options = malloc(sizeof(ASTNodeOptions));

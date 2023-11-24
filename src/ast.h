@@ -201,6 +201,8 @@ void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]);
 void ast_move_children_to_contents(ASTNode node[static 1]);
 void ast_remove_child_at_index(ASTNode node[static 1], size_t index);
 void ast_flatten_children(ASTNode node[static 1]);
+void ast_add_child_node_with_contents(ASTNode node[static 1],
+                                      int unsigned child_type, char *contents);
 ASTNodeOptions *make_node_options(char id_char, long unsigned reference_num,
                                   int unsigned indentation);
 
