@@ -68,7 +68,7 @@ Making token parsing based on "known tokens":
 
 bool is_known_codepoint(codepoint cp) {
   for (size_t i = 1; i < TOKEN_TYPES_SIZE; i++) {
-    if (codepoint_collection_contains(TOKEN_RANGES[i], cp)) {
+    if (codepoint_collection_contains(TOKEN_CP_RANGES[i], cp)) {
       return true;
     }
   }
@@ -81,7 +81,7 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
   }
   Token *t;
   for (size_t i = 1; i < TOKEN_TYPES_SIZE; i++) {
-    if ((t = get_token_of_type(i, TOKEN_RANGES[i], line, line_pos))) {
+    if ((t = get_token_of_type(i, TOKEN_CP_RANGES[i], line, line_pos))) {
       return t;
     }
   }
