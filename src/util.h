@@ -12,7 +12,7 @@ typedef struct {
   size_t len;
 } slice;
 
-FILE *openFile(char path[static 1]);
+FILE *openFile(char const path[static 1]);
 char *str_append(char dst[static 1], char const s2[static 1]);
 char str_starts_with(char const str[static 1], char const sub[static 1]);
 char str_starts_with_case_insensitive(char const str[static 1],
@@ -24,5 +24,13 @@ bool f_debug(void);
 void print_tree(ASTNode node[static 1], size_t level);
 bool is_whitespace(char c);
 bool is_all_whitespace(char const line[static 1]);
+
+// interface for singly-linked list functions
+typedef struct SinglyLinkedItem {
+  struct SinglyLinkedItem *next;
+} SinglyLinkedItem;
+
+void add_item_to_list(SinglyLinkedItem **head_ptr, SinglyLinkedItem *item);
+SinglyLinkedItem *last_item_of_list(SinglyLinkedItem *head);
 
 #endif  // UTIL_H

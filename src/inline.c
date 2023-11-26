@@ -300,8 +300,10 @@ void parse_inline(ASTNode node[static 1]) {
     parse_text(node);
   } else if (!array_contains(DONT_PARSE_INLINE_BLOCKS_SIZE,
                              DONT_PARSE_INLINE_BLOCKS, node->type)) {
-    for (size_t i = 0; i < node->children_count; i++) {
-      parse_inline(node->children[i]);
+    node = node->first_child;
+    while (node) {
+      parse_inline(node);
+      node = node->next;
     }
   }
 }

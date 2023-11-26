@@ -455,8 +455,8 @@ static const int unsigned
 };
 
 typedef struct Delimiter {
-  Delimiter *next;
-  Delimiter *prev;
+  struct Delimiter *next;
+  struct Delimiter *prev;
   char type;
   size_t count;
   bool active;

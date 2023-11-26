@@ -177,6 +177,9 @@ typedef struct {
 } ASTNodeOptions;
 
 typedef struct ASTNode {
+  // next is placed first to make this compatible with singly-linked list
+  // functions
+  struct ASTNode *next;
   int unsigned type;
   bool open;
   /* Contents is only used by the following node types:
@@ -185,8 +188,7 @@ typedef struct ASTNode {
   */
   char *contents;
   int unsigned cont_spaces;
-  struct ASTNode **children;
-  size_t children_count;
+  struct ASTNode *first_child;
   struct ASTNode *parent;
   // TODO: Replace with union of different options types once there's more than
   // one

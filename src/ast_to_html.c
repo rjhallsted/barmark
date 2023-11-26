@@ -19,8 +19,10 @@ void ast_to_html(ASTNode ast[static 1], FILE output_fd[static 1],
   if (ast->type == ASTN_TEXT && ast->contents) {
     printf("%s", ast->contents);
   }
-  for (size_t i = 0; i < ast->children_count; i++) {
-    ast_to_html(ast->children[i], output_fd, tag.wrap_internals && print_tags);
+  ast = ast->first_child;
+  while (ast) {
+    ast_to_html(ast, output_fd, tag.wrap_internals && print_tags);
+    ast = ast->next;
   }
   if (print_tags && tag.show_tag && tag.close) {
     printf("</%s>", (tag.closing_label) ? tag.closing_label : tag.label);

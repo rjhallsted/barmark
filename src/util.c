@@ -1,3 +1,5 @@
+#include "util.h"
+
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -88,10 +90,12 @@ void print_tree(ASTNode node[static 1], size_t level) {
   if (node->contents) {
     printf("%s++:%s\n", indent, node->contents);
   }
-  for (size_t i = 0; i < node->children_count; i++) {
-    print_tree(node->children[i], level + 1);
-  }
   free(indent);
+  node = node->first_child;
+  while (node) {
+    print_tree(node, level + 1);
+    node = node->next;
+  }
 }
 
 bool is_whitespace(char c) { return (c == ' ' || c == '\t' || c == '\n'); }
@@ -102,4 +106,27 @@ bool is_all_whitespace(char const line[static 1]) {
     i++;
   }
   return line[i] == '\0';
+}
+
+////////////////////////////////
+// Singly-Linked List functions
+////////////////////////////////
+
+void add_item_to_list(SinglyLinkedItem **head_ptr, SinglyLinkedItem *item) {
+  if (!(*head_ptr)) {
+    *head_ptr = item;
+    return;
+  }
+  SinglyLinkedItem *current = *head_ptr;
+  while (current->next) {
+    current = current->next;
+  }
+  current->next = item;
+}
+
+SinglyLinkedItem *last_item_of_list(SinglyLinkedItem *head) {
+  while (head && head->next) {
+    head = head->next;
+  }
+  return head;
 }
