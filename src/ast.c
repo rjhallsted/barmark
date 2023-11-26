@@ -66,36 +66,6 @@ void finalize_tree(ASTNode *node) {
   }
 }
 
-/**
- * @brief Recursively moves the contents of children into the contents of this
- * node and deletes the children. Replaces existing contents if there is any
- *
- * @param node
- */
-void ast_move_children_to_contents(ASTNode node[static 1]) {
-  if (!node->first_child) {
-    return;
-  }
-  if (node->contents) {
-    free(node->contents);
-  }
-  char *new_contents = strdup("");
-  ASTNode *ptr =
-      (ASTNode *)reverse_list((SinglyLinkedItem *)(node->first_child));
-  ASTNode *tmp;
-  while (ptr) {
-    ast_move_children_to_contents(ptr);
-    if (ptr->contents) {
-      new_contents = str_append(new_contents, ptr->contents);
-    }
-    tmp = ptr->next;
-    ast_free_node(ptr);
-    ptr = tmp;
-  }
-  node->first_child = NULL;
-  node->contents = new_contents;
-}
-
 /***
  * Recursively descends the tree and flattens the entire thing
  * so that all descendent children are now direct children of
