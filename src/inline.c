@@ -229,6 +229,7 @@ int unsigned find_next_split(Token *token_list[static 1], size_t pos,
     *next_split_pos = next;
     return ASTN_CODE_SPAN;
   }
+  // TODO: add matcher for delimeters (*,_)
   return 0;
 }
 
@@ -275,6 +276,8 @@ void parse_text(ASTNode node[static 1]) {
       split_slice =
           slice_based_on_split_type(split_type, split_pos, next_split_pos);
       add_new_node_from_tokens(node, split_type, token_list, split_slice);
+      // TODO: Look at contents of new split, determine if delimeter. If so, add
+      // new node to delimeter list
       split_pos = next_split_pos;
       i = next_split_pos;
     } else {

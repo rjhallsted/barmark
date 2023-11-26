@@ -344,6 +344,8 @@ bool m_block_closing_tag(char line[static 1], size_t match_len[static 1]) {
  * Token-based grammar below this line
  *****************************/
 
+// TODO: Come fix these delimeter run calcs
+
 /*
 Left-flanking delimiter run:
 [unicode-punctuation,unicode-whitespace],[star-delimeter-run,underscore-delimiter-run],unicode-punctuation

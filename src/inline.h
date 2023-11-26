@@ -454,4 +454,13 @@ static const int unsigned
         ASTN_HTML_BLOCK_TYPE_5, ASTN_HTML_BLOCK_TYPE_6, ASTN_HTML_BLOCK_TYPE_7,
 };
 
+typedef struct Delimiter {
+  Delimiter *next;
+  Delimiter *prev;
+  char type;
+  size_t count;
+  bool active;
+  bool potential_opener;
+} Delimiter;
+
 #endif  // INLINE_H
