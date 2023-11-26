@@ -13,12 +13,8 @@
 
 char *LATE_CONTINUATION_CONTENTS = NULL;
 
-// TODO: Potentially create lists in reverse order to speed up "last item"
-// access
-
-ASTNode *last_child(ASTNode node[static 1]) {
-  return (ASTNode *)last_item_of_list((SinglyLinkedItem *)(node->first_child));
-}
+// the children list is in reverse order to make this operation quick.
+ASTNode *last_child(ASTNode node[static 1]) { return node->first_child; }
 
 ASTNode *get_deepest_non_text_child(ASTNode node[static 1]) {
   ASTNode *child;

@@ -45,9 +45,25 @@ void ast_free_node(ASTNode node[static 1]) {
 }
 
 void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]) {
-  add_item_to_list((SinglyLinkedItem **)&(parent->first_child),
-                   (SinglyLinkedItem *)child);
+  parent->first_child = (ASTNode *)add_item_to_list(
+      (SinglyLinkedItem *)(parent->first_child), (SinglyLinkedItem *)child);
   child->parent = parent;
+}
+
+/*
+ * Do an remaining prep work for printing, such as reversing (i.e. fixing) the
+ * order of children
+ */
+void finalize_tree(ASTNode *node) {
+  if (node->first_child) {
+    node->first_child =
+        (ASTNode *)reverse_list((SinglyLinkedItem *)(node->first_child));
+    node = node->first_child;
+    while (node) {
+      finalize_tree(node);
+      node = node->next;
+    }
+  }
 }
 
 /**
@@ -56,7 +72,6 @@ void ast_add_child(ASTNode parent[static 1], ASTNode child[static 1]) {
  *
  * @param node
  */
-// TODO: Test
 void ast_move_children_to_contents(ASTNode node[static 1]) {
   if (!node->first_child) {
     return;
@@ -65,7 +80,8 @@ void ast_move_children_to_contents(ASTNode node[static 1]) {
     free(node->contents);
   }
   char *new_contents = strdup("");
-  ASTNode *ptr = node->first_child;
+  ASTNode *ptr =
+      (ASTNode *)reverse_list((SinglyLinkedItem *)(node->first_child));
   ASTNode *tmp;
   while (ptr) {
     ast_move_children_to_contents(ptr);
@@ -85,11 +101,7 @@ void ast_move_children_to_contents(ASTNode node[static 1]) {
  * so that all descendent children are now direct children of
  * the provided node. Effectively keeps only leaf nodes.
  */
-// TODO: test
 void ast_flatten_children(ASTNode node[static 1]) {
-  // ASTNode **old_children = node->children;
-  // size_t old_children_size = node->children_count;
-
   ASTNode *dummy = ast_create_node(ASTN_DOCUMENT);
   dummy->next = node->first_child;
   ASTNode *ptr = dummy;
@@ -105,33 +117,6 @@ void ast_flatten_children(ASTNode node[static 1]) {
     }
   }
   node->first_child = dummy->next;
-  ast_free_node(dummy);
-}
-
-/***
- * Removes the child at index provided.
- * fails if the index is out of bounds
- */
-// TODO: Test
-void ast_remove_child_at_index(ASTNode node[static 1], size_t index) {
-  ASTNode *dummy = ast_create_node(ASTN_DOCUMENT);
-  dummy->next = node->first_child;
-  ASTNode *ptr = dummy;
-  size_t i = 0;
-  while (ptr->next && i < index) {
-    ptr = ptr->next;
-    i++;
-  }
-  if (i < index) {
-    printf("Bad index provided to ast_remove_first_child.\n");
-    exit(EXIT_FAILURE);
-  }
-  ASTNode *to_remove = ptr->next;
-  ptr->next = ptr->next->next;
-  if (ptr == dummy) {
-    node->first_child = ptr->next;
-  }
-  ast_free_node(to_remove);
   ast_free_node(dummy);
 }
 

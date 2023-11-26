@@ -21,6 +21,7 @@ int main(int argc, char *argv[argc + 1]) {
 
   ASTNode *root = build_block_structure(fd);
   parse_inline(root);
+  finalize_tree(root);
   if (f_debug()) {
     print_tree(root, 0);
   }

@@ -112,16 +112,10 @@ bool is_all_whitespace(char const line[static 1]) {
 // Singly-Linked List functions
 ////////////////////////////////
 
-void add_item_to_list(SinglyLinkedItem **head_ptr, SinglyLinkedItem *item) {
-  if (!(*head_ptr)) {
-    *head_ptr = item;
-    return;
-  }
-  SinglyLinkedItem *current = *head_ptr;
-  while (current->next) {
-    current = current->next;
-  }
-  current->next = item;
+SinglyLinkedItem *add_item_to_list(SinglyLinkedItem *head_ptr,
+                                   SinglyLinkedItem *item) {
+  item->next = head_ptr;
+  return item;
 }
 
 SinglyLinkedItem *last_item_of_list(SinglyLinkedItem *head) {
@@ -129,4 +123,16 @@ SinglyLinkedItem *last_item_of_list(SinglyLinkedItem *head) {
     head = head->next;
   }
   return head;
+}
+
+SinglyLinkedItem *reverse_list(SinglyLinkedItem *head) {
+  SinglyLinkedItem *tmp;
+  SinglyLinkedItem *prev = NULL;
+  while (head) {
+    tmp = head->next;
+    head->next = prev;
+    prev = head;
+    head = tmp;
+  }
+  return prev;
 }

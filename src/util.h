@@ -30,7 +30,9 @@ typedef struct SinglyLinkedItem {
   struct SinglyLinkedItem *next;
 } SinglyLinkedItem;
 
-void add_item_to_list(SinglyLinkedItem **head_ptr, SinglyLinkedItem *item);
+SinglyLinkedItem *add_item_to_list(SinglyLinkedItem *head_ptr,
+                                   SinglyLinkedItem *item);
 SinglyLinkedItem *last_item_of_list(SinglyLinkedItem *head);
+SinglyLinkedItem *reverse_list(SinglyLinkedItem *head);
 
 #endif  // UTIL_H

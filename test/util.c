@@ -27,9 +27,39 @@ void test_str_append_with_nl(void) {
   free(dst);
 }
 
+typedef struct TestList {
+  struct TestList *next;
+  int value;
+} TestList;
+
+void test_reverse_list(void) {
+  TestList *a = malloc(sizeof(TestList));
+  a->value = 1;
+  TestList *b = malloc(sizeof(TestList));
+  b->value = 2;
+  TestList *c = malloc(sizeof(TestList));
+  c->value = 3;
+  TestList *head = (TestList *)add_item_to_list((SinglyLinkedItem *)NULL,
+                                                (SinglyLinkedItem *)a);
+  head = (TestList *)add_item_to_list((SinglyLinkedItem *)head,
+                                      (SinglyLinkedItem *)b);
+  head = (TestList *)add_item_to_list((SinglyLinkedItem *)head,
+                                      (SinglyLinkedItem *)c);
+
+  TestList *new_head = (TestList *)reverse_list((SinglyLinkedItem *)c);
+  TEST_ASSERT_EQUAL(1, new_head->value);
+  TEST_ASSERT_EQUAL(2, new_head->next->value);
+  TEST_ASSERT_EQUAL(3, new_head->next->next->value);
+  free(a);
+  free(b);
+  free(c);
+}
+
 void util_tests(void) {
   printf("--util tests\n");
   printf("---str_append\n");
   RUN_TEST(test_str_append);
   RUN_TEST(test_str_append_with_nl);
+  printf("---reverse_list\n");
+  RUN_TEST(test_reverse_list);
 }
