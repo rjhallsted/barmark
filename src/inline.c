@@ -18,11 +18,13 @@ for emphasis and such)
 
 */
 
-Token *new_token(int unsigned type, size_t start, size_t length) {
+// TODO: Begin using slices everywhere I currently pass start & length;
+
+Token *new_token(int unsigned type, slice token_slice) {
   Token *t = malloc(sizeof(Token));
   t->type = type;
-  t->start = start;
-  t->length = length;
+  t->start = token_slice.start;
+  t->length = token_slice.len;
   return t;
 }
 
@@ -52,7 +54,7 @@ Token *get_token_of_type(int unsigned token_type, codepoint_collection coll,
   if (i == 0) {
     return NULL;
   }
-  Token *t = new_token(token_type, *line_pos, i);
+  Token *t = new_token(token_type, (slice){.start = *line_pos, .len = i});
   *line_pos += i;
   return t;
 }
@@ -78,7 +80,7 @@ Token *next_text_token(char const line[static 1], size_t line_pos[static 1]) {
          !is_known_codepoint(cp)) {
     i += len;
   }
-  Token *t = new_token(TOKEN_TEXT, start, i);
+  Token *t = new_token(TOKEN_TEXT, (slice){.start = start, .len = i});
   *line_pos += i;
   return t;
 }
@@ -178,28 +180,27 @@ void prepare_contents(int unsigned node_type, char *contents[static 1]) {
   }
 }
 
-size_t sum_token_slice_lengths(Token **tokens, size_t start, size_t length) {
+size_t sum_token_slice_lengths(Token **tokens, slice token_slice) {
   size_t str_len = 0;
-  for (size_t i = 0; i < length; i++) {
-    str_len += tokens[start + i]->length;
+  for (size_t i = 0; i < token_slice.len; i++) {
+    str_len += tokens[token_slice.start + i]->length;
   }
   return str_len;
 }
 
-char *duplicate_substr_from_token_slice(Token **tokens, size_t start,
-                                        size_t length, char *line) {
-  size_t str_len = sum_token_slice_lengths(tokens, start, length);
-  char *contents = strndup(line + tokens[start]->start, str_len);
+char *duplicate_substr_from_token_slice(Token **tokens, slice token_slice,
+                                        char *line) {
+  size_t str_len = sum_token_slice_lengths(tokens, token_slice);
+  char *contents = strndup(line + tokens[token_slice.start]->start, str_len);
   return contents;
 }
 
-ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
-                              size_t length, char *line) {
+ASTNode *new_node_from_tokens(int unsigned type, Token **tokens,
+                              slice token_slice, char *line) {
   if (f_debug()) {
     printf("making node of type %s from tokens\n", NODE_TYPE_NAMES[type]);
   }
-  char *contents =
-      duplicate_substr_from_token_slice(tokens, start, length, line);
+  char *contents = duplicate_substr_from_token_slice(tokens, token_slice, line);
   prepare_contents(type, &contents);
 
   ASTNode *new_node = ast_create_node(type);
@@ -212,10 +213,9 @@ ASTNode *new_node_from_tokens(int unsigned type, Token **tokens, size_t start,
 }
 
 void add_new_node_from_tokens(ASTNode *dest, int unsigned type,
-                              Token *token_list[static 1], size_t start,
-                              size_t len) {
+                              Token *token_list[static 1], slice token_slice) {
   ASTNode *new_node =
-      new_node_from_tokens(type, token_list, start, len, dest->contents);
+      new_node_from_tokens(type, token_list, token_slice, dest->contents);
   ast_add_child(dest, new_node);
 }
 
@@ -264,17 +264,17 @@ void parse_text(ASTNode node[static 1]) {
   size_t next_split_pos = 0;
   size_t split_pos = 0;
   int unsigned split_type = 0;
+  slice split_slice;
   while (token_list[i]) {
     if ((split_type = find_next_split(token_list, i, &next_split_pos))) {
       if (i > split_pos) {
-        add_new_node_from_tokens(node, ASTN_TEXT, token_list, split_pos,
-                                 i - split_pos);
+        split_slice = slice_based_on_split_type(ASTN_TEXT, split_pos, i);
+        add_new_node_from_tokens(node, ASTN_TEXT, token_list, split_slice);
         split_pos = i;
       }
-      slice split_slice =
+      split_slice =
           slice_based_on_split_type(split_type, split_pos, next_split_pos);
-      add_new_node_from_tokens(node, split_type, token_list, split_slice.start,
-                               split_slice.len);
+      add_new_node_from_tokens(node, split_type, token_list, split_slice);
       split_pos = next_split_pos;
       i = next_split_pos;
     } else {
@@ -282,8 +282,9 @@ void parse_text(ASTNode node[static 1]) {
     }
   }
   if (token_list[split_pos]) {
-    ASTNode *new_node = new_node_from_tokens(ASTN_TEXT, token_list, split_pos,
-                                             i - split_pos, node->contents);
+    ASTNode *new_node = new_node_from_tokens(
+        ASTN_TEXT, token_list,
+        (slice){.start = split_pos, .len = i - split_pos}, node->contents);
     ast_add_child(node, new_node);
   }
   free(node->contents);
