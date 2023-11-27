@@ -141,6 +141,13 @@ Token *find_code_span(Token *token) {
   return NULL;
 }
 
+Token *find_emphasis_or_link_delimeter(Token *token) {
+  if (token->type == TOKEN_STARS || token->type == TOKEN_UNDERSCORES) {
+    return token;
+  }
+  return NULL;
+}
+
 void convert_line_endings_to_spaces(char str[static 1]) {
   size_t i = 0;
   while (str[i]) {
@@ -217,8 +224,8 @@ int unsigned find_next_split(Token ptr[static 1], Token **end_of_split) {
   int unsigned type = 0;
   if ((next = find_code_span(ptr))) {
     type = ASTN_CODE_SPAN;
-    // } else if ((next = find_emphasis_or_link_delimeter(ptr, pos))) {
-    //   type = ASTN_TEXT;
+  } else if ((next = find_emphasis_or_link_delimeter(ptr))) {
+    type = ASTN_TEXT;
   }
   *end_of_split = next;
   return type;
@@ -279,15 +286,16 @@ void parse_text(ASTNode node[static 1]) {
         add_new_node_from_tokens(node, ASTN_TEXT,
                                  skip_tokens(last_split, split_slice.start),
                                  split_slice.len);
-        last_split = ptr;  // TODO: maybe remove line?
       }
       split_slice =
           slice_based_on_split_type(split_type, ptr, end_of_split->next);
       add_new_node_from_tokens(node, split_type,
                                skip_tokens(ptr, split_slice.start),
                                split_slice.len);
-      // TODO: Look at contents of new split, determine if delimeter. If so, add
-      // new node to delimeter list
+      if (ptr->type == TOKEN_STARS || ptr->type == TOKEN_UNDERSCORES) {
+        // TODO: Look at contents of new split, determine if delimeter. If so,
+        // add new node to delimeter list
+      }
       ptr = end_of_split->next;
       last_split = ptr;
     } else {
