@@ -34,5 +34,16 @@ SinglyLinkedItem *add_item_to_list(SinglyLinkedItem *head_ptr,
                                    SinglyLinkedItem *item);
 SinglyLinkedItem *last_item_of_list(SinglyLinkedItem *head);
 SinglyLinkedItem *reverse_list(SinglyLinkedItem *head);
+size_t item_distance(SinglyLinkedItem *from, SinglyLinkedItem *to);
+size_t list_len(SinglyLinkedItem *head);
+
+// interface for doubly-linked list functions
+typedef struct DoublyLinkedItem {
+  struct DoublyLinkedItem *next;
+  struct DoublyLinkedItem *prev;
+} DoublyLinkedItem;
+
+DoublyLinkedItem *add_dl_item_to_list(DoublyLinkedItem *head_ptr,
+                                      DoublyLinkedItem *item);
 
 #endif  // UTIL_H

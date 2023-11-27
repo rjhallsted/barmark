@@ -136,3 +136,28 @@ SinglyLinkedItem *reverse_list(SinglyLinkedItem *head) {
   }
   return prev;
 }
+
+size_t item_distance(SinglyLinkedItem *from, SinglyLinkedItem *to) {
+  size_t i = 0;
+  while (from != to) {
+    from = from->next;
+    i++;
+  }
+  return i;
+}
+
+size_t list_len(SinglyLinkedItem *head) {
+  size_t i = 0;
+  while (head) {
+    i++;
+    head = head->next;
+  }
+  return i;
+}
+
+DoublyLinkedItem *add_dl_item_to_list(DoublyLinkedItem *head_ptr,
+                                      DoublyLinkedItem *item) {
+  item->next = head_ptr;
+  head_ptr->prev = item;
+  return item;
+}
