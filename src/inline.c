@@ -256,6 +256,29 @@ size_t token_list_len(Token *head) {
   return list_len((SinglyLinkedItem *)head);
 }
 
+Delimiter *new_delimiter_from_token(Token *token) {
+  char type;
+  switch (token->type) {
+    case TOKEN_UNDERSCORES:
+      type = '_';
+      break;
+    case TOKEN_STARS:
+      type = '*';
+      break;
+    default:
+      printf("Cannot create a delimiter from token of type %s\n",
+             TOKEN_TYPE_NAMES[token->type]);
+      exit(EXIT_FAILURE);
+  }
+  Delimiter *delim = malloc(sizeof(Delimiter));
+  delim->next = NULL;
+  delim->prev = NULL;
+  delim->type = type;
+  delim->count = token->length;
+  delim->active = true;
+  delim->potential_opener = false;  // TODO: determine opener potential
+}
+
 /*
   Build up list of token positions (token type, start pos, length)
   iterate, handle token based on rules. (backticks sequence of length x
@@ -279,6 +302,7 @@ void parse_text(ASTNode node[static 1]) {
   Token *end_of_split = NULL;
   int unsigned split_type = 0;
   slice split_slice;
+  Delimiter *delim_list_head = NULL;
   while (ptr) {
     if ((split_type = find_next_split(ptr, &end_of_split))) {
       if (ptr != last_split) {
@@ -295,6 +319,10 @@ void parse_text(ASTNode node[static 1]) {
       if (ptr->type == TOKEN_STARS || ptr->type == TOKEN_UNDERSCORES) {
         // TODO: Look at contents of new split, determine if delimeter. If so,
         // add new node to delimeter list
+        Delimiter *delim = new_delimiter_from_token(ptr);
+
+        // is_potential_opener
+        // add delimeter to list
       }
       ptr = end_of_split->next;
       last_split = ptr;
