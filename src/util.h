@@ -45,5 +45,9 @@ typedef struct DoublyLinkedItem {
 
 DoublyLinkedItem *add_dl_item_to_list(DoublyLinkedItem *head_ptr,
                                       DoublyLinkedItem *item);
+DoublyLinkedItem *last_item_of_dl_list(DoublyLinkedItem *head);
+DoublyLinkedItem *reverse_dl_list(DoublyLinkedItem *head);
+size_t item_distance_dl(DoublyLinkedItem *from, DoublyLinkedItem *to);
+size_t dl_list_len(DoublyLinkedItem *head);
 
 #endif  // UTIL_H

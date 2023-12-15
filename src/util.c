@@ -161,3 +161,28 @@ DoublyLinkedItem *add_dl_item_to_list(DoublyLinkedItem *head_ptr,
   head_ptr->prev = item;
   return item;
 }
+
+DoublyLinkedItem *last_item_of_dl_list(DoublyLinkedItem *head) {
+  return (DoublyLinkedItem *)last_item_of_list((SinglyLinkedItem *)head);
+}
+
+size_t item_distance_dl(DoublyLinkedItem *from, DoublyLinkedItem *to) {
+  return item_distance((SinglyLinkedItem *)from, (SinglyLinkedItem *)to);
+}
+
+size_t dl_list_len(DoublyLinkedItem *head) {
+  return list_len((SinglyLinkedItem *)head);
+}
+
+DoublyLinkedItem *reverse_dl_list(DoublyLinkedItem *head) {
+  DoublyLinkedItem *tmp;
+  DoublyLinkedItem *prev = NULL;
+  while (head) {
+    tmp = head->next;
+    head->next = prev;
+    prev->prev = head;
+    prev = head;
+    head = tmp;
+  }
+  return prev;
+}

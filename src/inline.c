@@ -12,10 +12,16 @@
 Token *new_token(int unsigned type, slice token_slice) {
   Token *t = malloc(sizeof(Token));
   t->next = NULL;
+  t->prev = NULL;
   t->type = type;
   t->start = token_slice.start;
   t->length = token_slice.len;
   return t;
+}
+
+Token *add_token_to_list(Token *head, Token *item) {
+  return (Token *)add_dl_item_to_list((DoublyLinkedItem *)head,
+                                      (DoublyLinkedItem *)item);
 }
 
 bool codepoint_collection_contains(codepoint_collection coll, codepoint cp) {
@@ -89,17 +95,14 @@ Token *next_token(char const line[static 1], size_t line_pos[static 1]) {
 }
 
 Token *build_token_list(char const line[static 1]) {
-  Token *dummy = new_token(ASTN_DOCUMENT, (slice){0, 0});
-  Token *ptr = dummy;
-  size_t line_pos = 0;
+  Token *head = NULL;
   Token *token = NULL;
+  size_t line_pos = 0;
   while ((token = next_token(line, &line_pos))) {
-    ptr->next = token;
-    ptr = ptr->next;
+    head = add_token_to_list(head, token);
   }
-  ptr = dummy->next;
-  free(dummy);
-  return ptr;
+  head = (Token *)reverse_dl_list((DoublyLinkedItem *)head);
+  return head;
 }
 
 void print_token_list(char const line[static 1], Token *head) {
@@ -234,8 +237,8 @@ int unsigned find_next_split(Token ptr[static 1], Token **end_of_split) {
 
 slice slice_based_on_split_type(int unsigned type, Token *opener,
                                 Token *next_split_pos) {
-  size_t len = item_distance((SinglyLinkedItem *)opener,
-                             (SinglyLinkedItem *)next_split_pos);
+  size_t len = item_distance_dl((DoublyLinkedItem *)opener,
+                                (DoublyLinkedItem *)next_split_pos);
   size_t skip = 0;
   if (type == ASTN_CODE_SPAN) {  // don't include backticks
     skip += 1;
@@ -253,7 +256,7 @@ Token *skip_tokens(Token *head, size_t skip) {
 }
 
 size_t token_list_len(Token *head) {
-  return list_len((SinglyLinkedItem *)head);
+  return dl_list_len((DoublyLinkedItem *)head);
 }
 
 Delimiter *new_delimiter_from_token(Token *token) {
@@ -277,6 +280,12 @@ Delimiter *new_delimiter_from_token(Token *token) {
   delim->count = token->length;
   delim->active = true;
   delim->potential_opener = false;  // TODO: determine opener potential
+  return delim;
+}
+
+Delimiter *add_item_to_delimiter_list(Delimiter *head, Delimiter *item) {
+  return (Delimiter *)add_dl_item_to_list((DoublyLinkedItem *)head,
+                                          (DoublyLinkedItem *)item);
 }
 
 /*
@@ -320,9 +329,8 @@ void parse_text(ASTNode node[static 1]) {
         // TODO: Look at contents of new split, determine if delimeter. If so,
         // add new node to delimeter list
         Delimiter *delim = new_delimiter_from_token(ptr);
-
+        delim_list_head = add_item_to_delimiter_list(delim_list_head, delim);
         // is_potential_opener
-        // add delimeter to list
       }
       ptr = end_of_split->next;
       last_split = ptr;

@@ -344,7 +344,8 @@ bool m_block_closing_tag(char line[static 1], size_t match_len[static 1]) {
  * Token-based grammar below this line
  *****************************/
 
-// TODO: Come fix these delimeter run calcs
+// TODO: Come fix these delimeter run calcs. They need to treat token list as a
+// linked list
 
 /*
 Left-flanking delimiter run:

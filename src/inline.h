@@ -442,6 +442,7 @@ static const codepoint_collection TOKEN_CP_RANGES[TOKEN_TYPES_SIZE] = {
 
 typedef struct Token {
   struct Token *next;
+  struct Token *prev;
   int unsigned type;
   size_t start;
   size_t length;
