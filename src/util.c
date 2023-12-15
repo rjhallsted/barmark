@@ -155,10 +155,12 @@ size_t list_len(SinglyLinkedItem *head) {
   return i;
 }
 
-DoublyLinkedItem *add_dl_item_to_list(DoublyLinkedItem *head_ptr,
+DoublyLinkedItem *add_item_to_dl_list(DoublyLinkedItem *head_ptr,
                                       DoublyLinkedItem *item) {
   item->next = head_ptr;
-  head_ptr->prev = item;
+  if (head_ptr) {
+    head_ptr->prev = item;
+  }
   return item;
 }
 
@@ -180,7 +182,9 @@ DoublyLinkedItem *reverse_dl_list(DoublyLinkedItem *head) {
   while (head) {
     tmp = head->next;
     head->next = prev;
-    prev->prev = head;
+    if (prev) {
+      prev->prev = head;
+    }
     prev = head;
     head = tmp;
   }

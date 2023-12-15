@@ -20,7 +20,7 @@ Token *new_token(int unsigned type, slice token_slice) {
 }
 
 Token *add_token_to_list(Token *head, Token *item) {
-  return (Token *)add_dl_item_to_list((DoublyLinkedItem *)head,
+  return (Token *)add_item_to_dl_list((DoublyLinkedItem *)head,
                                       (DoublyLinkedItem *)item);
 }
 
@@ -284,7 +284,7 @@ Delimiter *new_delimiter_from_token(Token *token) {
 }
 
 Delimiter *add_item_to_delimiter_list(Delimiter *head, Delimiter *item) {
-  return (Delimiter *)add_dl_item_to_list((DoublyLinkedItem *)head,
+  return (Delimiter *)add_item_to_dl_list((DoublyLinkedItem *)head,
                                           (DoublyLinkedItem *)item);
 }
 

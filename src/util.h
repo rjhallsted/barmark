@@ -43,7 +43,7 @@ typedef struct DoublyLinkedItem {
   struct DoublyLinkedItem *prev;
 } DoublyLinkedItem;
 
-DoublyLinkedItem *add_dl_item_to_list(DoublyLinkedItem *head_ptr,
+DoublyLinkedItem *add_item_to_dl_list(DoublyLinkedItem *head_ptr,
                                       DoublyLinkedItem *item);
 DoublyLinkedItem *last_item_of_dl_list(DoublyLinkedItem *head);
 DoublyLinkedItem *reverse_dl_list(DoublyLinkedItem *head);
