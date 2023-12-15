@@ -463,6 +463,7 @@ typedef struct Delimiter {
   size_t count;
   bool active;
   bool potential_opener;
+  bool potential_closer;
 } Delimiter;
 
 #endif  // INLINE_H

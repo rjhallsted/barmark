@@ -353,49 +353,40 @@ Left-flanking delimiter run:
 OR
 [star-delimeter-run,underscore-delimiter-run],![unicode-whitespace,unicode-punctuation]
 */
-bool mt_left_flanking_delimiter_run_1(Token *token_list[static 1], size_t pos,
-                                      size_t *match_len) {
-  if (pos == 0) {
+bool mt_left_flanking_delimiter_run_1(Token *token) {
+  if (!token) {
     return false;
   }
-  if (!token_list[pos - 1] || (token_list[pos - 1]->type != TOKEN_PUNCTUATION &&
-                               token_list[pos - 1]->type != TOKEN_WHITESPACE)) {
+  if (!token->prev || (token->prev->type != TOKEN_PUNCTUATION &&
+                       token->prev->type != TOKEN_WHITESPACE)) {
     return false;
   }
-  if (!token_list[pos - 1] ||
-      (token_list[pos - 1]->type != TOKEN_STARS &&
-       token_list[pos - 1]->type != TOKEN_UNDERSCORES)) {
+  if (token->type != TOKEN_STARS && token->type != TOKEN_UNDERSCORES) {
     return false;
   }
-  if (!token_list[pos + 1] || token_list[pos + 1]->type != TOKEN_PUNCTUATION) {
+  if (!token->next || token->next->type != TOKEN_PUNCTUATION) {
     return false;
   }
-  *match_len = 1;
   return true;
 }
 
-bool mt_left_flanking_delimiter_run_2(Token *token_list[static 1], size_t pos,
-                                      size_t *match_len) {
-  if (pos == 0) {
+bool mt_left_flanking_delimiter_run_2(Token *token) {
+  if (!token) {
     return false;
   }
-  if (!token_list[pos - 1] ||
-      (token_list[pos - 1]->type != TOKEN_STARS &&
-       token_list[pos - 1]->type != TOKEN_UNDERSCORES)) {
+  if (token->type != TOKEN_STARS && token->type != TOKEN_UNDERSCORES) {
     return false;
   }
-  if (token_list[pos] && (token_list[pos]->type == TOKEN_PUNCTUATION ||
-                          token_list[pos]->type == TOKEN_WHITESPACE)) {
+  if (!token->next || token->next->type == TOKEN_WHITESPACE ||
+      token->next->type == TOKEN_PUNCTUATION) {
     return false;
   }
-  *match_len = 1;
   return true;
 }
 
-bool mt_left_flanking_delimiter_run(Token *token_list[static 1], size_t pos,
-                                    size_t *match_len) {
-  return mt_left_flanking_delimiter_run_1(token_list, pos, match_len) ||
-         mt_left_flanking_delimiter_run_2(token_list, pos, match_len);
+bool mt_left_flanking_delimiter_run(Token *token) {
+  return mt_left_flanking_delimiter_run_1(token) ||
+         mt_left_flanking_delimiter_run_2(token);
 }
 
 /*
@@ -404,40 +395,35 @@ unicode-punctuation,[star-delimeter-run,underscore-delimiter-run],[unicode-white
 OR
 ![unicode-punctuation,unicode-whitespace],[star-delimeter-run,underscore-delimiter-run]
 */
-bool mt_right_flanking_delimiter_run_1(Token *token_list[static 1], size_t pos,
-                                       size_t *match_len) {
-  if (!token_list[pos - 1] || token_list[pos - 1]->type != TOKEN_PUNCTUATION) {
+bool mt_right_flanking_delimiter_run_1(Token *token) {
+  if (!token || !token->prev || token->prev->type != TOKEN_PUNCTUATION) {
     return false;
   }
-  if (!token_list[pos] || (token_list[pos]->type != TOKEN_STARS &&
-                           token_list[pos]->type != TOKEN_UNDERSCORES)) {
+  if (token->type != TOKEN_STARS && token->type != TOKEN_UNDERSCORES) {
     return false;
   }
-  if (!token_list[pos + 1] ||
-      (token_list[pos + 1]->type != TOKEN_PUNCTUATION &&
-       token_list[pos + 1]->type != TOKEN_PUNCTUATION)) {
+  if (!token->next || (token->next->type != TOKEN_WHITESPACE &&
+                       token->next->type != TOKEN_PUNCTUATION)) {
     return false;
   }
-  *match_len = 1;
   return true;
 }
 
-bool mt_right_flanking_delimiter_run_2(Token *token_list[static 1], size_t pos,
-                                       size_t *match_len) {
-  if (token_list[pos - 1] && (token_list[pos - 1]->type == TOKEN_PUNCTUATION ||
-                              token_list[pos - 1]->type == TOKEN_WHITESPACE)) {
+bool mt_right_flanking_delimiter_run_2(Token *token) {
+  if (!token || !token->prev) {
     return false;
   }
-  if (!token_list[pos] || (token_list[pos]->type != TOKEN_STARS &&
-                           token_list[pos]->type != TOKEN_UNDERSCORES)) {
+  if (token->prev->type != TOKEN_PUNCTUATION &&
+      token->prev->type != TOKEN_WHITESPACE) {
     return false;
   }
-  *match_len = 1;
+  if (token->type != TOKEN_UNDERSCORES && token->type != TOKEN_STARS) {
+    return false;
+  }
   return true;
 }
 
-bool mt_right_flanking_delimiter_run(Token *token_list[static 1], size_t pos,
-                                     size_t *match_len) {
-  return mt_right_flanking_delimiter_run_1(token_list, pos, match_len) ||
-         mt_right_flanking_delimiter_run_2(token_list, pos, match_len);
+bool mt_right_flanking_delimiter_run(Token *token) {
+  return mt_right_flanking_delimiter_run_1(token) ||
+         mt_right_flanking_delimiter_run_2(token);
 }
